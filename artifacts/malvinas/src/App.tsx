@@ -495,13 +495,8 @@ function MainScreen() {
       {/* Main UI */}
       <div className="relative z-20 flex flex-col items-center w-full max-w-md px-6 py-10 min-h-[100dvh] justify-between">
 
-        {/* Header */}
-        <div className="flex flex-col items-center animate-in fade-in slide-in-from-top-8 duration-700 mt-4">
-          <SolDeMayo className="w-12 h-12 mb-3 drop-shadow-md" />
-          <h1 className="text-white text-2xl font-bold font-serif tracking-widest drop-shadow-lg text-center uppercase">
-            Islas Malvinas
-          </h1>
-        </div>
+        {/* Header — sol e título removidos */}
+        <div />
 
         {/* Hero Data */}
         <div className="flex flex-col items-center justify-center w-full flex-1 my-8 gap-4">
@@ -519,7 +514,7 @@ function MainScreen() {
             <div className="flex flex-col items-center text-center animate-in zoom-in-95 fade-in duration-700">
               <div className="flex items-center gap-2 text-[#74ACDF] mb-3 opacity-90">
                 <Navigation className="w-4 h-4 -mt-0.5" />
-                <span className="text-sm md:text-base font-semibold tracking-[0.2em] uppercase font-sans">
+                <span className="text-2xl md:text-3xl font-semibold tracking-[0.2em] uppercase font-sans">
                   Estas a
                 </span>
               </div>
@@ -537,7 +532,7 @@ function MainScreen() {
               </div>
 
               <p className="text-xl md:text-2xl text-white mt-4 font-serif italic font-medium drop-shadow-md">
-                de Monte Longdon
+                de Islas Malvinas
               </p>
 
               <div className="w-16 h-[3px] bg-[#74ACDF]/60 my-5 rounded-full" />
