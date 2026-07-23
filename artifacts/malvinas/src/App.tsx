@@ -2,12 +2,14 @@ import React, { useState, useEffect, useRef } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { MapPin, RefreshCw, Share2, Upload, Navigation } from 'lucide-react';
+import { MapPin, RefreshCw, Share2, Upload, Navigation, Wifi, Edit3, Search } from 'lucide-react';
 
 const queryClient = new QueryClient();
 
 const PUERTO_ARGENTINO_LAT = -51.6938;
 const PUERTO_ARGENTINO_LON = -57.8483;
+
+type LocationSource = 'gps' | 'ip' | 'manual' | null;
 
 function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
   const R = 6371;
@@ -20,6 +22,60 @@ function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
   return R * c;
 }
 
+function formatDegrees(value: number, posLabel: string, negLabel: string): string {
+  return value >= 0
+    ? `${value.toFixed(4)}° ${posLabel}`
+    : `${Math.abs(value).toFixed(4)}° ${negLabel}`;
+}
+
+/** Try GPS geolocation. Resolves with coordinates or rejects on failure. */
+function fetchByGPS(): Promise<{ lat: number; lon: number }> {
+  return new Promise((resolve, reject) => {
+    if (!navigator.geolocation) {
+      reject(new Error('no-geolocation'));
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
+      (err) => reject(err),
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    );
+  });
+}
+
+/** Try IP-based geolocation using ipapi.co (free, HTTPS, no key required). */
+async function fetchByIP(): Promise<{ lat: number; lon: number; city: string; country: string }> {
+  const res = await fetch('https://ipapi.co/json/', { signal: AbortSignal.timeout(8000) });
+  if (!res.ok) throw new Error('ip-api-failed');
+  const data = await res.json();
+  if (typeof data.latitude !== 'number' || typeof data.longitude !== 'number') {
+    throw new Error('ip-api-no-coords');
+  }
+  return {
+    lat: data.latitude,
+    lon: data.longitude,
+    city: data.city ?? '',
+    country: data.country_name ?? '',
+  };
+}
+
+/** Geocode a city name using OpenStreetMap Nominatim (free, no key). */
+async function geocodeCity(query: string): Promise<{ lat: number; lon: number; displayName: string }> {
+  const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1`;
+  const res = await fetch(url, {
+    headers: { 'Accept-Language': 'es', 'User-Agent': 'MalvinasApp/1.0' },
+    signal: AbortSignal.timeout(8000),
+  });
+  if (!res.ok) throw new Error('geocode-failed');
+  const data = await res.json();
+  if (!data.length) throw new Error('not-found');
+  return {
+    lat: parseFloat(data[0].lat),
+    lon: parseFloat(data[0].lon),
+    displayName: data[0].display_name,
+  };
+}
+
 async function generateStoryImage(
   backgroundImg: HTMLImageElement | null,
   distanceKm: number,
@@ -30,8 +86,7 @@ async function generateStoryImage(
   canvas.width = 1080;
   canvas.height = 1920;
   const ctx = canvas.getContext('2d')!;
-  
-  // 1. Background: draw image or fallback gradient
+
   if (backgroundImg) {
     const imgAspect = backgroundImg.naturalWidth / backgroundImg.naturalHeight;
     const canvasAspect = 1080 / 1920;
@@ -49,19 +104,16 @@ async function generateStoryImage(
     }
     ctx.drawImage(backgroundImg, sx, sy, sw, sh, 0, 0, 1080, 1920);
   } else {
-    // Gradient fallback
     const grad = ctx.createLinearGradient(0, 0, 0, 1920);
     grad.addColorStop(0, '#74ACDF');
     grad.addColorStop(1, '#1a3d6e');
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, 1080, 1920);
   }
-  
-  // 2. Dark overlay
+
   ctx.fillStyle = 'rgba(0, 20, 60, 0.55)';
   ctx.fillRect(0, 0, 1080, 1920);
-  
-  // 3. Top: "LAS MALVINAS SON ARGENTINAS"
+
   ctx.fillStyle = '#FFFFFF';
   ctx.font = 'bold 88px Georgia, serif';
   ctx.textAlign = 'center';
@@ -69,16 +121,14 @@ async function generateStoryImage(
   ctx.fillText('LAS MALVINAS', 540, 200);
   ctx.fillText('SON', 540, 310);
   ctx.fillText('ARGENTINAS', 540, 420);
-  
-  // 4. Decorative horizontal line
+
   ctx.strokeStyle = '#74ACDF';
   ctx.lineWidth = 4;
   ctx.beginPath();
   ctx.moveTo(160, 560);
   ctx.lineTo(920, 560);
   ctx.stroke();
-  
-  // 5. Distance
+
   const formattedDist = distanceKm >= 1000
     ? Math.round(distanceKm).toLocaleString('es-AR')
     : Math.round(distanceKm).toString();
@@ -86,32 +136,29 @@ async function generateStoryImage(
   ctx.font = 'bold 180px Arial, sans-serif';
   ctx.textBaseline = 'middle';
   ctx.fillText(formattedDist + ' km', 540, 900);
-  
-  // 6. "de Puerto Argentino"
+
   ctx.font = '60px Arial, sans-serif';
   ctx.fillStyle = '#74ACDF';
   ctx.fillText('de Puerto Argentino', 540, 1050);
-  
-  // 7. Decorative line
+
   ctx.strokeStyle = '#74ACDF';
   ctx.lineWidth = 4;
   ctx.beginPath();
   ctx.moveTo(160, 1150);
   ctx.lineTo(920, 1150);
   ctx.stroke();
-  
-  // 8. User coordinates
+
   ctx.fillStyle = 'rgba(255,255,255,0.8)';
   ctx.font = '44px Arial, sans-serif';
-  const latLabel = userLat >= 0 ? `${userLat.toFixed(4)}° N` : `${Math.abs(userLat).toFixed(4)}° S`;
-  const lonLabel = userLon >= 0 ? `${userLon.toFixed(4)}° E` : `${Math.abs(userLon).toFixed(4)}° O`;
-  ctx.fillText(`${latLabel}  |  ${lonLabel}`, 540, 1250);
-  
-  // 9. Bottom: app attribution
+  ctx.fillText(
+    `${formatDegrees(userLat, 'N', 'S')}  |  ${formatDegrees(userLon, 'E', 'O')}`,
+    540, 1250
+  );
+
   ctx.fillStyle = 'rgba(255,255,255,0.5)';
   ctx.font = '36px Arial, sans-serif';
   ctx.fillText('Distancia a Las Malvinas', 540, 1800);
-  
+
   return new Promise((resolve) => canvas.toBlob(resolve!, 'image/jpeg', 0.92));
 }
 
@@ -120,7 +167,7 @@ async function shareStoryImage(blob: Blob, distanceKm: number) {
   const distText = distanceKm >= 1000
     ? Math.round(distanceKm).toLocaleString('es-AR')
     : Math.round(distanceKm).toString();
-  
+
   if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
     try {
       await navigator.share({
@@ -128,11 +175,10 @@ async function shareStoryImage(blob: Blob, distanceKm: number) {
         title: 'Las Malvinas son Argentinas',
         text: `Estoy a ${distText} km de Puerto Argentino. Las Malvinas son Argentinas.`,
       });
-    } catch (err) {
-      // User cancelled, no action needed
+    } catch {
+      // User cancelled — no action needed
     }
   } else {
-    // Fallback: download
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -166,38 +212,224 @@ const MalvinasSilhouette = ({ className }: { className?: string }) => (
   </svg>
 );
 
-function MainScreen() {
-  const [location, setLocation] = useState<{lat: number, lon: number} | null>(null);
-  const [loading, setLoading] = useState(false);
+/** Badge showing how the location was obtained */
+function SourceBadge({ source, city }: { source: LocationSource; city: string | null }) {
+  if (!source) return null;
+  const configs = {
+    gps: {
+      icon: <Navigation className="w-3 h-3" />,
+      label: 'GPS preciso',
+      cls: 'bg-emerald-500/20 border-emerald-400/30 text-emerald-300',
+    },
+    ip: {
+      icon: <Wifi className="w-3 h-3" />,
+      label: city ? `Aprox. por IP — ${city}` : 'Ubicacion aproximada por IP',
+      cls: 'bg-amber-500/20 border-amber-400/30 text-amber-300',
+    },
+    manual: {
+      icon: <Edit3 className="w-3 h-3" />,
+      label: 'Ubicacion ingresada manualmente',
+      cls: 'bg-sky-500/20 border-sky-400/30 text-sky-300',
+    },
+  };
+  const cfg = configs[source];
+  return (
+    <span className={`inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full border ${cfg.cls}`}>
+      {cfg.icon}
+      {cfg.label}
+    </span>
+  );
+}
+
+/** Manual entry form — city search or raw lat/lon */
+function ManualForm({ onConfirm }: { onConfirm: (lat: number, lon: number, label: string) => void }) {
+  const [mode, setMode] = useState<'city' | 'coords'>('city');
+  const [cityInput, setCityInput] = useState('');
+  const [latInput, setLatInput] = useState('');
+  const [lonInput, setLonInput] = useState('');
+  const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const handleCitySearch = async () => {
+    const q = cityInput.trim();
+    if (!q) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await geocodeCity(q);
+      onConfirm(result.lat, result.lon, q);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : '';
+      setError(msg === 'not-found'
+        ? 'No se encontró esa ciudad. Intentá con un nombre más específico.'
+        : 'Error al buscar. Verificá tu conexion e intentá de nuevo.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleCoordsConfirm = () => {
+    const lat = parseFloat(latInput.replace(',', '.'));
+    const lon = parseFloat(lonInput.replace(',', '.'));
+    if (isNaN(lat) || isNaN(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+      setError('Coordenadas inválidas. Latitud: -90 a 90. Longitud: -180 a 180.');
+      return;
+    }
+    onConfirm(lat, lon, `${lat.toFixed(4)}, ${lon.toFixed(4)}`);
+  };
+
+  return (
+    <div
+      className="w-full bg-black/30 border border-white/15 rounded-2xl p-5 backdrop-blur-md animate-in zoom-in-95 fade-in duration-400"
+      data-testid="manual-form"
+    >
+      <div className="flex items-center gap-2 mb-4">
+        <Edit3 className="w-4 h-4 text-[#74ACDF]" />
+        <p className="text-white font-semibold text-sm">Ingresar ubicación manualmente</p>
+      </div>
+
+      {/* Mode tabs */}
+      <div className="flex bg-white/10 rounded-lg p-1 mb-4">
+        <button
+          onClick={() => { setMode('city'); setError(null); }}
+          className={`flex-1 text-xs font-semibold py-1.5 rounded-md transition-all duration-200 ${
+            mode === 'city' ? 'bg-[#74ACDF] text-[#00143c]' : 'text-white/60 hover:text-white'
+          }`}
+        >
+          Ciudad
+        </button>
+        <button
+          onClick={() => { setMode('coords'); setError(null); }}
+          className={`flex-1 text-xs font-semibold py-1.5 rounded-md transition-all duration-200 ${
+            mode === 'coords' ? 'bg-[#74ACDF] text-[#00143c]' : 'text-white/60 hover:text-white'
+          }`}
+        >
+          Coordenadas
+        </button>
+      </div>
+
+      {mode === 'city' ? (
+        <div className="flex gap-2">
+          <input
+            type="text"
+            placeholder="Ej: Buenos Aires, Argentina"
+            value={cityInput}
+            onChange={(e) => setCityInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleCitySearch()}
+            data-testid="input-manual-city"
+            className="flex-1 bg-white/10 border border-white/20 rounded-lg px-3 py-2.5 text-white text-sm placeholder:text-white/40 focus:outline-none focus:border-[#74ACDF]/60 focus:bg-white/15 transition-all"
+          />
+          <button
+            onClick={handleCitySearch}
+            disabled={busy || !cityInput.trim()}
+            data-testid="button-search-city"
+            className="bg-[#74ACDF] hover:bg-[#5a93c7] active:bg-[#4a82b3] disabled:opacity-50 text-[#00143c] px-3 py-2.5 rounded-lg font-bold transition-colors flex items-center gap-1.5"
+          >
+            {busy ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+          </button>
+        </div>
+      ) : (
+        <div className="flex gap-2">
+          <input
+            type="text"
+            inputMode="decimal"
+            placeholder="Latitud (-90 a 90)"
+            value={latInput}
+            onChange={(e) => setLatInput(e.target.value)}
+            data-testid="input-manual-lat"
+            className="flex-1 bg-white/10 border border-white/20 rounded-lg px-3 py-2.5 text-white text-sm placeholder:text-white/40 focus:outline-none focus:border-[#74ACDF]/60 focus:bg-white/15 transition-all"
+          />
+          <input
+            type="text"
+            inputMode="decimal"
+            placeholder="Longitud (-180 a 180)"
+            value={lonInput}
+            onChange={(e) => setLonInput(e.target.value)}
+            data-testid="input-manual-lon"
+            className="flex-1 bg-white/10 border border-white/20 rounded-lg px-3 py-2.5 text-white text-sm placeholder:text-white/40 focus:outline-none focus:border-[#74ACDF]/60 focus:bg-white/15 transition-all"
+          />
+          <button
+            onClick={handleCoordsConfirm}
+            disabled={!latInput.trim() || !lonInput.trim()}
+            data-testid="button-confirm-coords"
+            className="bg-[#74ACDF] hover:bg-[#5a93c7] active:bg-[#4a82b3] disabled:opacity-50 text-[#00143c] px-3 py-2.5 rounded-lg font-bold transition-colors"
+          >
+            OK
+          </button>
+        </div>
+      )}
+
+      {error && (
+        <p className="mt-3 text-red-300 text-xs leading-snug" data-testid="manual-form-error">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function MainScreen() {
+  const [location, setLocation] = useState<{ lat: number; lon: number } | null>(null);
+  const [locationSource, setLocationSource] = useState<LocationSource>(null);
+  const [locationCity, setLocationCity] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<string>('Obteniendo ubicacion GPS...');
+  const [loading, setLoading] = useState(false);
+  const [showManualForm, setShowManualForm] = useState(false);
   const [backgroundUrl, setBackgroundUrl] = useState<string | null>(null);
   const [backgroundImg, setBackgroundImage] = useState<HTMLImageElement | null>(null);
   const [generatingStory, setGeneratingStory] = useState(false);
-  
+
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const fetchLocation = () => {
+  /**
+   * Fetch location with three-tier fallback:
+   * 1. Browser GPS
+   * 2. IP-based geolocation (ipapi.co)
+   * 3. Manual form (shown to the user)
+   */
+  const fetchLocation = async () => {
     setLoading(true);
-    setError(null);
-    if (!navigator.geolocation) {
-      setError('Geolocalización no soportada por el navegador.');
+    setShowManualForm(false);
+    setStatusMessage('Obteniendo ubicacion GPS...');
+
+    // --- Tier 1: GPS ---
+    try {
+      const coords = await fetchByGPS();
+      setLocation(coords);
+      setLocationSource('gps');
+      setLocationCity(null);
+      setStatusMessage('');
       setLoading(false);
       return;
+    } catch {
+      // GPS failed — try IP next
+      setStatusMessage('GPS no disponible. Buscando por IP...');
     }
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setLocation({
-          lat: pos.coords.latitude,
-          lon: pos.coords.longitude
-        });
-        setLoading(false);
-      },
-      (err) => {
-        setError('No se pudo obtener la ubicación. Verificá los permisos de GPS.');
-        setLoading(false);
-      },
-      { enableHighAccuracy: true, timeout: 15000 }
-    );
+
+    // --- Tier 2: IP geolocation ---
+    try {
+      const ipData = await fetchByIP();
+      setLocation({ lat: ipData.lat, lon: ipData.lon });
+      setLocationSource('ip');
+      setLocationCity(ipData.city || ipData.country || null);
+      setStatusMessage('');
+      setLoading(false);
+      return;
+    } catch {
+      // IP also failed — show manual form
+      setStatusMessage('');
+    }
+
+    // --- Tier 3: Manual form ---
+    setLoading(false);
+    setShowManualForm(true);
+  };
+
+  const handleManualConfirm = (lat: number, lon: number, label: string) => {
+    setLocation({ lat, lon });
+    setLocationSource('manual');
+    setLocationCity(label);
+    setShowManualForm(false);
   };
 
   useEffect(() => {
@@ -211,9 +443,11 @@ function MainScreen() {
     fetchLocation();
   }, []);
 
-  const distanceKm = location ? haversineDistance(location.lat, location.lon, PUERTO_ARGENTINO_LAT, PUERTO_ARGENTINO_LON) : null;
-  const formattedDistance = distanceKm !== null 
-    ? (distanceKm >= 1000 ? Math.round(distanceKm).toLocaleString('es-AR') : Math.round(distanceKm).toString()) 
+  const distanceKm = location
+    ? haversineDistance(location.lat, location.lon, PUERTO_ARGENTINO_LAT, PUERTO_ARGENTINO_LON)
+    : null;
+  const formattedDistance = distanceKm !== null
+    ? (distanceKm >= 1000 ? Math.round(distanceKm).toLocaleString('es-AR') : Math.round(distanceKm).toString())
     : '--';
 
   const onShare = async () => {
@@ -255,12 +489,12 @@ function MainScreen() {
         </div>
       )}
 
-      {/* Dark Overlay for Readability */}
+      {/* Dark Overlay */}
       <div className="absolute inset-0 z-10 bg-[#00143c]/50 backdrop-blur-[2px]" />
 
       {/* Main UI */}
       <div className="relative z-20 flex flex-col items-center w-full max-w-md px-6 py-10 min-h-[100dvh] justify-between">
-        
+
         {/* Header */}
         <div className="flex flex-col items-center animate-in fade-in slide-in-from-top-8 duration-700 mt-4">
           <SolDeMayo className="w-12 h-12 mb-3 drop-shadow-md" />
@@ -270,24 +504,18 @@ function MainScreen() {
         </div>
 
         {/* Hero Data */}
-        <div className="flex flex-col items-center justify-center w-full flex-1 my-8">
-          {loading && !location ? (
-            <div className="flex flex-col items-center gap-4 animate-in fade-in duration-500" data-testid="status-location">
-              <RefreshCw className="w-8 h-8 text-[#74ACDF] animate-spin" />
-              <p className="text-white/80 font-medium">Obteniendo ubicación...</p>
+        <div className="flex flex-col items-center justify-center w-full flex-1 my-8 gap-4">
+
+          {/* Status / loading */}
+          {loading && (
+            <div className="flex flex-col items-center gap-3 animate-in fade-in duration-400" data-testid="status-location">
+              <RefreshCw className="w-7 h-7 text-[#74ACDF] animate-spin" />
+              <p className="text-white/80 font-medium text-sm">{statusMessage}</p>
             </div>
-          ) : error && !location ? (
-            <div className="flex flex-col items-center gap-4 text-center bg-red-500/20 p-6 rounded-2xl border border-red-500/30 backdrop-blur-md animate-in zoom-in-95 duration-500" data-testid="status-location">
-              <MapPin className="w-8 h-8 text-red-400" />
-              <p className="text-white font-medium">{error}</p>
-              <button 
-                onClick={fetchLocation} 
-                className="mt-2 text-sm text-white/90 bg-red-500/40 px-5 py-2.5 rounded-lg font-medium hover:bg-red-500/60 transition-colors"
-              >
-                Reintentar
-              </button>
-            </div>
-          ) : location ? (
+          )}
+
+          {/* Distance display — shown when we have a location */}
+          {!loading && location && (
             <div className="flex flex-col items-center text-center animate-in zoom-in-95 fade-in duration-700">
               <div className="flex items-center gap-2 text-[#74ACDF] mb-3 opacity-90">
                 <Navigation className="w-4 h-4 -mt-0.5" />
@@ -295,35 +523,51 @@ function MainScreen() {
                   Distancia
                 </span>
               </div>
-              
+
               <div className="relative">
-                <span className="text-7xl md:text-8xl font-black text-white tracking-tighter font-sans drop-shadow-[0_4px_12px_rgba(0,0,0,0.5)]" data-testid="text-distance">
+                <span
+                  className="text-7xl md:text-8xl font-black text-white tracking-tighter font-sans drop-shadow-[0_4px_12px_rgba(0,0,0,0.5)]"
+                  data-testid="text-distance"
+                >
                   {formattedDistance}
                 </span>
                 <span className="absolute -right-10 bottom-3 text-2xl font-bold text-[#74ACDF] drop-shadow-md">
                   km
                 </span>
               </div>
-              
+
               <p className="text-xl md:text-2xl text-white mt-4 font-serif italic font-medium drop-shadow-md">
                 de Puerto Argentino
               </p>
-              
-              <div className="w-16 h-[3px] bg-[#74ACDF]/60 my-8 rounded-full" />
-              
-              <div className="flex flex-col items-center gap-1 bg-black/25 px-6 py-3 rounded-2xl border border-white/10 backdrop-blur-md shadow-lg">
+
+              <div className="w-16 h-[3px] bg-[#74ACDF]/60 my-5 rounded-full" />
+
+              <div className="flex flex-col items-center gap-3 bg-black/25 px-6 py-3 rounded-2xl border border-white/10 backdrop-blur-md shadow-lg">
                 <div className="text-white/80 text-xs md:text-sm font-medium flex gap-4 font-mono">
                   <span data-testid="text-latitude">
-                    Lat: {location.lat >= 0 ? `${location.lat.toFixed(4)}° N` : `${Math.abs(location.lat).toFixed(4)}° S`}
+                    Lat: {formatDegrees(location.lat, 'N', 'S')}
                   </span>
                   <span className="text-white/30">|</span>
                   <span data-testid="text-longitude">
-                    Lon: {location.lon >= 0 ? `${location.lon.toFixed(4)}° E` : `${Math.abs(location.lon).toFixed(4)}° O`}
+                    Lon: {formatDegrees(location.lon, 'E', 'O')}
                   </span>
                 </div>
+                <SourceBadge source={locationSource} city={locationCity} />
               </div>
             </div>
-          ) : null}
+          )}
+
+          {/* Manual form — shown when both GPS and IP fail */}
+          {!loading && showManualForm && (
+            <div className="w-full flex flex-col items-center gap-4 animate-in fade-in duration-500">
+              <div className="flex flex-col items-center gap-2 text-center" data-testid="status-location">
+                <MapPin className="w-7 h-7 text-amber-400" />
+                <p className="text-white font-semibold text-sm">No se pudo detectar tu ubicacion</p>
+                <p className="text-white/60 text-xs">Ingresala manualmente para continuar</p>
+              </div>
+              <ManualForm onConfirm={handleManualConfirm} />
+            </div>
+          )}
         </div>
 
         {/* Action Buttons */}
@@ -335,9 +579,9 @@ function MainScreen() {
             className="w-full relative overflow-hidden group bg-white/10 hover:bg-white/20 active:bg-white/15 text-white border border-white/20 px-6 py-4 rounded-xl font-semibold text-base flex items-center justify-center gap-3 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed backdrop-blur-md"
           >
             <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin text-[#74ACDF]' : 'group-hover:rotate-180 transition-transform duration-500'}`} />
-            {loading ? 'Actualizando...' : 'Actualizar ubicación'}
+            {loading ? 'Actualizando...' : 'Actualizar ubicacion'}
           </button>
-          
+
           <button
             onClick={onShare}
             disabled={!location || loading || generatingStory}
@@ -353,15 +597,15 @@ function MainScreen() {
           </button>
 
           <div className="flex justify-center mt-3">
-            <input 
-              type="file" 
-              accept="image/png, image/jpeg" 
-              className="hidden" 
+            <input
+              type="file"
+              accept="image/png, image/jpeg"
+              className="hidden"
               ref={fileInputRef}
               onChange={handleImageUpload}
               data-testid="input-image-upload"
             />
-            <button 
+            <button
               onClick={() => fileInputRef.current?.click()}
               data-testid="button-change-image"
               className="flex items-center gap-2 text-white/60 hover:text-white/100 text-sm font-medium transition-colors py-2 px-4 rounded-lg hover:bg-white/5"
