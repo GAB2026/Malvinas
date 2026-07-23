@@ -1,0 +1,27 @@
+kind = "web"
+previewPath = "/"
+title = "Distancia a Las Malvinas"
+version = "1.0.0"
+id = "artifacts/malvinas"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 26085
+
+[services.development]
+run = "pnpm --filter @workspace/malvinas run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/malvinas", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/malvinas/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "26085"
+BASE_PATH = "/"
