@@ -479,12 +479,12 @@ function MainScreen() {
   };
 
   return (
-    <div className="relative min-h-[100dvh] w-full flex flex-col items-center justify-center overflow-hidden font-sans bg-green-700">
-      {/* Background Layer — inset so the green border is visible all around */}
+    <div className="relative min-h-[100dvh] w-full flex flex-col items-center justify-center overflow-hidden font-sans bg-[#0D1B2A]">
+      {/* Background Layer */}
       {backgroundUrl ? (
-        <img src={backgroundUrl} alt="Fondo" className="absolute inset-3 w-[calc(100%-1.5rem)] h-[calc(100%-1.5rem)] object-cover z-0 rounded-sm" />
+        <img src={backgroundUrl} alt="Fondo" className="absolute inset-0 w-full h-full object-cover z-0" />
       ) : (
-        <div className="absolute inset-3 w-[calc(100%-1.5rem)] h-[calc(100%-1.5rem)] z-0 rounded-sm bg-gradient-to-b from-[#74ACDF] to-[#1a3d6e] flex items-center justify-center overflow-hidden">
+        <div className="absolute inset-0 w-full h-full z-0 bg-gradient-to-b from-[#74ACDF] to-[#1a3d6e] flex items-center justify-center">
           <MalvinasSilhouette className="w-[55%] text-[#4A8FCE] opacity-30 mix-blend-overlay" />
         </div>
       )}
