@@ -520,7 +520,7 @@ function MainScreen() {
               <div className="flex items-center gap-2 text-[#74ACDF] mb-3 opacity-90">
                 <Navigation className="w-4 h-4 -mt-0.5" />
                 <span className="text-sm md:text-base font-semibold tracking-[0.2em] uppercase font-sans">
-                  Distancia
+                  Estas a
                 </span>
               </div>
 
@@ -537,22 +537,16 @@ function MainScreen() {
               </div>
 
               <p className="text-xl md:text-2xl text-white mt-4 font-serif italic font-medium drop-shadow-md">
-                de Puerto Argentino
+                de Monte Longdon
               </p>
 
               <div className="w-16 h-[3px] bg-[#74ACDF]/60 my-5 rounded-full" />
 
-              <div className="flex flex-col items-center gap-3 bg-black/25 px-6 py-3 rounded-2xl border border-white/10 backdrop-blur-md shadow-lg">
-                <div className="text-white/80 text-xs md:text-sm font-medium flex gap-4 font-mono">
-                  <span data-testid="text-latitude">
-                    Lat: {formatDegrees(location.lat, 'N', 'S')}
-                  </span>
-                  <span className="text-white/30">|</span>
-                  <span data-testid="text-longitude">
-                    Lon: {formatDegrees(location.lon, 'E', 'O')}
-                  </span>
-                </div>
+              <div className="flex flex-col items-center gap-3">
                 <SourceBadge source={locationSource} city={locationCity} />
+                {/* lat/lon hidden — kept in DOM for data-testid consumers */}
+                <span data-testid="text-latitude" className="hidden">{formatDegrees(location.lat, 'N', 'S')}</span>
+                <span data-testid="text-longitude" className="hidden">{formatDegrees(location.lon, 'E', 'O')}</span>
               </div>
             </div>
           )}
