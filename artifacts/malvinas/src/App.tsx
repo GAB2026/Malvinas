@@ -485,7 +485,7 @@ function MainScreen() {
         <img src={backgroundUrl} alt="Fondo" className="absolute inset-3 w-[calc(100%-1.5rem)] h-[calc(100%-1.5rem)] object-cover z-0 rounded-sm" />
       ) : (
         <div className="absolute inset-3 w-[calc(100%-1.5rem)] h-[calc(100%-1.5rem)] z-0 rounded-sm bg-gradient-to-b from-[#74ACDF] to-[#1a3d6e] flex items-center justify-center overflow-hidden">
-          <MalvinasSilhouette className="w-[120%] text-[#4A8FCE] opacity-30 mix-blend-overlay" />
+          <MalvinasSilhouette className="w-[55%] text-[#4A8FCE] opacity-30 mix-blend-overlay" />
         </div>
       )}
 
