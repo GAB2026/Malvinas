@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import defaultBgUrl from './assets/default-bg.jpg';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -281,7 +282,7 @@ function SourceBadge({ source, city }: { source: LocationSource; city: string | 
   const configs = {
     gps: {
       icon: <Navigation className="w-3 h-3" />,
-      label: 'GPS preciso',
+      label: city ? `GPS preciso — ${city}` : 'GPS preciso',
       cls: 'bg-emerald-500/20 border-emerald-400/30 text-emerald-300',
     },
     ip: {
@@ -503,7 +504,7 @@ function MainScreen() {
 
   useEffect(() => {
     const savedBg = localStorage.getItem('malvinas-bg');
-    const bgSrc = savedBg ?? (import.meta.env.BASE_URL + 'default-bg.jpg');
+    const bgSrc = savedBg ?? defaultBgUrl;
     setBackgroundUrl(bgSrc);
     const img = new Image();
     img.src = bgSrc;
