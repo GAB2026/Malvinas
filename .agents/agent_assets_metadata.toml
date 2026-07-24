@@ -6,3 +6,9 @@ id = "FpIy0t6B2FNI44tw-xspq"
 uri = "file://app-debug.apk"
 type = "unspecified"
 title = "Distancia a Las Malvinas — app-debug.apk"
+
+[[outputs]]
+id = "ehiy2p_IiEzxBcX--cx7V"
+uri = "file://qr-apk.png"
+type = "image"
+title = "QR — Descargar APK desde el teléfono"
