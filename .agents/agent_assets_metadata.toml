@@ -12,3 +12,9 @@ id = "ehiy2p_IiEzxBcX--cx7V"
 uri = "file://qr-apk.png"
 type = "image"
 title = "QR — Descargar APK desde el teléfono"
+
+[[outputs]]
+id = "I-cUNrnN1HTZWKq3_5Rpi"
+uri = "file://qr-apk-v2.png"
+type = "image"
+title = "QR — Descargar APK v1.0.1 (con bandera)"
