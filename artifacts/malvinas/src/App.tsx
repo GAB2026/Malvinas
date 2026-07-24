@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { MapPin, RefreshCw, Share2, Upload, Navigation, Wifi, Edit3, Search, X } from 'lucide-react';
+import { MapPin, RefreshCw, Share2, Upload, Navigation, Wifi, Edit3, Search, X, Download } from 'lucide-react';
 
 const queryClient = new QueryClient();
 
@@ -656,14 +656,31 @@ function MainScreen() {
               style={{ aspectRatio: '9/16', objectFit: 'cover' }}
             />
 
-            {/* Share / Download button */}
-            <button
-              onClick={onShareFromModal}
-              className="w-full bg-[#74ACDF] hover:bg-[#5a93c7] active:bg-[#4a82b3] text-[#00143c] px-6 py-4 rounded-xl font-bold text-base flex items-center justify-center gap-3 transition-all duration-300 shadow-[0_4px_20px_rgba(116,172,223,0.3)]"
-            >
-              <Share2 className="w-5 h-5" />
-              Compartir
-            </button>
+            {/* Buttons row */}
+            <div className="w-full flex gap-3">
+              <button
+                onClick={onShareFromModal}
+                className="flex-1 bg-[#74ACDF] hover:bg-[#5a93c7] active:bg-[#4a82b3] text-[#00143c] px-4 py-4 rounded-xl font-bold text-base flex items-center justify-center gap-2 transition-all duration-300 shadow-[0_4px_20px_rgba(116,172,223,0.3)]"
+              >
+                <Share2 className="w-5 h-5" />
+                Compartir
+              </button>
+              <button
+                onClick={() => {
+                  if (!storyBlob) return;
+                  const url = URL.createObjectURL(storyBlob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = 'malvinas-historia.png';
+                  a.click();
+                  setTimeout(() => URL.revokeObjectURL(url), 5000);
+                }}
+                className="flex-1 bg-white/15 hover:bg-white/25 active:bg-white/20 text-white border border-white/20 px-4 py-4 rounded-xl font-bold text-base flex items-center justify-center gap-2 transition-all duration-300"
+              >
+                <Download className="w-5 h-5" />
+                Descargar
+              </button>
+            </div>
           </div>
         </div>
       )}
