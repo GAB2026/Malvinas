@@ -117,9 +117,7 @@ async function generateStoryImage(
   ctx.font = 'bold 88px Georgia, serif';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
-  ctx.fillText('LAS MALVINAS', 540, 200);
-  ctx.fillText('SON', 540, 310);
-  ctx.fillText('ARGENTINAS', 540, 420);
+  ctx.fillText('ESTOY A', 540, 310);
 
   ctx.strokeStyle = '#74ACDF';
   ctx.lineWidth = 4;
@@ -138,7 +136,7 @@ async function generateStoryImage(
 
   ctx.font = '60px Arial, sans-serif';
   ctx.fillStyle = '#74ACDF';
-  ctx.fillText('de Puerto Argentino', 540, 1050);
+  ctx.fillText('de nuestras Islas Malvinas', 540, 1050);
 
   ctx.strokeStyle = '#74ACDF';
   ctx.lineWidth = 4;
@@ -157,10 +155,6 @@ async function generateStoryImage(
   ctx.fillStyle = 'rgba(255,255,255,0.55)';
   ctx.font = '38px Arial, sans-serif';
   ctx.fillText(`${dateStr}  ·  ${timeStr}`, 540, 1350);
-
-  ctx.fillStyle = 'rgba(255,255,255,0.5)';
-  ctx.font = '36px Arial, sans-serif';
-  ctx.fillText('Las Malvinas son Argentinas', 540, 1800);
 
   return new Promise((resolve) => canvas.toBlob(resolve!, 'image/png'));
 }
