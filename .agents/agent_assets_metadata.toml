@@ -24,3 +24,9 @@ id = "WYmMgG-siTdzsKj818Dxu"
 uri = "file://qr-apk-v3.png"
 type = "image"
 title = "QR — Descargar APK v1.0.2"
+
+[[outputs]]
+id = "EtZ81IMdnSn5LfuOBGo6U"
+uri = "file://qr-apk-v4.png"
+type = "image"
+title = "QR — Descargar APK v1.0.3"
