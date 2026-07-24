@@ -59,6 +59,23 @@ async function fetchByIP(): Promise<{ lat: number; lon: number; city: string; co
   };
 }
 
+/** Reverse geocode coordinates to a locality name using Nominatim. */
+async function reverseGeocode(lat: number, lon: number): Promise<string | null> {
+  try {
+    const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=es`;
+    const res = await fetch(url, {
+      headers: { 'User-Agent': 'MalvinasApp/1.0' },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const a = data.address ?? {};
+    return a.city || a.town || a.village || a.suburb || a.county || a.state || null;
+  } catch {
+    return null;
+  }
+}
+
 /** Geocode a city name using OpenStreetMap Nominatim (free, no key). */
 async function geocodeCity(query: string): Promise<{ lat: number; lon: number; displayName: string }> {
   const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1`;
@@ -393,6 +410,10 @@ function MainScreen() {
       setLocationCity(null);
       setStatusMessage('');
       setLoading(false);
+      // Reverse geocode in background — updates city label when ready
+      reverseGeocode(coords.lat, coords.lon).then((city) => {
+        if (city) setLocationCity(city);
+      });
       return;
     } catch {
       // GPS failed — try IP next
