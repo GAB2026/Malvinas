@@ -6,71 +6,43 @@ on:
     paths:
       - 'artifacts/malvinas/**'
       - '.github/workflows/build-apk.yml'
-  workflow_dispatch:
 
 jobs:
-  build-apk:
-    name: Build debug APK
+  build:
     runs-on: ubuntu-latest
 
     steps:
-      # ── Checkout ───────────────────────────────────────────────
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      # ── Node 22 ────────────────────────────────────────────────
-      - uses: actions/setup-node@v4
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
         with:
-          node-version: 22
+          java-version: '21'
+          distribution: 'temurin'
 
-      # ── pnpm ───────────────────────────────────────────────────
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 10
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Install platform 36
+        run: sdkmanager "platforms;android-36" --sdk_root=$ANDROID_SDK_ROOT
 
-      # ── Java 21 (capacitor-android source release 21) ──────────
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 21
-
-      # ── Android SDK setup (installs sdkmanager + cmdline-tools) ─
-      - uses: android-actions/setup-android@v3
-
-      # ── Install API 36 + build-tools ───────────────────────────
-      - name: Install Android SDK packages
+      - name: Decode keystore
         run: |
-          sdkmanager \
-            "platforms;android-36" \
-            "build-tools;35.0.0" \
-            "platform-tools"
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > artifacts/malvinas/android/app/malvinas-release.jks
 
-      # ── Build web app (base = /) ────────────────────────────────
-      - name: Build web app for Capacitor
-        working-directory: artifacts/malvinas
-        env:
-          BASE_PATH: /
-          PORT: 3000
-        run: pnpm build:cap
-
-      # ── Sync Capacitor assets → android/ ───────────────────────
-      - name: Capacitor sync
-        working-directory: artifacts/malvinas
-        run: npx cap sync android
-
-      # ── Gradle assembleDebug ────────────────────────────────────
-      - name: Build debug APK
+      - name: Build release APK
         working-directory: artifacts/malvinas/android
         run: |
-          chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon --stacktrace
+          ./gradlew assembleRelease \
+            -Pandroid.injected.signing.store.file=$GITHUB_WORKSPACE/artifacts/malvinas/android/app/malvinas-release.jks \
+            -Pandroid.injected.signing.store.password=${{ secrets.KEYSTORE_PASSWORD }} \
+            -Pandroid.injected.signing.key.alias=${{ secrets.KEY_ALIAS }} \
+            -Pandroid.injected.signing.key.password=${{ secrets.KEY_PASSWORD }}
 
-      # ── Upload APK ──────────────────────────────────────────────
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: malvinas-debug
-          path: artifacts/malvinas/android/app/build/outputs/apk/debug/app-debug.apk
+          name: malvinas-release-apk
+          path: artifacts/malvinas/android/app/build/outputs/apk/release/app-release.apk
           retention-days: 30
