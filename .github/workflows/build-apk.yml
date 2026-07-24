@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - 'artifacts/malvinas/**'
+      - '.github/workflows/build-apk.yml'
   workflow_dispatch:
 
 jobs:
@@ -35,15 +36,16 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      # ── Android SDK — install API 36 + build-tools ─────────────
-      - name: Set up Android SDK packages
+      # ── Android SDK (API 35, pre-installed on ubuntu-latest) ───
+      - name: Accept SDK licenses & install API 35
         run: |
-          SDKMANAGER="${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager"
-          yes | $SDKMANAGER --licenses > /dev/null 2>&1 || true
-          $SDKMANAGER \
-            "platforms;android-36" \
-            "build-tools;36.0.0" \
+          yes | ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null 2>&1 || true
+          ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager \
+            "platforms;android-35" \
+            "build-tools;35.0.0" \
             "platform-tools"
+        env:
+          ANDROID_HOME: ${{ env.ANDROID_HOME }}
 
       # ── Build web app (base = /) ────────────────────────────────
       - name: Build web app for Capacitor
@@ -58,10 +60,12 @@ jobs:
         working-directory: artifacts/malvinas
         run: npx cap sync android
 
-      # ── Build debug APK ─────────────────────────────────────────
+      # ── Gradle build ────────────────────────────────────────────
       - name: Build debug APK
         working-directory: artifacts/malvinas/android
-        run: ./gradlew assembleDebug --no-daemon --stacktrace
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon --stacktrace
 
       # ── Upload APK ──────────────────────────────────────────────
       - name: Upload APK
