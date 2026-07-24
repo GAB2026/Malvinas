@@ -138,23 +138,17 @@ async function generateStoryImage(
   ctx.fillStyle = '#74ACDF';
   ctx.fillText('de nuestras Islas Malvinas', 540, 1050);
 
-  ctx.strokeStyle = '#74ACDF';
-  ctx.lineWidth = 4;
-  ctx.beginPath();
-  ctx.moveTo(160, 1150);
-  ctx.lineTo(920, 1150);
-  ctx.stroke();
-
-  ctx.fillStyle = 'rgba(255,255,255,0.8)';
-  ctx.font = '44px Arial, sans-serif';
-  ctx.fillText(locationLabel, 540, 1250);
-
   const now = new Date();
   const dateStr = now.toLocaleDateString('es-AR', { day: '2-digit', month: 'long', year: 'numeric' });
   const timeStr = now.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
-  ctx.fillStyle = 'rgba(255,255,255,0.55)';
+
+  ctx.fillStyle = 'rgba(255,255,255,0.75)';
+  ctx.font = '44px Arial, sans-serif';
+  ctx.fillText(locationLabel, 540, 1780);
+
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
   ctx.font = '38px Arial, sans-serif';
-  ctx.fillText(`${dateStr}  ·  ${timeStr}`, 540, 1350);
+  ctx.fillText(`${dateStr}  ·  ${timeStr}`, 540, 1860);
 
   return new Promise((resolve) => canvas.toBlob(resolve!, 'image/png'));
 }
