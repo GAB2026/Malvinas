@@ -79,8 +79,7 @@ async function geocodeCity(query: string): Promise<{ lat: number; lon: number; d
 async function generateStoryImage(
   backgroundImg: HTMLImageElement | null,
   distanceKm: number,
-  userLat: number,
-  userLon: number
+  locationLabel: string
 ): Promise<Blob> {
   const canvas = document.createElement('canvas');
   canvas.width = 1080;
@@ -150,10 +149,7 @@ async function generateStoryImage(
 
   ctx.fillStyle = 'rgba(255,255,255,0.8)';
   ctx.font = '44px Arial, sans-serif';
-  ctx.fillText(
-    `${formatDegrees(userLat, 'N', 'S')}  |  ${formatDegrees(userLon, 'E', 'O')}`,
-    540, 1250
-  );
+  ctx.fillText(locationLabel, 540, 1250);
 
   ctx.fillStyle = 'rgba(255,255,255,0.5)';
   ctx.font = '36px Arial, sans-serif';
@@ -470,7 +466,7 @@ function MainScreen() {
     reader.onload = (event) => {
       const dataUrl = event.target?.result as string;
       setBackgroundUrl(dataUrl);
-      localStorage.setItem('malvinas-bg', dataUrl);
+      try { localStorage.setItem('malvinas-bg', dataUrl); } catch { /* quota exceeded — skip persistence */ }
       const img = new Image();
       img.src = dataUrl;
       img.onload = () => setBackgroundImage(img);
