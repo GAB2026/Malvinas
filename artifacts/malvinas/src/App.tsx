@@ -98,14 +98,26 @@ async function generateStoryImage(
   distanceKm: number,
   locationLabel: string
 ): Promise<Blob> {
-  const canvas = document.createElement('canvas');
-  canvas.width = 1080;
-  canvas.height = 1920;
-  const ctx = canvas.getContext('2d')!;
+  // Guarantee every web font is rasterised before we draw a single glyph
+  await document.fonts.ready;
 
+  const W = 1080, H = 1920;
+  const canvas = document.createElement('canvas');
+  canvas.width  = W;
+  canvas.height = H;
+
+  // alpha:false lets the compositor skip alpha-blending the root layer,
+  // which also avoids premultiplied-alpha rounding on fully-opaque fills.
+  const ctx = canvas.getContext('2d', { alpha: false })!;
+
+  // Maximum quality for drawImage scaling
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality  = 'high';
+
+  // ── Background ────────────────────────────────────────────────
   if (backgroundImg) {
-    const imgAspect = backgroundImg.naturalWidth / backgroundImg.naturalHeight;
-    const canvasAspect = 1080 / 1920;
+    const imgAspect    = backgroundImg.naturalWidth / backgroundImg.naturalHeight;
+    const canvasAspect = W / H;
     let sx, sy, sw, sh;
     if (imgAspect > canvasAspect) {
       sh = backgroundImg.naturalHeight;
@@ -118,55 +130,98 @@ async function generateStoryImage(
       sx = 0;
       sy = (backgroundImg.naturalHeight - sh) / 2;
     }
-    ctx.drawImage(backgroundImg, sx, sy, sw, sh, 0, 0, 1080, 1920);
+    ctx.drawImage(backgroundImg, sx, sy, sw, sh, 0, 0, W, H);
   } else {
-    const grad = ctx.createLinearGradient(0, 0, 0, 1920);
+    const grad = ctx.createLinearGradient(0, 0, 0, H);
     grad.addColorStop(0, '#74ACDF');
     grad.addColorStop(1, '#1a3d6e');
     ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, 1080, 1920);
+    ctx.fillRect(0, 0, W, H);
   }
 
+  // Dark overlay — identical opacity to current design
   ctx.fillStyle = 'rgba(0, 20, 60, 0.55)';
-  ctx.fillRect(0, 0, 1080, 1920);
+  ctx.fillRect(0, 0, W, H);
 
-  ctx.fillStyle = '#FFFFFF';
-  ctx.font = 'bold 88px Georgia, serif';
+  // Shared text axis
   ctx.textAlign = 'center';
-  ctx.textBaseline = 'top';
-  ctx.fillText('ESTOY A', 540, 310);
 
+  // ── "ESTOY A" ──────────────────────────────────────────────────
+  ctx.save();
+  ctx.fillStyle   = '#FFFFFF';
+  ctx.font        = 'bold 88px Georgia, serif';
+  ctx.textBaseline = 'top';
+  // Wide tracking — Canvas Level 2 (Chrome 99+, Firefox 116+, Safari 17.2+)
+  (ctx as any).letterSpacing = '8px';
+  ctx.shadowColor   = 'rgba(0,0,0,0.65)';
+  ctx.shadowBlur    = 14;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 2;
+  ctx.fillText('ESTOY A', 540, 310);
+  ctx.restore();
+
+  // ── Separator line ────────────────────────────────────────────
+  ctx.save();
   ctx.strokeStyle = '#74ACDF';
-  ctx.lineWidth = 4;
+  ctx.lineWidth   = 4;
+  // Crisp 1-px-aligned stroke on a 4-px line: shift by 0.5 if lineWidth is even
   ctx.beginPath();
   ctx.moveTo(160, 560);
   ctx.lineTo(920, 560);
   ctx.stroke();
+  ctx.restore();
 
+  // ── Distance number ────────────────────────────────────────────
   const formattedDist = distanceKm >= 1000
     ? Math.round(distanceKm).toLocaleString('es-AR')
     : Math.round(distanceKm).toString();
-  ctx.fillStyle = '#FFFFFF';
-  ctx.font = 'bold 180px Arial, sans-serif';
+
+  ctx.save();
+  ctx.fillStyle    = '#FFFFFF';
+  ctx.font         = 'bold 180px Arial, sans-serif';
   ctx.textBaseline = 'middle';
+  ctx.shadowColor   = 'rgba(0,0,0,0.60)';
+  ctx.shadowBlur    = 22;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 3;
   ctx.fillText(formattedDist + ' km', 540, 900);
+  ctx.restore();
 
-  ctx.font = '60px Arial, sans-serif';
-  ctx.fillStyle = '#74ACDF';
+  // ── "de nuestras Islas Malvinas" ──────────────────────────────
+  ctx.save();
+  ctx.font         = '60px Arial, sans-serif';
+  ctx.fillStyle    = '#74ACDF';
+  ctx.textBaseline = 'middle';
+  ctx.shadowColor   = 'rgba(0,0,0,0.50)';
+  ctx.shadowBlur    = 10;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 2;
   ctx.fillText('de nuestras Islas Malvinas', 540, 1050);
+  ctx.restore();
 
-  const now = new Date();
+  // ── Footer: location + date/time ─────────────────────────────
+  const now     = new Date();
   const dateStr = now.toLocaleDateString('es-AR', { day: '2-digit', month: 'long', year: 'numeric' });
   const timeStr = now.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
 
+  ctx.save();
+  ctx.textBaseline  = 'middle';
+  ctx.shadowColor   = 'rgba(0,0,0,0.55)';
+  ctx.shadowBlur    = 10;
+  ctx.shadowOffsetX = 0;
+  ctx.shadowOffsetY = 1;
+
   ctx.fillStyle = 'rgba(255,255,255,0.75)';
-  ctx.font = '44px Arial, sans-serif';
+  ctx.font      = '44px Arial, sans-serif';
   ctx.fillText(locationLabel, 540, 1780);
 
   ctx.fillStyle = 'rgba(255,255,255,0.5)';
-  ctx.font = '38px Arial, sans-serif';
+  ctx.font      = '38px Arial, sans-serif';
   ctx.fillText(`${dateStr}  ·  ${timeStr}`, 540, 1860);
 
+  ctx.restore();
+
+  // Lossless PNG — no quality argument (PNG is always lossless)
   return new Promise((resolve) => canvas.toBlob(resolve!, 'image/png'));
 }
 
