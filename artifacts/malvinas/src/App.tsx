@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { MapPin, RefreshCw, Share2, Upload, Navigation, Wifi, Edit3, Search } from 'lucide-react';
+import { MapPin, RefreshCw, Share2, Upload, Navigation, Wifi, Edit3, Search, X } from 'lucide-react';
 
 const queryClient = new QueryClient();
 
@@ -151,11 +151,18 @@ async function generateStoryImage(
   ctx.font = '44px Arial, sans-serif';
   ctx.fillText(locationLabel, 540, 1250);
 
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('es-AR', { day: '2-digit', month: 'long', year: 'numeric' });
+  const timeStr = now.toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+  ctx.fillStyle = 'rgba(255,255,255,0.55)';
+  ctx.font = '38px Arial, sans-serif';
+  ctx.fillText(`${dateStr}  ·  ${timeStr}`, 540, 1350);
+
   ctx.fillStyle = 'rgba(255,255,255,0.5)';
   ctx.font = '36px Arial, sans-serif';
-  ctx.fillText('Distancia a Las Malvinas', 540, 1800);
+  ctx.fillText('Las Malvinas son Argentinas', 540, 1800);
 
-  return new Promise((resolve) => canvas.toBlob(resolve!, 'image/jpeg', 0.92));
+  return new Promise((resolve) => canvas.toBlob(resolve!, 'image/png'));
 }
 
 async function shareStoryImage(blob: Blob, distanceKm: number) {
@@ -374,6 +381,8 @@ function MainScreen() {
   const [backgroundUrl, setBackgroundUrl] = useState<string | null>(null);
   const [backgroundImg, setBackgroundImage] = useState<HTMLImageElement | null>(null);
   const [generatingStory, setGeneratingStory] = useState(false);
+  const [storyBlob, setStoryBlob] = useState<Blob | null>(null);
+  const [storyPreviewUrl, setStoryPreviewUrl] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -446,16 +455,51 @@ function MainScreen() {
     ? (distanceKm >= 1000 ? Math.round(distanceKm).toLocaleString('es-AR') : Math.round(distanceKm).toString())
     : '--';
 
-  const onShare = async () => {
+  const onCreate = async () => {
     if (!location || distanceKm === null) return;
     setGeneratingStory(true);
     try {
-      const blob = await generateStoryImage(backgroundImg, distanceKm, location.lat, location.lon);
-      await shareStoryImage(blob, distanceKm);
+      const label = locationCity
+        ? locationCity
+        : `${formatDegrees(location.lat, 'N', 'S')}  |  ${formatDegrees(location.lon, 'E', 'O')}`;
+      const blob = await generateStoryImage(backgroundImg, distanceKm, label);
+      const url = URL.createObjectURL(blob);
+      setStoryBlob(blob);
+      setStoryPreviewUrl(url);
     } catch (err) {
       console.error(err);
     } finally {
       setGeneratingStory(false);
+    }
+  };
+
+  const onClosePreview = () => {
+    if (storyPreviewUrl) URL.revokeObjectURL(storyPreviewUrl);
+    setStoryPreviewUrl(null);
+    setStoryBlob(null);
+  };
+
+  const onShareFromModal = async () => {
+    if (!storyBlob || distanceKm === null) return;
+    const file = new File([storyBlob], 'malvinas-historia.png', { type: 'image/png' });
+    const distText = distanceKm >= 1000
+      ? Math.round(distanceKm).toLocaleString('es-AR')
+      : Math.round(distanceKm).toString();
+    if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+      try {
+        await navigator.share({
+          files: [file],
+          title: 'Las Malvinas son Argentinas',
+          text: `Estoy a ${distText} km de Puerto Argentino. Las Malvinas son Argentinas.`,
+        });
+      } catch { /* usuario canceló */ }
+    } else {
+      const url = URL.createObjectURL(storyBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'malvinas-historia.png';
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
     }
   };
 
@@ -568,7 +612,7 @@ function MainScreen() {
           </button>
 
           <button
-            onClick={onShare}
+            onClick={onCreate}
             disabled={!location || loading || generatingStory}
             data-testid="button-share"
             className="w-full relative overflow-hidden group bg-[#74ACDF] hover:bg-[#5a93c7] active:bg-[#4a82b3] text-[#00143c] px-6 py-4 rounded-xl font-bold text-base flex items-center justify-center gap-3 transition-all duration-300 shadow-[0_4px_20px_rgba(116,172,223,0.3)] disabled:opacity-50 disabled:cursor-not-allowed"
@@ -578,7 +622,7 @@ function MainScreen() {
             ) : (
               <Share2 className="w-5 h-5 group-hover:-translate-y-1 group-hover:translate-x-1 transition-transform" />
             )}
-            {generatingStory ? 'Generando...' : 'Compartir historia'}
+            {generatingStory ? 'Generando...' : 'Crear historia'}
           </button>
 
           <div className="flex justify-center mt-3">
@@ -601,6 +645,40 @@ function MainScreen() {
           </div>
         </div>
       </div>
+
+      {/* Story Preview Modal */}
+      {storyPreviewUrl && (
+        <div className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-black/92 backdrop-blur-sm animate-in fade-in duration-300 p-6">
+          <div className="relative flex flex-col items-center gap-5 w-full max-w-xs">
+
+            {/* Close */}
+            <button
+              onClick={onClosePreview}
+              className="absolute -top-1 -right-1 text-white/60 hover:text-white transition-colors bg-white/10 hover:bg-white/20 rounded-full p-1.5"
+              aria-label="Cerrar"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Preview image */}
+            <img
+              src={storyPreviewUrl}
+              alt="Vista previa de la historia"
+              className="w-full rounded-2xl shadow-2xl border border-white/10"
+              style={{ aspectRatio: '9/16', objectFit: 'cover' }}
+            />
+
+            {/* Share / Download button */}
+            <button
+              onClick={onShareFromModal}
+              className="w-full bg-[#74ACDF] hover:bg-[#5a93c7] active:bg-[#4a82b3] text-[#00143c] px-6 py-4 rounded-xl font-bold text-base flex items-center justify-center gap-3 transition-all duration-300 shadow-[0_4px_20px_rgba(116,172,223,0.3)]"
+            >
+              <Share2 className="w-5 h-5" />
+              Compartir
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
