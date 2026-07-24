@@ -5,7 +5,7 @@ on:
     branches: [main]
     paths:
       - 'artifacts/malvinas/**'
-  workflow_dispatch:          # manual trigger from GitHub UI
+  workflow_dispatch:
 
 jobs:
   build-apk:
@@ -16,15 +16,18 @@ jobs:
       # ── Checkout ───────────────────────────────────────────────
       - uses: actions/checkout@v4
 
-      # ── Node + pnpm ────────────────────────────────────────────
+      # ── Node 22 ────────────────────────────────────────────────
       - uses: actions/setup-node@v4
         with:
           node-version: 22
 
+      # ── pnpm ───────────────────────────────────────────────────
       - uses: pnpm/action-setup@v4
         with:
           version: 10
-          run_install: true          # installs all workspace deps
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
       # ── Java 17 ────────────────────────────────────────────────
       - uses: actions/setup-java@v4
@@ -32,15 +35,25 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      # ── Android SDK ────────────────────────────────────────────
-      - uses: android-actions/setup-android@v3
+      # ── Android SDK — install API 36 + build-tools ─────────────
+      - name: Set up Android SDK packages
+        run: |
+          SDKMANAGER="${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager"
+          yes | $SDKMANAGER --licenses > /dev/null 2>&1 || true
+          $SDKMANAGER \
+            "platforms;android-36" \
+            "build-tools;36.0.0" \
+            "platform-tools"
 
       # ── Build web app (base = /) ────────────────────────────────
       - name: Build web app for Capacitor
         working-directory: artifacts/malvinas
-        run: PORT=3000 BASE_PATH=/ pnpm build:cap
+        env:
+          BASE_PATH: /
+          PORT: 3000
+        run: pnpm build:cap
 
-      # ── Sync Capacitor ─────────────────────────────────────────
+      # ── Sync Capacitor assets → android/ ───────────────────────
       - name: Capacitor sync
         working-directory: artifacts/malvinas
         run: npx cap sync android
@@ -48,9 +61,9 @@ jobs:
       # ── Build debug APK ─────────────────────────────────────────
       - name: Build debug APK
         working-directory: artifacts/malvinas/android
-        run: ./gradlew assembleDebug --no-daemon
+        run: ./gradlew assembleDebug --no-daemon --stacktrace
 
-      # ── Upload APK artifact ─────────────────────────────────────
+      # ── Upload APK ──────────────────────────────────────────────
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
