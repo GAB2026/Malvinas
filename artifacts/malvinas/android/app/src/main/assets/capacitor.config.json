@@ -1,0 +1,19 @@
+{
+	"appId": "ar.malvinas.distancia",
+	"appName": "Distancia a Las Malvinas",
+	"webDir": "dist/public",
+	"server": {
+		"androidScheme": "https"
+	},
+	"android": {
+		"minWebViewVersion": 60
+	},
+	"plugins": {
+		"Geolocation": {
+			"androidPermissions": [
+				"android.permission.ACCESS_COARSE_LOCATION",
+				"android.permission.ACCESS_FINE_LOCATION"
+			]
+		}
+	}
+}

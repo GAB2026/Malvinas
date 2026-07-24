@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Distancia a Las Malvinas</string>
+    <string name="title_activity_main">Distancia a Las Malvinas</string>
+    <string name="package_name">ar.malvinas.distancia</string>
+    <string name="custom_url_scheme">ar.malvinas.distancia</string>
+</resources>

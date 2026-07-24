@@ -1,0 +1,13 @@
+# Gradle build outputs — not committed
+build/
+.gradle/
+app/build/
+
+# Local SDK path — machine-specific
+local.properties
+
+# Android Studio project files
+*.iml
+.idea/
+.DS_Store
+captures/

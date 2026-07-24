@@ -1,0 +1,59 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'artifacts/malvinas/**'
+  workflow_dispatch:          # manual trigger from GitHub UI
+
+jobs:
+  build-apk:
+    name: Build debug APK
+    runs-on: ubuntu-latest
+
+    steps:
+      # ── Checkout ───────────────────────────────────────────────
+      - uses: actions/checkout@v4
+
+      # ── Node + pnpm ────────────────────────────────────────────
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+          run_install: true          # installs all workspace deps
+
+      # ── Java 17 ────────────────────────────────────────────────
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      # ── Android SDK ────────────────────────────────────────────
+      - uses: android-actions/setup-android@v3
+
+      # ── Build web app (base = /) ────────────────────────────────
+      - name: Build web app for Capacitor
+        working-directory: artifacts/malvinas
+        run: PORT=3000 BASE_PATH=/ pnpm build:cap
+
+      # ── Sync Capacitor ─────────────────────────────────────────
+      - name: Capacitor sync
+        working-directory: artifacts/malvinas
+        run: npx cap sync android
+
+      # ── Build debug APK ─────────────────────────────────────────
+      - name: Build debug APK
+        working-directory: artifacts/malvinas/android
+        run: ./gradlew assembleDebug --no-daemon
+
+      # ── Upload APK artifact ─────────────────────────────────────
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: malvinas-debug
+          path: artifacts/malvinas/android/app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30

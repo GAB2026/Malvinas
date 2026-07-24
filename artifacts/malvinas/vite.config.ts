@@ -125,6 +125,10 @@ export default defineConfig({
     fs: {
       strict: true,
     },
+    watch: {
+      // Exclude Android Gradle project to avoid spurious HMR reloads
+      ignored: ['**/android/**', '**/dist/**'],
+    },
   },
   preview: {
     port,
