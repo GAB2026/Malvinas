@@ -36,13 +36,16 @@ jobs:
           distribution: temurin
           java-version: 21
 
-      # ── Android SDK (installs cmdline-tools + accepts licenses) ─
+      # ── Android SDK setup (installs sdkmanager + cmdline-tools) ─
       - uses: android-actions/setup-android@v3
 
-      # ── Install API 35 + build-tools 35 ────────────────────────
+      # ── Install API 36 + build-tools ───────────────────────────
       - name: Install Android SDK packages
         run: |
-          sdkmanager "platforms;android-35" "build-tools;35.0.0" "platform-tools"
+          sdkmanager \
+            "platforms;android-36" \
+            "build-tools;35.0.0" \
+            "platform-tools"
 
       # ── Build web app (base = /) ────────────────────────────────
       - name: Build web app for Capacitor
