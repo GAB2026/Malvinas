@@ -503,12 +503,11 @@ function MainScreen() {
 
   useEffect(() => {
     const savedBg = localStorage.getItem('malvinas-bg');
-    if (savedBg) {
-      setBackgroundUrl(savedBg);
-      const img = new Image();
-      img.src = savedBg;
-      img.onload = () => setBackgroundImage(img);
-    }
+    const bgSrc = savedBg ?? (import.meta.env.BASE_URL + 'default-bg.jpg');
+    setBackgroundUrl(bgSrc);
+    const img = new Image();
+    img.src = bgSrc;
+    img.onload = () => setBackgroundImage(img);
     fetchLocation();
   }, []);
 
