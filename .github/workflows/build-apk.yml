@@ -34,7 +34,7 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: 17
+          java-version: 21
 
       # ── Android SDK (API 35, pre-installed on ubuntu-latest) ───
       - name: Accept SDK licenses & install API 35
