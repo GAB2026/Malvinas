@@ -138,9 +138,18 @@ export function useWarmSession(): WarmSession {
   }, [running, stopWith]);
 
   // Stop all load when the tab is hidden; re-acquire wake lock on return.
+  // Also perform a wall-clock safety check on visibility restore: if the
+  // browser throttled or dropped the setInterval while the tab was in the
+  // background, the session may have exceeded SESSION_LIMIT_SECONDS without
+  // the interval ever firing.  Checking Date.now() here closes that gap.
   useEffect(() => {
     const onVisibility = () => {
-      if (document.hidden && runningRef.current) stopWith('tab-hidden');
+      if (document.hidden) {
+        if (runningRef.current) stopWith('tab-hidden');
+      } else if (runningRef.current) {
+        const secs = Math.floor((Date.now() - startedAtRef.current) / 1000);
+        if (secs >= SESSION_LIMIT_SECONDS) stopWith('time-limit');
+      }
     };
     document.addEventListener('visibilitychange', onVisibility);
     return () => document.removeEventListener('visibilitychange', onVisibility);

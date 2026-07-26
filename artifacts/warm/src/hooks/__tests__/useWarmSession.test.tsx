@@ -168,6 +168,43 @@ describe('useWarmSession', () => {
     expect(result.current.stopReason).toBe('time-limit');
   });
 
+  // ── auto-stop: tab hidden then restored past limit (throttled interval) ──
+
+  it('auto-stops with "time-limit" on visibility restore when intervals were throttled past limit', () => {
+    const { result } = renderHook(() => useWarmSession());
+    act(() => result.current.start());
+
+    // Silently mark the tab as hidden WITHOUT dispatching visibilitychange, so
+    // the tab-hidden handler never fires — simulating a browser that throttled
+    // the page without a proper visibility event.
+    Object.defineProperty(document, 'hidden', {
+      configurable: true,
+      get: () => true,
+    });
+
+    // Advance the wall clock past SESSION_LIMIT_SECONDS without running timers,
+    // simulating throttled/dropped intervals.
+    vi.setSystemTime(Date.now() + (SESSION_LIMIT_SECONDS + 1) * 1000);
+
+    // Restore visibility — the handler should detect the overrun and stop.
+    act(() => {
+      Object.defineProperty(document, 'hidden', {
+        configurable: true,
+        get: () => false,
+      });
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+
+    expect(result.current.running).toBe(false);
+    expect(result.current.stopReason).toBe('time-limit');
+
+    // Restore document.hidden
+    Object.defineProperty(document, 'hidden', {
+      configurable: true,
+      get: () => false,
+    });
+  });
+
   // ── auto-stop: tab hidden ─────────────────────────────────────────────────
 
   it('stops with stopReason "tab-hidden" when the tab is hidden', () => {
