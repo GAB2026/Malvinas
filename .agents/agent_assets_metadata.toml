@@ -114,3 +114,9 @@ id = "rpLP5bBE3yeTGC3gxipqo"
 uri = "file://qr-warm-v122.png"
 type = "image"
 title = "QR — Descargar Warm v1.2.2 APK"
+
+[[outputs]]
+id = "0QBLYv1Jjr42SKiEs30F1"
+uri = "file://qr-warm-v130.png"
+type = "image"
+title = "QR — Descargar Warm v1.3.0 APK"
