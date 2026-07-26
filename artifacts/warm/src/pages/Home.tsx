@@ -3,11 +3,13 @@ import { useWarmSession, StopReason, Intensity } from '@/hooks/useWarmSession';
 import { Flame, Battery, Cpu, AlertTriangle, ShieldAlert } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const STOP_MESSAGES: Record<string, string> = {
-  'time-limit': 'Session ended: 15-minute safety limit reached.',
-  'low-battery': 'Session ended: Battery dropped below 15%.',
-  'tab-hidden': 'Session paused: Kept in background.',
+const AUTO_STOP_MESSAGES: Record<string, string> = {
+  'time-limit': '15-minute limit reached',
+  'low-battery': 'Battery too low to continue',
+  'tab-hidden': 'Stopped because you switched tabs',
 };
+
+const AUTO_DISMISS_MS = 4000;
 
 export default function Home() {
   const {
@@ -24,6 +26,23 @@ export default function Home() {
     batteryLevel,
     workerCount,
   } = useWarmSession();
+
+  // Visible toast state — only for automatic stop reasons, auto-dismisses after 4 s
+  const [toastReason, setToastReason] = useState<StopReason>(null);
+
+  // Clear toast when a new session starts
+  useEffect(() => {
+    if (running) setToastReason(null);
+  }, [running]);
+
+  useEffect(() => {
+    if (stopReason && stopReason !== 'user') {
+      setToastReason(stopReason);
+      const id = setTimeout(() => setToastReason(null), AUTO_DISMISS_MS);
+      return () => clearTimeout(id);
+    }
+    return undefined;
+  }, [stopReason]);
 
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
@@ -58,18 +77,19 @@ export default function Home() {
       </div>
 
       <div className="z-10 flex flex-col items-center w-full max-w-sm mt-12 mb-auto gap-12">
-        {/* Stop Reason Toast */}
+        {/* Auto-stop Toast */}
         <div className="h-12 w-full flex items-center justify-center">
           <AnimatePresence>
-            {stopReason && !running && (
+            {toastReason && (
               <motion.div
+                key={toastReason}
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
                 className="flex items-center gap-2 bg-destructive/10 text-destructive-foreground px-4 py-2 rounded-full border border-destructive/20 text-sm"
               >
                 <AlertTriangle size={16} className="text-destructive" />
-                <span className="text-destructive">{STOP_MESSAGES[stopReason] || 'Session stopped.'}</span>
+                <span className="text-destructive">{AUTO_STOP_MESSAGES[toastReason]}</span>
               </motion.div>
             )}
           </AnimatePresence>
