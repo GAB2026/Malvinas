@@ -8,7 +8,7 @@ import {
   TherapeuticDuration,
 } from '@/hooks/useWarmSession';
 import { useTranslations } from '@/lib/i18n';
-import { usePremium } from '@/hooks/usePremium';
+import { usePremium, FREE_SESSION_LIMIT } from '@/hooks/usePremium';
 import PremiumSheet from '@/components/PremiumSheet';
 import {
   Flame, Battery, Cpu, AlertTriangle, ShieldAlert, Thermometer, Lock,
@@ -27,7 +27,7 @@ function formatTime(seconds: number): string {
 
 export default function Home() {
   const t = useTranslations();
-  const { isPremium } = usePremium();
+  const { isPremium, freeSessionsLeft, canStart, consumeSession } = usePremium();
   const [showPremiumSheet, setShowPremiumSheet] = useState(false);
 
   const {
@@ -61,6 +61,13 @@ export default function Home() {
 
   const intensityLabels: Record<Intensity, string> = {
     low: t.low, medium: t.medium, high: t.high,
+  };
+
+  // Wrap start: gate on canStart, debit a session
+  const handleStart = () => {
+    if (!canStart) { setShowPremiumSheet(true); return; }
+    consumeSession();
+    start();
   };
 
   const handleIntensityClick = (level: Intensity) => {
@@ -184,7 +191,7 @@ export default function Home() {
         {/* ── Main Button ── */}
         <div className="flex flex-col items-center">
           <motion.button
-            onClick={running ? stop : start}
+            onClick={running ? stop : handleStart}
             className={`relative flex items-center justify-center w-44 h-44 rounded-full shadow-2xl outline-none transition-transform active:scale-95 ${
               running
                 ? 'bg-primary text-primary-foreground'
@@ -232,6 +239,24 @@ export default function Home() {
               <motion.p initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
                 className="mt-3 text-xs text-muted-foreground">
                 {t.waitingForTemp} · {targetC}°C
+              </motion.p>
+            )}
+            {!running && !isPremium && (
+              <motion.p
+                key={freeSessionsLeft}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className={`mt-3 text-xs text-center ${
+                  freeSessionsLeft === 0
+                    ? 'text-destructive font-medium'
+                    : freeSessionsLeft === 1
+                    ? 'text-amber-400'
+                    : 'text-muted-foreground'
+                }`}
+              >
+                {freeSessionsLeft === 0
+                  ? t.sessions.none
+                  : `${freeSessionsLeft} / ${FREE_SESSION_LIMIT} ${t.sessions.left}`}
               </motion.p>
             )}
           </AnimatePresence>

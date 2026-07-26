@@ -83,7 +83,7 @@ export default function PremiumSheet({ open, onClose }: PremiumSheetProps) {
 
             {/* Benefits */}
             <div className="flex flex-col gap-3 bg-white/5 rounded-2xl p-4">
-              {[t.premium.benefit1, t.premium.benefit2].map((b) => (
+              {[t.premium.benefit1, t.premium.benefit2, t.premium.benefit3].map((b) => (
                 <div key={b} className="flex items-center gap-3">
                   <div className="w-5 h-5 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
                     <Check size={12} className="text-primary" />

@@ -13,9 +13,17 @@ export interface PremiumStrings {
   priceNote: string;
   benefit1: string;
   benefit2: string;
+  benefit3: string;
   buyBtn: string;
   restoreBtn: string;
   lockedHint: string;
+}
+
+export interface SessionStrings {
+  /** e.g. "free sessions left" — prepended with the number */
+  left: string;
+  /** shown when 0 remain */
+  none: string;
 }
 
 export interface Translations {
@@ -47,6 +55,7 @@ export interface Translations {
   waitingForTemp: string;
   therapyTimer: string;
   premium: PremiumStrings;
+  sessions: SessionStrings;
 }
 
 const T: Record<Lang, Translations> = {
@@ -89,7 +98,9 @@ const T: Record<Lang, Translations> = {
       buyBtn: 'Unlock now',
       restoreBtn: 'Restore purchase',
       lockedHint: 'Premium',
+      benefit3: 'Unlimited sessions',
     },
+    sessions: { left: 'free sessions left', none: 'No free sessions left' },
   },
 
   es: {
@@ -131,7 +142,9 @@ const T: Record<Lang, Translations> = {
       buyBtn: 'Desbloquear ahora',
       restoreBtn: 'Restaurar compra',
       lockedHint: 'Premium',
+      benefit3: 'Sesiones ilimitadas',
     },
+    sessions: { left: 'sesiones gratuitas restantes', none: 'Sin sesiones gratuitas' },
   },
 
   pt: {
@@ -173,7 +186,9 @@ const T: Record<Lang, Translations> = {
       buyBtn: 'Desbloquear agora',
       restoreBtn: 'Restaurar compra',
       lockedHint: 'Premium',
+      benefit3: 'Sessões ilimitadas',
     },
+    sessions: { left: 'sessões gratuitas restantes', none: 'Sem sessões gratuitas' },
   },
 
   fr: {
@@ -215,7 +230,9 @@ const T: Record<Lang, Translations> = {
       buyBtn: 'Débloquer maintenant',
       restoreBtn: "Restaurer l'achat",
       lockedHint: 'Premium',
+      benefit3: 'Sessions illimitées',
     },
+    sessions: { left: 'séances gratuites restantes', none: 'Plus de séances gratuites' },
   },
 
   de: {
@@ -257,7 +274,9 @@ const T: Record<Lang, Translations> = {
       buyBtn: 'Jetzt freischalten',
       restoreBtn: 'Kauf wiederherstellen',
       lockedHint: 'Premium',
+      benefit3: 'Unbegrenzte Sitzungen',
     },
+    sessions: { left: 'kostenlose Sitzungen übrig', none: 'Keine kostenlosen Sitzungen' },
   },
 
   it: {
@@ -299,7 +318,9 @@ const T: Record<Lang, Translations> = {
       buyBtn: 'Sblocca ora',
       restoreBtn: 'Ripristina acquisto',
       lockedHint: 'Premium',
+      benefit3: 'Sessioni illimitate',
     },
+    sessions: { left: 'sessioni gratuite rimanenti', none: 'Nessuna sessione gratuita rimasta' },
   },
 
   ru: {
@@ -341,7 +362,9 @@ const T: Record<Lang, Translations> = {
       buyBtn: 'Разблокировать сейчас',
       restoreBtn: 'Восстановить покупку',
       lockedHint: 'Премиум',
+      benefit3: 'Безлимитные сеансы',
     },
+    sessions: { left: 'бесплатных сеансов осталось', none: 'Бесплатные сеансы исчерпаны' },
   },
 
   fi: {
@@ -383,7 +406,9 @@ const T: Record<Lang, Translations> = {
       buyBtn: 'Avaa nyt',
       restoreBtn: 'Palauta ostos',
       lockedHint: 'Premium',
+      benefit3: 'Rajattomat istunnot',
     },
+    sessions: { left: 'ilmaista istuntoa jäljellä', none: 'Ei ilmaisia istuntoja' },
   },
 
   sv: {
@@ -425,7 +450,9 @@ const T: Record<Lang, Translations> = {
       buyBtn: 'Lås upp nu',
       restoreBtn: 'Återställ köp',
       lockedHint: 'Premium',
+      benefit3: 'Obegränsade sessioner',
     },
+    sessions: { left: 'gratis sessioner kvar', none: 'Inga gratis sessioner kvar' },
   },
 
   mn: {
@@ -467,7 +494,9 @@ const T: Record<Lang, Translations> = {
       buyBtn: 'Одоо нээх',
       restoreBtn: 'Худалдан авалт сэргээх',
       lockedHint: 'Премиум',
+      benefit3: 'Хязааргүй сессүүд',
     },
+    sessions: { left: 'үнэгүй сесс үлдсэн', none: 'Үнэгүй сесс дүүссэн' },
   },
 
   kl: {
@@ -509,7 +538,9 @@ const T: Record<Lang, Translations> = {
       buyBtn: 'Atuissavaa siunnersuissavaa',
       restoreBtn: 'Nalunaarusiorfigineqarpoq',
       lockedHint: 'Premium',
+      benefit3: 'Nalunngissumik nalunaarsorneq',
     },
+    sessions: { left: 'nalunaarsorneqarsinnaappoq', none: 'Nalunaarsorneqarsinnaanngikkaluarluni' },
   },
 };
 
