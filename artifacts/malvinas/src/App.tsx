@@ -4,6 +4,21 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { MapPin, RefreshCw, Share2, Upload, Navigation, Wifi, Edit3, Search, X, Download } from 'lucide-react';
+import { Capacitor } from '@capacitor/core';
+import { Filesystem, Directory } from '@capacitor/filesystem';
+import { Share } from '@capacitor/share';
+
+function blobToBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const result = reader.result as string;
+      resolve(result.split(',')[1]); // strip "data:image/png;base64,"
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
+}
 
 const queryClient = new QueryClient();
 
@@ -190,8 +205,8 @@ async function generateStoryImage(
 
   // ── "de nuestras Islas Malvinas" ──────────────────────────────
   ctx.save();
-  ctx.font         = '60px Arial, sans-serif';
-  ctx.fillStyle    = '#74ACDF';
+  ctx.font         = 'bold 80px Arial, sans-serif';
+  ctx.fillStyle    = '#FFFFFF';
   ctx.textBaseline = 'middle';
   ctx.shadowColor   = 'rgba(0,0,0,0.50)';
   ctx.shadowBlur    = 10;
@@ -545,25 +560,33 @@ function MainScreen() {
 
   const onShareFromModal = async () => {
     if (!storyBlob || distanceKm === null) return;
-    const file = new File([storyBlob], 'malvinas-historia.png', { type: 'image/png' });
     const distText = distanceKm >= 1000
       ? Math.round(distanceKm).toLocaleString('es-AR')
       : Math.round(distanceKm).toString();
-    if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+    const shareText = `Estoy a ${distText} km de Puerto Argentino. Las Malvinas son Argentinas.`;
+
+    if (Capacitor.isNativePlatform()) {
       try {
-        await navigator.share({
-          files: [file],
-          title: 'Las Malvinas son Argentinas',
-          text: `Estoy a ${distText} km de Puerto Argentino. Las Malvinas son Argentinas.`,
-        });
+        const base64 = await blobToBase64(storyBlob);
+        const fileName = `malvinas-historia-${Date.now()}.png`;
+        await Filesystem.writeFile({ path: fileName, data: base64, directory: Directory.Cache });
+        const { uri } = await Filesystem.getUri({ path: fileName, directory: Directory.Cache });
+        await Share.share({ title: 'Las Malvinas son Argentinas', text: shareText, url: uri });
       } catch { /* usuario canceló */ }
     } else {
-      const url = URL.createObjectURL(storyBlob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'malvinas-historia.png';
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(url), 5000);
+      const file = new File([storyBlob], 'malvinas-historia.png', { type: 'image/png' });
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+        try {
+          await navigator.share({ files: [file], title: 'Las Malvinas son Argentinas', text: shareText });
+        } catch { /* usuario canceló */ }
+      } else {
+        const url = URL.createObjectURL(storyBlob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'malvinas-historia.png';
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(url), 5000);
+      }
     }
   };
 
@@ -586,7 +609,7 @@ function MainScreen() {
     <div className="relative min-h-[100dvh] w-full flex flex-col items-center justify-center overflow-hidden font-sans bg-[#0D1B2A]">
       {/* Background Layer */}
       {backgroundUrl ? (
-        <img src={backgroundUrl} alt="Fondo" className="absolute inset-0 w-full h-full object-contain z-0 opacity-80" />
+        <img src={backgroundUrl} alt="Fondo" className="absolute inset-0 w-full h-full object-cover z-0" />
       ) : (
         <div className="absolute inset-0 w-full h-full z-0 bg-gradient-to-b from-[#74ACDF] to-[#1a3d6e] flex items-center justify-center">
           <MalvinasSilhouette className="w-[55%] text-[#4A8FCE] opacity-30 mix-blend-overlay" />
@@ -636,7 +659,7 @@ function MainScreen() {
               </div>
 
               <p className="text-xl md:text-2xl text-white mt-4 font-serif italic font-medium drop-shadow-md">
-                de Islas Malvinas
+                de las Islas Malvinas
               </p>
 
               <div className="w-16 h-[3px] bg-[#74ACDF]/60 my-5 rounded-full" />
@@ -742,14 +765,30 @@ function MainScreen() {
                 Compartir
               </button>
               <button
-                onClick={() => {
+                onClick={async () => {
                   if (!storyBlob) return;
-                  const url = URL.createObjectURL(storyBlob);
-                  const a = document.createElement('a');
-                  a.href = url;
-                  a.download = 'malvinas-historia.png';
-                  a.click();
-                  setTimeout(() => URL.revokeObjectURL(url), 5000);
+                  if (Capacitor.isNativePlatform()) {
+                    try {
+                      const base64 = await blobToBase64(storyBlob);
+                      const fileName = `malvinas-historia-${Date.now()}.png`;
+                      await Filesystem.writeFile({
+                        path: fileName,
+                        data: base64,
+                        directory: Directory.Documents,
+                      });
+                      alert('Imagen guardada en Documentos');
+                    } catch (e) {
+                      console.error('Error al guardar:', e);
+                      alert('No se pudo guardar la imagen');
+                    }
+                  } else {
+                    const url = URL.createObjectURL(storyBlob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'malvinas-historia.png';
+                    a.click();
+                    setTimeout(() => URL.revokeObjectURL(url), 5000);
+                  }
                 }}
                 className="flex-1 bg-white/15 hover:bg-white/25 active:bg-white/20 text-white border border-white/20 px-4 py-4 rounded-xl font-bold text-base flex items-center justify-center gap-2 transition-all duration-300"
               >
