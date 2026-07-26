@@ -90,3 +90,9 @@ id = "L457DGnM7UqqAiugejxct"
 uri = "file://qr-warm-v100.png"
 type = "image"
 title = "QR — Descargar Warm v1.0.0 APK"
+
+[[outputs]]
+id = "0RED976QotJjjJbvvD5Gp"
+uri = "file://qr-warm-v110.png"
+type = "image"
+title = "QR — Descargar Warm v1.1.0 APK"
