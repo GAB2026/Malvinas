@@ -1,9 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import defaultBgUrl from './assets/default-bg.jpg';
+import iconWhatsApp from './assets/icon-whatsapp.jpg';
+import iconInstagram from './assets/icon-instagram.jpg';
+import iconTikTok from './assets/icon-tiktok.jpg';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { MapPin, RefreshCw, Share2, Upload, Navigation, Wifi, Edit3, Search, X, Download } from 'lucide-react';
+import { MapPin, RefreshCw, Share2, Upload, Navigation, Wifi, Edit3, Search, X } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
@@ -20,30 +23,6 @@ function blobToBase64(blob: Blob): Promise<string> {
   });
 }
 
-const WhatsAppIcon = () => (
-  <svg viewBox="0 0 32 32" className="w-6 h-6" fill="none">
-    <circle cx="16" cy="16" r="16" fill="#25D366"/>
-    <path d="M22.5 9.5A9.1 9.1 0 0 0 16 7a9 9 0 0 0-7.8 13.5L7 25l4.7-1.2A9 9 0 0 0 16 25a9 9 0 0 0 9-9 9 9 0 0 0-2.5-6.5Zm-6.5 13.8a7.5 7.5 0 0 1-3.8-1l-.3-.2-3 .8.8-2.9-.2-.3A7.5 7.5 0 1 1 16 23.3Zm4.1-5.6c-.2-.1-1.3-.6-1.5-.7-.2-.1-.3-.1-.5.1l-.6.8c-.1.2-.2.2-.4.1a6 6 0 0 1-1.8-1.1 6.7 6.7 0 0 1-1.2-1.6c-.1-.2 0-.3.1-.4l.4-.5.2-.4v-.4l-.7-1.6c-.2-.4-.4-.4-.5-.4h-.4c-.2 0-.4.1-.6.3a3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.8 11.8 11.8 0 0 0 4.5 4c.6.3 1.1.4 1.5.3.5-.1 1.4-.6 1.6-1.1.2-.5.2-1 .1-1.1l-.4-.2Z" fill="white"/>
-  </svg>
-);
-
-const InstagramIcon = () => (
-  <svg viewBox="0 0 32 32" className="w-6 h-6">
-    <defs>
-      <radialGradient id="ig-grad" cx="30%" cy="107%" r="150%">
-        <stop offset="0%" stopColor="#ffd600"/>
-        <stop offset="20%" stopColor="#ff6930"/>
-        <stop offset="45%" stopColor="#fe3b96"/>
-        <stop offset="70%" stopColor="#c935d8"/>
-        <stop offset="100%" stopColor="#4f5fd7"/>
-      </radialGradient>
-    </defs>
-    <rect width="32" height="32" rx="8" fill="url(#ig-grad)"/>
-    <rect x="8" y="8" width="16" height="16" rx="4.5" stroke="white" strokeWidth="1.8" fill="none"/>
-    <circle cx="16" cy="16" r="4" stroke="white" strokeWidth="1.8" fill="none"/>
-    <circle cx="21" cy="11" r="1.1" fill="white"/>
-  </svg>
-);
 
 const queryClient = new QueryClient();
 
@@ -583,7 +562,7 @@ function MainScreen() {
     setStoryBlob(null);
   };
 
-  const onShareToApp = async (pkg: 'com.whatsapp' | 'com.instagram.android') => {
+  const onShareToApp = async () => {
     if (!storyBlob || distanceKm === null) return;
     const distText = distanceKm >= 1000
       ? Math.round(distanceKm).toLocaleString('es-AR')
@@ -596,24 +575,13 @@ function MainScreen() {
         const fileName = `malvinas-historia-${Date.now()}.png`;
         await Filesystem.writeFile({ path: fileName, data: base64, directory: Directory.Cache });
         const { uri } = await Filesystem.getUri({ path: fileName, directory: Directory.Cache });
-        // Build Android intent URI to open the specific app directly
-        const intentUri =
-          `intent://send#Intent;action=android.intent.action.SEND;` +
-          `type=image/png;package=${pkg};` +
-          `S.android.intent.extra.STREAM=${encodeURIComponent(uri)};` +
-          `S.android.intent.extra.TEXT=${encodeURIComponent(shareText)};` +
-          `launchFlags=0x10000000;end`;
-        window.open(intentUri, '_system');
-      } catch {
-        // Fallback: system share sheet
-        try {
-          const base64 = await blobToBase64(storyBlob);
-          const fileName = `malvinas-historia-${Date.now()}.png`;
-          await Filesystem.writeFile({ path: fileName, data: base64, directory: Directory.Cache });
-          const { uri } = await Filesystem.getUri({ path: fileName, directory: Directory.Cache });
-          await Share.share({ title: 'Las Malvinas son Argentinas', text: shareText, url: uri });
-        } catch { /* cancelado */ }
-      }
+        await Share.share({
+          title: 'Las Malvinas son Argentinas',
+          text: shareText,
+          url: uri,
+          dialogTitle: 'Compartir imagen',
+        });
+      } catch { /* cancelado por el usuario */ }
     } else {
       const file = new File([storyBlob], 'malvinas-historia.png', { type: 'image/png' });
       if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -794,53 +762,42 @@ function MainScreen() {
               style={{ aspectRatio: '9/16', objectFit: 'cover' }}
             />
 
-            {/* Buttons row */}
-            <div className="w-full flex gap-3">
+            {/* Buttons row — 3 app icons */}
+            <div className="w-full flex gap-4 justify-center">
+              {/* WhatsApp */}
               <button
-                onClick={() => onShareToApp('com.whatsapp')}
-                className="flex-1 bg-[#25D366] hover:bg-[#1db954] active:bg-[#17a349] text-white px-4 py-4 rounded-xl font-bold text-base flex items-center justify-center gap-2 transition-all duration-300 shadow-[0_4px_16px_rgba(37,211,102,0.35)]"
+                onClick={onShareToApp}
+                className="flex flex-col items-center gap-2 group"
+                aria-label="Compartir en WhatsApp"
               >
-                <WhatsAppIcon />
-                WhatsApp
+                <span className="w-16 h-16 rounded-2xl overflow-hidden shadow-lg ring-2 ring-white/10 group-active:scale-90 transition-transform duration-150">
+                  <img src={iconWhatsApp} alt="WhatsApp" className="w-full h-full object-cover" />
+                </span>
+                <span className="text-white/80 text-xs font-semibold">WhatsApp</span>
               </button>
+
+              {/* Instagram */}
               <button
-                onClick={() => onShareToApp('com.instagram.android')}
-                className="flex-1 text-white px-4 py-4 rounded-xl font-bold text-base flex items-center justify-center gap-2 transition-all duration-300 shadow-[0_4px_16px_rgba(200,50,150,0.35)]"
-                style={{ background: 'linear-gradient(135deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)' }}
+                onClick={onShareToApp}
+                className="flex flex-col items-center gap-2 group"
+                aria-label="Compartir en Instagram"
               >
-                <InstagramIcon />
-                Instagram
+                <span className="w-16 h-16 rounded-2xl overflow-hidden shadow-lg ring-2 ring-white/10 group-active:scale-90 transition-transform duration-150">
+                  <img src={iconInstagram} alt="Instagram" className="w-full h-full object-cover" />
+                </span>
+                <span className="text-white/80 text-xs font-semibold">Instagram</span>
               </button>
+
+              {/* TikTok */}
               <button
-                onClick={async () => {
-                  if (!storyBlob) return;
-                  if (Capacitor.isNativePlatform()) {
-                    try {
-                      const base64 = await blobToBase64(storyBlob);
-                      const fileName = `malvinas-historia-${Date.now()}.png`;
-                      await Filesystem.writeFile({
-                        path: fileName,
-                        data: base64,
-                        directory: Directory.Documents,
-                      });
-                      alert('Imagen guardada en Documentos');
-                    } catch (e) {
-                      console.error('Error al guardar:', e);
-                      alert('No se pudo guardar la imagen');
-                    }
-                  } else {
-                    const url = URL.createObjectURL(storyBlob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = 'malvinas-historia.png';
-                    a.click();
-                    setTimeout(() => URL.revokeObjectURL(url), 5000);
-                  }
-                }}
-                className="flex-1 bg-white/15 hover:bg-white/25 active:bg-white/20 text-white border border-white/20 px-4 py-4 rounded-xl font-bold text-base flex items-center justify-center gap-2 transition-all duration-300"
+                onClick={onShareToApp}
+                className="flex flex-col items-center gap-2 group"
+                aria-label="Compartir en TikTok"
               >
-                <Download className="w-5 h-5" />
-                Descargar
+                <span className="w-16 h-16 rounded-2xl overflow-hidden shadow-lg ring-2 ring-white/10 group-active:scale-90 transition-transform duration-150">
+                  <img src={iconTikTok} alt="TikTok" className="w-full h-full object-cover" />
+                </span>
+                <span className="text-white/80 text-xs font-semibold">TikTok</span>
               </button>
             </div>
           </div>
