@@ -48,3 +48,15 @@ id = "-bEn0AVtk3pFpsmGf4Uqk"
 uri = "file://qr-apk-v7.png"
 type = "image"
 title = "QR — Descargar APK v1.0.6"
+
+[[outputs]]
+id = "rB6Nm-sFZmosYnfwGGXJ4"
+uri = "file://qr-apk-v107.png"
+type = "image"
+title = "QR — Descargar APK v1.0.7"
+
+[[outputs]]
+id = "Q0lW66PFZ_Z1jspx3MHHA"
+uri = "file://qr-apk-v108.png"
+type = "image"
+title = "QR — Descargar APK v1.0.8"
