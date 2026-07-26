@@ -1,4 +1,4 @@
-name: Build Warm APK
+name: Build Warm APK + AAB
 
 on:
   push:
@@ -52,18 +52,27 @@ jobs:
         run: |
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > artifacts/warm/android/app/warm-release.jks
 
-      - name: Build release APK
+      - name: Build release APK + AAB
         working-directory: artifacts/warm/android
         env:
           KEYSTORE_FILE: ${{ github.workspace }}/artifacts/warm/android/app/warm-release.jks
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: ./gradlew assembleRelease
+        run: |
+          ./gradlew assembleRelease
+          ./gradlew bundleRelease
 
-      - name: Upload APK
+      - name: Upload APK (sideload / direct install)
         uses: actions/upload-artifact@v4
         with:
           name: warm-release-apk
           path: artifacts/warm/android/app/build/outputs/apk/release/app-release.apk
+          retention-days: 30
+
+      - name: Upload AAB (Google Play Store)
+        uses: actions/upload-artifact@v4
+        with:
+          name: warm-release-aab
+          path: artifacts/warm/android/app/build/outputs/bundle/release/app-release.aab
           retention-days: 30

@@ -6,6 +6,18 @@ export function detectLang(): Lang {
   return supported.includes(raw as Lang) ? (raw as Lang) : 'en';
 }
 
+export interface PremiumStrings {
+  title: string;
+  subtitle: string;
+  price: string;
+  priceNote: string;
+  benefit1: string;
+  benefit2: string;
+  buyBtn: string;
+  restoreBtn: string;
+  lockedHint: string;
+}
+
 export interface Translations {
   tagline: string;
   intensity: string;
@@ -34,6 +46,7 @@ export interface Translations {
   core: string;
   waitingForTemp: string;
   therapyTimer: string;
+  premium: PremiumStrings;
 }
 
 const T: Record<Lang, Translations> = {
@@ -66,6 +79,17 @@ const T: Record<Lang, Translations> = {
     core: 'core',
     waitingForTemp: 'Waiting for target temp',
     therapyTimer: 'Therapy time remaining',
+    premium: {
+      title: 'Unlock Premium',
+      subtitle: 'Get the most out of your therapy sessions',
+      price: '$2.99',
+      priceNote: 'one-time · no subscription',
+      benefit1: 'Medium & High intensity',
+      benefit2: '30-minute sessions',
+      buyBtn: 'Unlock now',
+      restoreBtn: 'Restore purchase',
+      lockedHint: 'Premium',
+    },
   },
 
   es: {
@@ -97,6 +121,17 @@ const T: Record<Lang, Translations> = {
     core: 'núcleo',
     waitingForTemp: 'Esperando temperatura objetivo',
     therapyTimer: 'Tiempo de terapia restante',
+    premium: {
+      title: 'Desbloquear Premium',
+      subtitle: 'Aprovechá al máximo tus sesiones terapéuticas',
+      price: '$2,99',
+      priceNote: 'pago único · sin suscripción',
+      benefit1: 'Intensidad Media y Alta',
+      benefit2: 'Sesiones de 30 minutos',
+      buyBtn: 'Desbloquear ahora',
+      restoreBtn: 'Restaurar compra',
+      lockedHint: 'Premium',
+    },
   },
 
   pt: {
@@ -128,6 +163,17 @@ const T: Record<Lang, Translations> = {
     core: 'núcleo',
     waitingForTemp: 'Aguardando temperatura alvo',
     therapyTimer: 'Tempo de terapia restante',
+    premium: {
+      title: 'Desbloquear Premium',
+      subtitle: 'Aproveite ao máximo suas sessões terapêuticas',
+      price: '$2,99',
+      priceNote: 'pagamento único · sem assinatura',
+      benefit1: 'Intensidade Média e Alta',
+      benefit2: 'Sessões de 30 minutos',
+      buyBtn: 'Desbloquear agora',
+      restoreBtn: 'Restaurar compra',
+      lockedHint: 'Premium',
+    },
   },
 
   fr: {
@@ -159,6 +205,17 @@ const T: Record<Lang, Translations> = {
     core: 'cœur',
     waitingForTemp: 'En attente de la température cible',
     therapyTimer: 'Temps de thérapie restant',
+    premium: {
+      title: 'Débloquer Premium',
+      subtitle: 'Profitez pleinement de vos séances thérapeutiques',
+      price: '$2,99',
+      priceNote: 'paiement unique · sans abonnement',
+      benefit1: 'Intensité Moyenne et Élevée',
+      benefit2: 'Séances de 30 minutes',
+      buyBtn: 'Débloquer maintenant',
+      restoreBtn: "Restaurer l'achat",
+      lockedHint: 'Premium',
+    },
   },
 
   de: {
@@ -190,6 +247,17 @@ const T: Record<Lang, Translations> = {
     core: 'Kern',
     waitingForTemp: 'Warte auf Zieltemperatur',
     therapyTimer: 'Verbleibende Therapiezeit',
+    premium: {
+      title: 'Premium freischalten',
+      subtitle: 'Nutzen Sie Ihre Therapiesitzungen optimal',
+      price: '$2,99',
+      priceNote: 'Einmalige Zahlung · kein Abo',
+      benefit1: 'Mittlere & hohe Intensität',
+      benefit2: '30-Minuten-Sitzungen',
+      buyBtn: 'Jetzt freischalten',
+      restoreBtn: 'Kauf wiederherstellen',
+      lockedHint: 'Premium',
+    },
   },
 
   it: {
@@ -221,6 +289,17 @@ const T: Record<Lang, Translations> = {
     core: 'core',
     waitingForTemp: 'In attesa della temperatura target',
     therapyTimer: 'Tempo di terapia rimanente',
+    premium: {
+      title: 'Sblocca Premium',
+      subtitle: 'Sfrutta al massimo le tue sessioni terapeutiche',
+      price: '$2,99',
+      priceNote: 'pagamento unico · nessun abbonamento',
+      benefit1: 'Intensità Media e Alta',
+      benefit2: 'Sessioni da 30 minuti',
+      buyBtn: 'Sblocca ora',
+      restoreBtn: 'Ripristina acquisto',
+      lockedHint: 'Premium',
+    },
   },
 
   ru: {
@@ -252,6 +331,17 @@ const T: Record<Lang, Translations> = {
     core: 'ядро',
     waitingForTemp: 'Ожидание целевой температуры',
     therapyTimer: 'Оставшееся время терапии',
+    premium: {
+      title: 'Разблокировать Premium',
+      subtitle: 'Максимум от терапевтических сеансов',
+      price: '$2,99',
+      priceNote: 'разовый платёж · без подписки',
+      benefit1: 'Средняя и высокая интенсивность',
+      benefit2: 'Сеансы по 30 минут',
+      buyBtn: 'Разблокировать сейчас',
+      restoreBtn: 'Восстановить покупку',
+      lockedHint: 'Премиум',
+    },
   },
 
   fi: {
@@ -283,6 +373,17 @@ const T: Record<Lang, Translations> = {
     core: 'ydin',
     waitingForTemp: 'Odotetaan tavoitelämpötilaa',
     therapyTimer: 'Hoitoaikaa jäljellä',
+    premium: {
+      title: 'Avaa Premium',
+      subtitle: 'Hyödynnä hoitoistuntosi täysimääräisesti',
+      price: '$2,99',
+      priceNote: 'kertamaksu · ei tilausta',
+      benefit1: 'Keski- ja korkea teho',
+      benefit2: '30 minuutin istunnot',
+      buyBtn: 'Avaa nyt',
+      restoreBtn: 'Palauta ostos',
+      lockedHint: 'Premium',
+    },
   },
 
   sv: {
@@ -314,6 +415,17 @@ const T: Record<Lang, Translations> = {
     core: 'kärna',
     waitingForTemp: 'Väntar på måltemperatur',
     therapyTimer: 'Återstående terapitid',
+    premium: {
+      title: 'Lås upp Premium',
+      subtitle: 'Få ut det mesta av dina terapisessioner',
+      price: '$2,99',
+      priceNote: 'engångsbetalning · ingen prenumeration',
+      benefit1: 'Medel och hög intensitet',
+      benefit2: '30-minuterssessioner',
+      buyBtn: 'Lås upp nu',
+      restoreBtn: 'Återställ köp',
+      lockedHint: 'Premium',
+    },
   },
 
   mn: {
@@ -345,6 +457,17 @@ const T: Record<Lang, Translations> = {
     core: 'цөм',
     waitingForTemp: 'Зорилтот температурыг хүлээж байна',
     therapyTimer: 'Эмчилгээний үлдсэн хугацаа',
+    premium: {
+      title: 'Премиум нээх',
+      subtitle: 'Эмчилгээний сессуудаа бүрэн ашиглаарай',
+      price: '$2.99',
+      priceNote: 'нэг удаагийн төлбөр · захиалгагүй',
+      benefit1: 'Дунд ба өндөр эрчим',
+      benefit2: '30 минутын сесс',
+      buyBtn: 'Одоо нээх',
+      restoreBtn: 'Худалдан авалт сэргээх',
+      lockedHint: 'Премиум',
+    },
   },
 
   kl: {
@@ -376,6 +499,17 @@ const T: Record<Lang, Translations> = {
     core: 'isikkorfigineqarsinnaasumik',
     waitingForTemp: 'Isikkoq nalunaarusiorfigineqarsinnaappoq',
     therapyTimer: 'Peqqissaarneqarsinnaanngitsumik',
+    premium: {
+      title: 'Premium atuissavaa',
+      subtitle: 'Peqqissaarneqarsinnaanngitsumik nalunaarusiorfigineq',
+      price: '$2.99',
+      priceNote: 'ataatsimiittarfimmi · nalunaarusiorfigineqarsinnaappoq',
+      benefit1: 'Nalinginnaasumik annerpassumillu nukissap',
+      benefit2: '30-minutinik nalunaarsorneq',
+      buyBtn: 'Atuissavaa siunnersuissavaa',
+      restoreBtn: 'Nalunaarusiorfigineqarpoq',
+      lockedHint: 'Premium',
+    },
   },
 };
 

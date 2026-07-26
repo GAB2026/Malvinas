@@ -8,14 +8,16 @@ import {
   TherapeuticDuration,
 } from '@/hooks/useWarmSession';
 import { useTranslations } from '@/lib/i18n';
-import { Flame, Battery, Cpu, AlertTriangle, ShieldAlert, Thermometer } from 'lucide-react';
+import { usePremium } from '@/hooks/usePremium';
+import PremiumSheet from '@/components/PremiumSheet';
+import {
+  Flame, Battery, Cpu, AlertTriangle, ShieldAlert, Thermometer, Lock,
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const AUTO_DISMISS_MS = 5000;
 
-function cToF(c: number): number {
-  return (c * 9) / 5 + 32;
-}
+function cToF(c: number): number { return (c * 9) / 5 + 32; }
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -25,31 +27,20 @@ function formatTime(seconds: number): string {
 
 export default function Home() {
   const t = useTranslations();
+  const { isPremium } = usePremium();
+  const [showPremiumSheet, setShowPremiumSheet] = useState(false);
+
   const {
-    running,
-    intensity,
-    setIntensity,
-    start,
-    stop,
-    phase,
-    elapsed,
-    therapeuticRemaining,
-    deviceTempC,
-    heatLevel,
-    stopReason,
-    wakeLockActive,
-    batteryLevel,
-    workerCount,
-    sessionDurationMin,
-    setSessionDuration,
+    running, intensity, setIntensity, start, stop,
+    phase, elapsed, therapeuticRemaining,
+    deviceTempC, heatLevel, stopReason,
+    wakeLockActive, batteryLevel, workerCount,
+    sessionDurationMin, setSessionDuration,
   } = useWarmSession();
 
   const [toastReason, setToastReason] = useState<StopReason>(null);
 
-  useEffect(() => {
-    if (running) setToastReason(null);
-  }, [running]);
-
+  useEffect(() => { if (running) setToastReason(null); }, [running]);
   useEffect(() => {
     if (stopReason && stopReason !== 'user') {
       setToastReason(stopReason);
@@ -64,20 +55,33 @@ export default function Home() {
   const tempF = Math.round(cToF(deviceTempC) * 10) / 10;
   const targetC = TARGET_TEMP_C[intensity];
 
-  // Progress of warming phase (0..1)
   const warmProgress = phase === 'therapeutic' ? 1
-    : phase === 'warming'
-    ? Math.min((deviceTempC - 34) / (targetC - 34), 0.99)
+    : phase === 'warming' ? Math.min((deviceTempC - 34) / (targetC - 34), 0.99)
     : 0;
 
   const intensityLabels: Record<Intensity, string> = {
-    low: t.low,
-    medium: t.medium,
-    high: t.high,
+    low: t.low, medium: t.medium, high: t.high,
+  };
+
+  const handleIntensityClick = (level: Intensity) => {
+    if (level !== 'low' && !isPremium) {
+      setShowPremiumSheet(true);
+      return;
+    }
+    setIntensity(level);
+  };
+
+  const handleDurationClick = (d: TherapeuticDuration) => {
+    if (d === 30 && !isPremium) {
+      setShowPremiumSheet(true);
+      return;
+    }
+    setSessionDuration(d);
   };
 
   return (
     <div className="relative min-h-[100dvh] w-full flex flex-col items-center justify-center overflow-hidden bg-background px-6 py-12">
+
       {/* Background glow */}
       <motion.div
         className="pointer-events-none absolute inset-0 flex items-center justify-center"
@@ -98,6 +102,7 @@ export default function Home() {
       </div>
 
       <div className="z-10 flex flex-col items-center w-full max-w-sm mt-12 mb-auto gap-8">
+
         {/* Auto-stop toast */}
         <div className="h-10 w-full flex items-center justify-center">
           <AnimatePresence>
@@ -116,14 +121,13 @@ export default function Home() {
           </AnimatePresence>
         </div>
 
-        {/* ── Temperature Display ───────────────────────────────── */}
+        {/* ── Temperature Display ── */}
         <div className="w-full bg-card/60 border border-card-border rounded-3xl px-6 py-5 flex flex-col gap-3 backdrop-blur-sm">
           <div className="flex items-center gap-2 text-muted-foreground text-xs uppercase tracking-widest">
             <Thermometer size={13} />
             <span>{t.tempLabel}</span>
           </div>
 
-          {/* Big temperature reading */}
           <div className="flex items-end gap-4">
             <div className="flex items-baseline gap-1">
               <motion.span
@@ -143,42 +147,23 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Phase indicator + warm-up bar */}
           <div className="flex flex-col gap-2">
-            {/* Phase badge */}
             <div className="flex items-center justify-between">
               <AnimatePresence mode="wait">
                 {phase === 'idle' && (
-                  <motion.span
-                    key="idle"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="text-xs text-muted-foreground"
-                  >
-                    —
-                  </motion.span>
+                  <motion.span key="idle" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                    className="text-xs text-muted-foreground">—</motion.span>
                 )}
                 {phase === 'warming' && (
-                  <motion.span
-                    key="warming"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="text-xs text-amber-400 font-medium flex items-center gap-1"
-                  >
+                  <motion.span key="warming" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                    className="text-xs text-amber-400 font-medium flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse inline-block" />
                     {t.phaseWarming}
                   </motion.span>
                 )}
                 {phase === 'therapeutic' && (
-                  <motion.span
-                    key="therapeutic"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="text-xs text-primary font-medium flex items-center gap-1"
-                  >
+                  <motion.span key="therapeutic" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                    className="text-xs text-primary font-medium flex items-center gap-1">
                     <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse inline-block" />
                     {t.phaseTherapeutic}
                   </motion.span>
@@ -186,12 +171,9 @@ export default function Home() {
               </AnimatePresence>
             </div>
 
-            {/* Warm-up progress bar */}
             <div className="w-full h-1.5 rounded-full bg-white/5 overflow-hidden">
               <motion.div
-                className={`h-full rounded-full ${
-                  phase === 'therapeutic' ? 'bg-primary' : 'bg-amber-500'
-                }`}
+                className={`h-full rounded-full ${phase === 'therapeutic' ? 'bg-primary' : 'bg-amber-500'}`}
                 animate={{ width: `${warmProgress * 100}%` }}
                 transition={{ duration: 1, ease: 'linear' }}
               />
@@ -199,7 +181,7 @@ export default function Home() {
           </div>
         </div>
 
-        {/* ── Main Button ───────────────────────────────────────── */}
+        {/* ── Main Button ── */}
         <div className="flex flex-col items-center">
           <motion.button
             onClick={running ? stop : start}
@@ -227,52 +209,35 @@ export default function Home() {
                 {running ? t.stop : t.start}
               </span>
               {running && phase === 'therapeutic' && (
-                <motion.span
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="font-mono text-lg text-white/90"
-                >
+                <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                  className="font-mono text-lg text-white/90">
                   {formatTime(therapeuticRemaining)}
                 </motion.span>
               )}
               {running && phase === 'warming' && (
-                <motion.span
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="text-xs text-white/70 text-center max-w-[100px] leading-tight"
-                >
+                <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                  className="text-xs text-white/70 text-center max-w-[100px] leading-tight">
                   {t.phaseWarming}
                 </motion.span>
               )}
             </div>
           </motion.button>
 
-          {/* Therapeutic remaining label under button */}
           <AnimatePresence>
             {phase === 'therapeutic' && (
-              <motion.p
-                initial={{ opacity: 0, y: 4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                className="mt-3 text-xs text-muted-foreground"
-              >
-                {t.therapyTimer}
-              </motion.p>
+              <motion.p initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                className="mt-3 text-xs text-muted-foreground">{t.therapyTimer}</motion.p>
             )}
             {phase === 'warming' && (
-              <motion.p
-                initial={{ opacity: 0, y: 4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0 }}
-                className="mt-3 text-xs text-muted-foreground"
-              >
+              <motion.p initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                className="mt-3 text-xs text-muted-foreground">
                 {t.waitingForTemp} · {targetC}°C
               </motion.p>
             )}
           </AnimatePresence>
         </div>
 
-        {/* ── Intensity ─────────────────────────────────────────── */}
+        {/* ── Intensity ── */}
         <div className="w-full flex flex-col gap-3">
           <div className="flex justify-between items-center px-1">
             <span className="text-xs font-medium text-muted-foreground uppercase tracking-widest">
@@ -283,51 +248,76 @@ export default function Home() {
             </span>
           </div>
           <div className="flex p-1 bg-card rounded-2xl border border-card-border">
-            {(['low', 'medium', 'high'] as Intensity[]).map((level) => (
-              <button
-                key={level}
-                onClick={() => setIntensity(level)}
-                className={`flex-1 py-3 text-sm font-medium rounded-xl transition-all duration-300 ${
-                  intensity === level
-                    ? 'bg-secondary text-foreground shadow-md'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
-                }`}
-              >
-                {intensityLabels[level]}
-              </button>
-            ))}
+            {(['low', 'medium', 'high'] as Intensity[]).map((level) => {
+              const locked = level !== 'low' && !isPremium;
+              const selected = intensity === level;
+              return (
+                <button
+                  key={level}
+                  onClick={() => handleIntensityClick(level)}
+                  className={`flex-1 py-3 text-sm font-medium rounded-xl transition-all duration-300 relative ${
+                    selected && !locked
+                      ? 'bg-secondary text-foreground shadow-md'
+                      : locked
+                      ? 'text-muted-foreground/50'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
+                  }`}
+                >
+                  {locked ? (
+                    <span className="flex items-center justify-center gap-1">
+                      <Lock size={11} className="shrink-0" />
+                      <span>{intensityLabels[level]}</span>
+                    </span>
+                  ) : (
+                    intensityLabels[level]
+                  )}
+                </button>
+              );
+            })}
           </div>
         </div>
 
-        {/* ── Session Duration ──────────────────────────────────── */}
+        {/* ── Session Duration ── */}
         <div className="w-full flex flex-col gap-3">
-          <div className="flex justify-between items-center px-1">
+          <div className="px-1">
             <span className="text-xs font-medium text-muted-foreground uppercase tracking-widest">
               {t.session}
             </span>
           </div>
           <div className="flex p-1 bg-card rounded-2xl border border-card-border">
-            {THERAPEUTIC_DURATIONS.map((d) => (
-              <button
-                key={d}
-                onClick={() => setSessionDuration(d as TherapeuticDuration)}
-                disabled={running}
-                className={`flex-1 py-3 text-sm font-medium rounded-xl transition-all duration-300 ${
-                  sessionDurationMin === d
-                    ? 'bg-secondary text-foreground shadow-md'
-                    : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
-                } disabled:opacity-40 disabled:cursor-not-allowed`}
-              >
-                {d} {t.min}
-              </button>
-            ))}
+            {THERAPEUTIC_DURATIONS.map((d) => {
+              const locked = d === 30 && !isPremium;
+              const selected = sessionDurationMin === d;
+              return (
+                <button
+                  key={d}
+                  onClick={() => handleDurationClick(d as TherapeuticDuration)}
+                  disabled={running && !locked}
+                  className={`flex-1 py-3 text-sm font-medium rounded-xl transition-all duration-300 ${
+                    selected && !locked
+                      ? 'bg-secondary text-foreground shadow-md'
+                      : locked
+                      ? 'text-muted-foreground/50'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
+                  } disabled:opacity-40 disabled:cursor-not-allowed`}
+                >
+                  {locked ? (
+                    <span className="flex items-center justify-center gap-1">
+                      <Lock size={11} className="shrink-0" />
+                      <span>{d} {t.min}</span>
+                    </span>
+                  ) : (
+                    `${d} ${t.min}`
+                  )}
+                </button>
+              );
+            })}
           </div>
         </div>
       </div>
 
-      {/* ── Footer ───────────────────────────────────────────────── */}
+      {/* ── Footer ── */}
       <div className="mt-auto w-full max-w-sm flex flex-col gap-5 z-10 pb-6">
-        {/* Status indicators */}
         <div className="flex justify-center gap-5 text-xs text-muted-foreground">
           {batteryLevel !== null && (
             <div className="flex items-center gap-1.5">
@@ -348,7 +338,6 @@ export default function Home() {
           )}
         </div>
 
-        {/* Safety notice */}
         <div className="flex gap-3 bg-black/20 p-4 rounded-2xl border border-white/5 backdrop-blur-sm items-start">
           <ShieldAlert size={17} className="text-muted-foreground shrink-0 mt-0.5" />
           <p className="text-[11px] text-muted-foreground leading-relaxed">
@@ -357,6 +346,9 @@ export default function Home() {
           </p>
         </div>
       </div>
+
+      {/* Premium sheet */}
+      <PremiumSheet open={showPremiumSheet} onClose={() => setShowPremiumSheet(false)} />
     </div>
   );
 }
