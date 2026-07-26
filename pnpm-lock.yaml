@@ -630,6 +630,16 @@ importers:
         version: 3.25.76
 
   artifacts/warm:
+    dependencies:
+      '@capacitor/android':
+        specifier: ^8.4.2
+        version: 8.4.2(@capacitor/core@8.4.2)
+      '@capacitor/cli':
+        specifier: ^8.4.2
+        version: 8.4.2
+      '@capacitor/core':
+        specifier: ^8.4.2
+        version: 8.4.2
     devDependencies:
       '@hookform/resolvers':
         specifier: ^3.10.0
