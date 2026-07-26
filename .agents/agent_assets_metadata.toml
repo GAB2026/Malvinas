@@ -66,3 +66,9 @@ id = "1xx1E79iXtF2G5YQeqslu"
 uri = "file://qr-apk-v109.png"
 type = "image"
 title = "QR — Descargar APK v1.0.9"
+
+[[outputs]]
+id = "Rrcpq1oI56sHeyJZULV6p"
+uri = "file://qr-v110.png"
+type = "image"
+title = "QR — Descargar APK v1.0.10"
