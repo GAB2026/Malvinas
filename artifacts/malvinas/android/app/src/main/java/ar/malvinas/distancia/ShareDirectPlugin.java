@@ -43,7 +43,10 @@ public class ShareDirectPlugin extends Plugin {
             Intent sendIntent = new Intent(Intent.ACTION_SEND);
             sendIntent.setType(mimeType);
             sendIntent.putExtra(Intent.EXTRA_STREAM, contentUri);
-            sendIntent.putExtra(Intent.EXTRA_TEXT, text);
+            // WhatsApp muestra EXTRA_TEXT como caption visible — lo omitimos para esa app
+            if (!"com.whatsapp".equals(pkg)) {
+                sendIntent.putExtra(Intent.EXTRA_TEXT, text);
+            }
             sendIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
 
             if (pkg != null && !pkg.isEmpty()) {
