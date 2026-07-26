@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Warm</string>
+    <string name="title_activity_main">Warm</string>
+    <string name="package_name">com.warm.app</string>
+    <string name="custom_url_scheme">com.warm.app</string>
+</resources>
