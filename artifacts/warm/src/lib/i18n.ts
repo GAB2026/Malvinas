@@ -56,7 +56,7 @@ const T: Record<Lang, Translations> = {
     warmingUp: 'Warming up',
     safetyTitle: 'Safety Notice',
     safetyBody:
-      'This app heats your device by running intensive computations. It drains battery quickly and may cause thermal throttling. The therapeutic timer starts once the target temperature is reached. Auto-stops at 15% battery.',
+      'This app heats your device by running intensive computations. It drains battery quickly. It auto-stops when battery reaches 15% or if the temperature poses a risk to the device.',
     autoStop: {
       'time-limit': 'Therapeutic session complete',
       'low-battery': 'Battery too low — session stopped',
@@ -87,7 +87,7 @@ const T: Record<Lang, Translations> = {
     warmingUp: 'Calentamiento',
     safetyTitle: 'Aviso de seguridad',
     safetyBody:
-      'Esta app calienta el dispositivo mediante cálculos intensivos. Consume batería rápidamente y puede causar estrangulamiento térmico. El temporizador terapéutico comienza al alcanzar la temperatura objetivo. Se detiene automáticamente al 15 % de batería.',
+      'Esta app calienta el dispositivo mediante cálculos intensivos. Consume batería rápidamente. Se detiene automáticamente cuando queda 15 % de batería o la temperatura sea un riesgo para el dispositivo.',
     autoStop: {
       'time-limit': 'Sesión terapéutica completada',
       'low-battery': 'Batería baja — sesión detenida',
@@ -118,7 +118,7 @@ const T: Record<Lang, Translations> = {
     warmingUp: 'Aquecimento',
     safetyTitle: 'Aviso de segurança',
     safetyBody:
-      'Este app aquece o dispositivo executando cálculos intensivos. Consome bateria rapidamente e pode causar throttling térmico. O temporizador terapêutico começa ao atingir a temperatura alvo. Para automaticamente com 15% de bateria.',
+      'Este app aquece o dispositivo executando cálculos intensivos. Consome bateria rapidamente. Para automaticamente com 15% de bateria ou se a temperatura representar risco ao dispositivo.',
     autoStop: {
       'time-limit': 'Sessão terapêutica concluída',
       'low-battery': 'Bateria baixa — sessão encerrada',
@@ -149,7 +149,7 @@ const T: Record<Lang, Translations> = {
     warmingUp: 'Montée en chauffe',
     safetyTitle: 'Avis de sécurité',
     safetyBody:
-      "Cette app chauffe physiquement l'appareil par des calculs intensifs. Elle draine la batterie rapidement et peut provoquer un bridage thermique. Le minuteur thérapeutique démarre une fois la température cible atteinte. Arrêt automatique à 15 % de batterie.",
+      "Cette app chauffe l'appareil par des calculs intensifs. Elle draine la batterie rapidement. Arrêt automatique quand il reste 15 % de batterie ou si la température représente un risque pour l'appareil.",
     autoStop: {
       'time-limit': 'Séance thérapeutique terminée',
       'low-battery': 'Batterie trop faible — séance arrêtée',
@@ -180,7 +180,7 @@ const T: Record<Lang, Translations> = {
     warmingUp: 'Aufheizphase',
     safetyTitle: 'Sicherheitshinweis',
     safetyBody:
-      'Diese App erhitzt das Gerät durch intensive Berechnungen. Sie entlädt den Akku schnell und kann thermisches Drosseln verursachen. Der therapeutische Timer startet sobald die Zieltemperatur erreicht ist. Automatischer Stopp bei 15 % Akku.',
+      'Diese App erhitzt das Gerät durch intensive Berechnungen. Sie entlädt den Akku schnell. Automatischer Stopp bei 15 % Akku oder wenn die Temperatur ein Risiko für das Gerät darstellt.',
     autoStop: {
       'time-limit': 'Therapeutische Sitzung abgeschlossen',
       'low-battery': 'Akku zu niedrig — Sitzung gestoppt',
@@ -211,7 +211,7 @@ const T: Record<Lang, Translations> = {
     warmingUp: 'Riscaldamento',
     safetyTitle: 'Avviso di sicurezza',
     safetyBody:
-      "Questa app riscalda fisicamente il dispositivo eseguendo calcoli intensivi. Scarica rapidamente la batteria e può causare throttling termico. Il timer terapeutico parte al raggiungimento della temperatura target. Arresto automatico al 15% di batteria.",
+      'Questa app riscalda il dispositivo eseguendo calcoli intensivi. Scarica rapidamente la batteria. Si ferma automaticamente quando rimane il 15% di batteria o se la temperatura rappresenta un rischio per il dispositivo.',
     autoStop: {
       'time-limit': 'Sessione terapeutica completata',
       'low-battery': 'Batteria troppo bassa — sessione fermata',
