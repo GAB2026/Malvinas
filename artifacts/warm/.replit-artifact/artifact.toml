@@ -1,0 +1,27 @@
+kind = "web"
+previewPath = "/warm/"
+title = "Warm"
+version = "1.0.0"
+id = "artifacts/warm"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/warm/" ]
+localPort = 25218
+
+[services.development]
+run = "pnpm --filter @workspace/warm run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/warm", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/warm/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "25218"
+BASE_PATH = "/warm/"
