@@ -6,7 +6,7 @@ import iconTikTok from './assets/icon-tiktok.jpg';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { MapPin, RefreshCw, Share2, Upload, Navigation, Wifi, Edit3, Search, X } from 'lucide-react';
+import { MapPin, RefreshCw, Share2, Navigation, Wifi, Edit3, Search, X } from 'lucide-react';
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
@@ -464,8 +464,6 @@ function MainScreen() {
   const [storyBlob, setStoryBlob] = useState<Blob | null>(null);
   const [storyPreviewUrl, setStoryPreviewUrl] = useState<string | null>(null);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
   /**
    * Fetch location with three-tier fallback:
    * 1. Browser GPS
@@ -597,21 +595,6 @@ function MainScreen() {
     }
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const dataUrl = event.target?.result as string;
-      setBackgroundUrl(dataUrl);
-      try { localStorage.setItem('malvinas-bg', dataUrl); } catch { /* quota exceeded — skip persistence */ }
-      const img = new Image();
-      img.src = dataUrl;
-      img.onload = () => setBackgroundImage(img);
-    };
-    reader.readAsDataURL(file);
-  };
-
   return (
     <div className="relative min-h-[100dvh] w-full flex flex-col items-center justify-center overflow-hidden font-sans bg-[#0D1B2A]">
       {/* Background Layer */}
@@ -719,24 +702,6 @@ function MainScreen() {
             {generatingStory ? 'Generando...' : 'Crear historia'}
           </button>
 
-          <div className="flex justify-center mt-3">
-            <input
-              type="file"
-              accept="image/png, image/jpeg"
-              className="hidden"
-              ref={fileInputRef}
-              onChange={handleImageUpload}
-              data-testid="input-image-upload"
-            />
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              data-testid="button-change-image"
-              className="flex items-center gap-2 text-white/60 hover:text-white/100 text-sm font-medium transition-colors py-2 px-4 rounded-lg hover:bg-white/5"
-            >
-              <Upload className="w-4 h-4" />
-              Cambiar imagen de fondo
-            </button>
-          </div>
         </div>
       </div>
 
