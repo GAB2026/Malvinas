@@ -1,12 +1,15 @@
 package ar.malvinas.distancia;
 
+import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.util.Base64;
+import android.widget.Toast;
 
 import androidx.core.content.FileProvider;
 
+import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
@@ -22,54 +25,61 @@ public class ShareDirectPlugin extends Plugin {
 
     @PluginMethod
     public void share(PluginCall call) {
-        String pkg       = call.getString("pkg", "");
-        String base64    = call.getString("base64", "");
-        String mimeType  = call.getString("mimeType", "image/png");
-        String text      = call.getString("text", "");
+        String pkg      = call.getString("pkg", "");
+        String base64   = call.getString("base64", "");
+        String mimeType = call.getString("mimeType", "image/png");
+        String text     = call.getString("text", "");
 
         try {
-            // 1. Write image to cache
-            byte[] bytes = Base64.decode(base64, Base64.DEFAULT);
-            File cacheDir = getContext().getCacheDir();
-            File imgFile  = new File(cacheDir, "malvinas-share-" + System.currentTimeMillis() + ".png");
+            // 1. Decode & write PNG to app cache
+            byte[] bytes   = Base64.decode(base64, Base64.DEFAULT);
+            File cacheDir  = getActivity().getCacheDir();
+            File imgFile   = new File(cacheDir, "malvinas-share-" + System.currentTimeMillis() + ".png");
             FileOutputStream fos = new FileOutputStream(imgFile);
             fos.write(bytes);
             fos.close();
 
-            // 2. Get content:// URI via FileProvider (includes FLAG_GRANT_READ_URI_PERMISSION)
-            Uri contentUri = FileProvider.getUriForFile(getContext(), AUTHORITY, imgFile);
+            // 2. Get content:// URI via FileProvider
+            Uri contentUri = FileProvider.getUriForFile(getActivity(), AUTHORITY, imgFile);
 
-            // 3. Build ACTION_SEND intent
+            // 3. Build share intent
             Intent sendIntent = new Intent(Intent.ACTION_SEND);
             sendIntent.setType(mimeType);
             sendIntent.putExtra(Intent.EXTRA_STREAM, contentUri);
             sendIntent.putExtra(Intent.EXTRA_TEXT, text);
             sendIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
 
-            // 4. Target specific package if installed; otherwise show chooser
-            PackageManager pm = getContext().getPackageManager();
+            // 4. Check if target package is installed
             boolean pkgInstalled = false;
             if (pkg != null && !pkg.isEmpty()) {
                 try {
-                    pm.getPackageInfo(pkg, 0);
+                    getActivity().getPackageManager().getPackageInfo(pkg, 0);
                     pkgInstalled = true;
                 } catch (PackageManager.NameNotFoundException ignored) {}
             }
 
-            Intent launchIntent;
             if (pkgInstalled) {
+                // Direct open — no chooser
                 sendIntent.setPackage(pkg);
-                launchIntent = sendIntent;
+                try {
+                    getActivity().startActivity(sendIntent);
+                    call.resolve();
+                } catch (ActivityNotFoundException e) {
+                    // Package found but can't handle this intent — try chooser
+                    sendIntent.setPackage(null);
+                    Intent chooser = Intent.createChooser(sendIntent, "Compartir imagen");
+                    getActivity().startActivity(chooser);
+                    call.resolve();
+                }
             } else {
-                launchIntent = Intent.createChooser(sendIntent, "Compartir imagen");
+                // App not installed — show chooser so user picks something
+                Intent chooser = Intent.createChooser(sendIntent, "Compartir imagen");
+                getActivity().startActivity(chooser);
+                call.resolve();
             }
 
-            launchIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
-            getContext().startActivity(launchIntent);
-            call.resolve();
-
         } catch (Exception e) {
-            call.reject("Error al compartir: " + e.getMessage(), e);
+            call.reject("ShareDirect error: " + e.getMessage(), e);
         }
     }
 }
