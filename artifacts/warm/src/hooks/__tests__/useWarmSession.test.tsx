@@ -2,8 +2,8 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import {
   useWarmSession,
-  SESSION_LIMIT_SECONDS,
   LOW_BATTERY_CUTOFF,
+  TARGET_TEMP_C,
 } from '../useWarmSession';
 
 // ─── Battery API mock helpers ────────────────────────────────────────────────
@@ -92,12 +92,14 @@ describe('useWarmSession', () => {
     const { result } = renderHook(() => useWarmSession());
     expect(result.current.running).toBe(false);
     expect(result.current.stopReason).toBeNull();
+    expect(result.current.phase).toBe('idle');
   });
 
-  it('running becomes true after start()', () => {
+  it('running becomes true and phase is "warming" after start()', () => {
     const { result } = renderHook(() => useWarmSession());
     act(() => result.current.start());
     expect(result.current.running).toBe(true);
+    expect(result.current.phase).toBe('warming');
   });
 
   it('running becomes false after stop() and stopReason is "user"', () => {
@@ -106,6 +108,7 @@ describe('useWarmSession', () => {
     act(() => result.current.stop());
     expect(result.current.running).toBe(false);
     expect(result.current.stopReason).toBe('user');
+    expect(result.current.phase).toBe('idle');
   });
 
   it('elapsed increments each second while running', () => {
@@ -115,13 +118,6 @@ describe('useWarmSession', () => {
     expect(result.current.elapsed).toBeGreaterThanOrEqual(3);
   });
 
-  it('remaining starts at SESSION_LIMIT_SECONDS', () => {
-    const { result } = renderHook(() => useWarmSession());
-    act(() => result.current.start());
-    expect(result.current.remaining).toBeLessThanOrEqual(SESSION_LIMIT_SECONDS);
-    expect(result.current.remaining).toBeGreaterThan(0);
-  });
-
   it('elapsed resets to 0 on a new start', () => {
     const { result } = renderHook(() => useWarmSession());
     act(() => result.current.start());
@@ -129,6 +125,67 @@ describe('useWarmSession', () => {
     act(() => result.current.stop());
     act(() => result.current.start());
     expect(result.current.elapsed).toBe(0);
+  });
+
+  // ── temperature model ─────────────────────────────────────────────────────
+
+  it('deviceTempC starts near ambient (~34°C) when not running', () => {
+    const { result } = renderHook(() => useWarmSession());
+    expect(result.current.deviceTempC).toBeCloseTo(34, 0);
+  });
+
+  it('deviceTempC rises above ambient while running', () => {
+    const { result } = renderHook(() => useWarmSession());
+    act(() => result.current.start());
+    act(() => vi.advanceTimersByTime(60000)); // 60 s
+    expect(result.current.deviceTempC).toBeGreaterThan(34);
+  });
+
+  // ── phase transitions ─────────────────────────────────────────────────────
+
+  it('transitions to "therapeutic" phase once target temp is reached (medium, ~210 s)', () => {
+    const { result } = renderHook(() => useWarmSession());
+    act(() => result.current.setIntensity('medium'));
+    act(() => result.current.start());
+    // medium target is 40°C; reached at ~208 s; advance 300 s to be safe
+    act(() => vi.advanceTimersByTime(300000));
+    expect(result.current.phase).toBe('therapeutic');
+    expect(result.current.therapeuticRemaining).toBeGreaterThan(0);
+  });
+
+  it('therapeuticRemaining starts at sessionDurationMin * 60 when therapeutic begins', () => {
+    const { result } = renderHook(() => useWarmSession());
+    act(() => result.current.setIntensity('high'));
+    act(() => result.current.start());
+    // high target 43°C reached at ~125 s; advance 200 s
+    act(() => vi.advanceTimersByTime(200000));
+    expect(result.current.phase).toBe('therapeutic');
+    // should be close to 15*60=900 (minus a few seconds of therapeutic time)
+    expect(result.current.therapeuticRemaining).toBeLessThanOrEqual(900);
+    expect(result.current.therapeuticRemaining).toBeGreaterThan(800);
+  });
+
+  it('sessionDurationMin defaults to 15', () => {
+    const { result } = renderHook(() => useWarmSession());
+    expect(result.current.sessionDurationMin).toBe(15);
+  });
+
+  it('setSessionDuration changes the therapeutic duration', () => {
+    const { result } = renderHook(() => useWarmSession());
+    act(() => result.current.setSessionDuration(30));
+    expect(result.current.sessionDurationMin).toBe(30);
+  });
+
+  // ── auto-stop: time limit ─────────────────────────────────────────────────
+
+  it('auto-stops with stopReason "time-limit" after warming + 15 min therapeutic (high intensity)', () => {
+    const { result } = renderHook(() => useWarmSession());
+    act(() => result.current.setIntensity('high'));
+    act(() => result.current.start());
+    // high warm-up ~125 s + 15*60=900 s therapeutic = ~1025 s; advance 1100 s
+    act(() => vi.advanceTimersByTime(1100000));
+    expect(result.current.running).toBe(false);
+    expect(result.current.stopReason).toBe('time-limit');
   });
 
   // ── intensity switching ───────────────────────────────────────────────────
@@ -153,56 +210,7 @@ describe('useWarmSession', () => {
     const lowCount = result.current.workerCount;
     act(() => result.current.setIntensity('high'));
     const highCount = result.current.workerCount;
-    // On a multi-core device high should use more workers;
-    // allow equal only on single-core hosts.
     expect(highCount).toBeGreaterThanOrEqual(lowCount);
-  });
-
-  // ── auto-stop: time limit ─────────────────────────────────────────────────
-
-  it('auto-stops with stopReason "time-limit" after SESSION_LIMIT_SECONDS', () => {
-    const { result } = renderHook(() => useWarmSession());
-    act(() => result.current.start());
-    act(() => vi.advanceTimersByTime(SESSION_LIMIT_SECONDS * 1000 + 1000));
-    expect(result.current.running).toBe(false);
-    expect(result.current.stopReason).toBe('time-limit');
-  });
-
-  // ── auto-stop: tab hidden then restored past limit (throttled interval) ──
-
-  it('auto-stops with "time-limit" on visibility restore when intervals were throttled past limit', () => {
-    const { result } = renderHook(() => useWarmSession());
-    act(() => result.current.start());
-
-    // Silently mark the tab as hidden WITHOUT dispatching visibilitychange, so
-    // the tab-hidden handler never fires — simulating a browser that throttled
-    // the page without a proper visibility event.
-    Object.defineProperty(document, 'hidden', {
-      configurable: true,
-      get: () => true,
-    });
-
-    // Advance the wall clock past SESSION_LIMIT_SECONDS without running timers,
-    // simulating throttled/dropped intervals.
-    vi.setSystemTime(Date.now() + (SESSION_LIMIT_SECONDS + 1) * 1000);
-
-    // Restore visibility — the handler should detect the overrun and stop.
-    act(() => {
-      Object.defineProperty(document, 'hidden', {
-        configurable: true,
-        get: () => false,
-      });
-      document.dispatchEvent(new Event('visibilitychange'));
-    });
-
-    expect(result.current.running).toBe(false);
-    expect(result.current.stopReason).toBe('time-limit');
-
-    // Restore document.hidden
-    Object.defineProperty(document, 'hidden', {
-      configurable: true,
-      get: () => false,
-    });
   });
 
   // ── auto-stop: tab hidden ─────────────────────────────────────────────────
@@ -222,7 +230,6 @@ describe('useWarmSession', () => {
     expect(result.current.running).toBe(false);
     expect(result.current.stopReason).toBe('tab-hidden');
 
-    // Restore
     Object.defineProperty(document, 'hidden', {
       configurable: true,
       get: () => false,
@@ -244,6 +251,42 @@ describe('useWarmSession', () => {
     expect(result.current.running).toBe(true);
   });
 
+  it('auto-stops with "time-limit" on visibility restore when therapeutic phase overran', () => {
+    const { result } = renderHook(() => useWarmSession());
+    act(() => result.current.setIntensity('high'));
+    act(() => result.current.start());
+
+    // Advance to therapeutic phase
+    act(() => vi.advanceTimersByTime(200000));
+    expect(result.current.phase).toBe('therapeutic');
+
+    // Silently mark tab hidden without event (throttled browser)
+    Object.defineProperty(document, 'hidden', {
+      configurable: true,
+      get: () => true,
+    });
+
+    // Move wall clock past therapeutic limit
+    vi.setSystemTime(Date.now() + 1000 * 1000);
+
+    // Restore visibility
+    act(() => {
+      Object.defineProperty(document, 'hidden', {
+        configurable: true,
+        get: () => false,
+      });
+      document.dispatchEvent(new Event('visibilitychange'));
+    });
+
+    expect(result.current.running).toBe(false);
+    expect(result.current.stopReason).toBe('time-limit');
+
+    Object.defineProperty(document, 'hidden', {
+      configurable: true,
+      get: () => false,
+    });
+  });
+
   // ── auto-stop: low battery ────────────────────────────────────────────────
 
   it('stops with stopReason "low-battery" when battery drops to cutoff (not charging)', async () => {
@@ -252,7 +295,6 @@ describe('useWarmSession', () => {
 
     const { result } = renderHook(() => useWarmSession());
 
-    // Wait for the getBattery promise to resolve.
     await act(async () => {
       result.current.start();
     });
@@ -269,7 +311,7 @@ describe('useWarmSession', () => {
   });
 
   it('does NOT stop on low battery when charging', async () => {
-    const battery = makeMockBattery(0.5, true); // charging = true
+    const battery = makeMockBattery(0.5, true);
     const removeBattery = installBatteryMock(battery);
 
     const { result } = renderHook(() => useWarmSession());
@@ -289,7 +331,7 @@ describe('useWarmSession', () => {
   });
 
   it('stops when charger is unplugged at low battery', async () => {
-    const battery = makeMockBattery(LOW_BATTERY_CUTOFF, true); // already low but charging
+    const battery = makeMockBattery(LOW_BATTERY_CUTOFF, true);
     const removeBattery = installBatteryMock(battery);
 
     const { result } = renderHook(() => useWarmSession());
@@ -298,7 +340,6 @@ describe('useWarmSession', () => {
       result.current.start();
     });
 
-    // Unplug charger
     act(() => {
       battery.charging = false;
       battery._fire('chargingchange');
@@ -356,9 +397,17 @@ describe('useWarmSession', () => {
     const startedAt = result.current.elapsed;
     act(() => vi.advanceTimersByTime(2000));
     act(() => result.current.start()); // second call
-    // Still running without reset
     expect(result.current.running).toBe(true);
     expect(result.current.elapsed).toBeGreaterThan(startedAt);
+  });
+
+  // ── target temperatures ───────────────────────────────────────────────────
+
+  it('TARGET_TEMP_C values are in a safe and meaningful range', () => {
+    expect(TARGET_TEMP_C.low).toBeGreaterThan(34);
+    expect(TARGET_TEMP_C.low).toBeLessThan(TARGET_TEMP_C.medium);
+    expect(TARGET_TEMP_C.medium).toBeLessThan(TARGET_TEMP_C.high);
+    expect(TARGET_TEMP_C.high).toBeLessThan(55);
   });
 
   // ── cleanup on unmount ────────────────────────────────────────────────────
