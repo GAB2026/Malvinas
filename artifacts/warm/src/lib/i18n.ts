@@ -1,8 +1,8 @@
-export type Lang = 'es' | 'en' | 'pt' | 'fr' | 'de' | 'it';
+export type Lang = 'es' | 'en' | 'pt' | 'fr' | 'de' | 'it' | 'ru' | 'kl' | 'mn' | 'fi' | 'sv';
 
 export function detectLang(): Lang {
   const raw = (navigator.language || 'en').toLowerCase().slice(0, 2);
-  const supported: Lang[] = ['es', 'en', 'pt', 'fr', 'de', 'it'];
+  const supported: Lang[] = ['es', 'en', 'pt', 'fr', 'de', 'it', 'ru', 'kl', 'mn', 'fi', 'sv'];
   return supported.includes(raw as Lang) ? (raw as Lang) : 'en';
 }
 
@@ -221,6 +221,161 @@ const T: Record<Lang, Translations> = {
     core: 'core',
     waitingForTemp: 'In attesa della temperatura target',
     therapyTimer: 'Tempo di terapia rimanente',
+  },
+
+  ru: {
+    tagline: 'карманный камин',
+    intensity: 'Интенсивность',
+    low: 'Низкая',
+    medium: 'Средняя',
+    high: 'Высокая',
+    start: 'Старт',
+    stop: 'Стоп',
+    session: 'Сеанс',
+    min: 'мин',
+    screenAwake: 'Экран активен',
+    screenSleep: 'Экран может спать',
+    tempLabel: 'Темп. устройства',
+    phaseWarming: 'Нагрев…',
+    phaseTherapeutic: 'Терапия активна',
+    targetReached: 'Цель достигнута',
+    warmingUp: 'Нагрев',
+    safetyTitle: 'Предупреждение',
+    safetyBody:
+      'Это приложение нагревает устройство интенсивными вычислениями. Быстро расходует батарею. Автоматически останавливается при 15 % заряда или если температура представляет опасность для устройства.',
+    autoStop: {
+      'time-limit': 'Терапевтический сеанс завершён',
+      'low-battery': 'Мало заряда — сеанс остановлен',
+      'tab-hidden': 'Остановлено: приложение ушло в фон',
+    },
+    cores: 'ядер',
+    core: 'ядро',
+    waitingForTemp: 'Ожидание целевой температуры',
+    therapyTimer: 'Оставшееся время терапии',
+  },
+
+  fi: {
+    tagline: 'taskutakka',
+    intensity: 'Teho',
+    low: 'Matala',
+    medium: 'Keskitaso',
+    high: 'Korkea',
+    start: 'Käynnistä',
+    stop: 'Pysäytä',
+    session: 'Istunto',
+    min: 'min',
+    screenAwake: 'Näyttö aktiivinen',
+    screenSleep: 'Näyttö voi nukkua',
+    tempLabel: 'Laitteen lämpötila',
+    phaseWarming: 'Lämpenee…',
+    phaseTherapeutic: 'Hoito käynnissä',
+    targetReached: 'Tavoite saavutettu',
+    warmingUp: 'Lämpeneminen',
+    safetyTitle: 'Turvahuomio',
+    safetyBody:
+      'Tämä sovellus lämmittää laitetta intensiivisillä laskutoimituksilla. Kuluttaa akkua nopeasti. Pysähtyy automaattisesti kun akku on 15 % tai lämpötila on vaaraksi laitteelle.',
+    autoStop: {
+      'time-limit': 'Hoitoistunto valmis',
+      'low-battery': 'Akku liian heikko — istunto pysäytetty',
+      'tab-hidden': 'Pysäytetty: sovellus siirtyi taustalle',
+    },
+    cores: 'ydintä',
+    core: 'ydin',
+    waitingForTemp: 'Odotetaan tavoitelämpötilaa',
+    therapyTimer: 'Hoitoaikaa jäljellä',
+  },
+
+  sv: {
+    tagline: 'fickbrasa',
+    intensity: 'Intensitet',
+    low: 'Låg',
+    medium: 'Medel',
+    high: 'Hög',
+    start: 'Starta',
+    stop: 'Stoppa',
+    session: 'Session',
+    min: 'min',
+    screenAwake: 'Skärm aktiv',
+    screenSleep: 'Skärmen kan sova',
+    tempLabel: 'Enhetstemperatur',
+    phaseWarming: 'Värmer upp…',
+    phaseTherapeutic: 'Terapi aktiv',
+    targetReached: 'Mål uppnått',
+    warmingUp: 'Uppvärmning',
+    safetyTitle: 'Säkerhetsmeddelande',
+    safetyBody:
+      'Den här appen värmer enheten genom intensiva beräkningar. Förbrukar batteriet snabbt. Stoppas automatiskt när batterinivån är 15 % eller om temperaturen utgör en risk för enheten.',
+    autoStop: {
+      'time-limit': 'Terapisession slutförd',
+      'low-battery': 'Batteri för lågt — session stoppad',
+      'tab-hidden': 'Stoppad: appen gick till bakgrunden',
+    },
+    cores: 'kärnor',
+    core: 'kärna',
+    waitingForTemp: 'Väntar på måltemperatur',
+    therapyTimer: 'Återstående terapitid',
+  },
+
+  mn: {
+    tagline: 'халааш зуух',
+    intensity: 'Эрчим',
+    low: 'Бага',
+    medium: 'Дунд',
+    high: 'Өндөр',
+    start: 'Эхлэх',
+    stop: 'Зогсоох',
+    session: 'Сесс',
+    min: 'мин',
+    screenAwake: 'Дэлгэц идэвхтэй',
+    screenSleep: 'Дэлгэц унтаж болно',
+    tempLabel: 'Төхөөрөмжийн хэм',
+    phaseWarming: 'Халаж байна…',
+    phaseTherapeutic: 'Эмчилгээ идэвхтэй',
+    targetReached: 'Зорилт хүрсэн',
+    warmingUp: 'Халаалт',
+    safetyTitle: 'Аюулгүйн анхааруулга',
+    safetyBody:
+      'Энэ апп нь эрчимтэй тооцоолол хийж төхөөрөмжийг халаана. Батарейг хурдан шавхана. Батарей 15%-д хүрэхэд эсвэл температур төхөөрөмжид аюул учруулах үед автоматаар зогсоно.',
+    autoStop: {
+      'time-limit': 'Эмчилгээний сесс дууссан',
+      'low-battery': 'Батарей бага — сесс зогссон',
+      'tab-hidden': 'Зогссон: апп дэвсгэрт орсон',
+    },
+    cores: 'цөм',
+    core: 'цөм',
+    waitingForTemp: 'Зорилтот температурыг хүлээж байна',
+    therapyTimer: 'Эмчилгээний үлдсэн хугацаа',
+  },
+
+  kl: {
+    tagline: 'isikkoqarfiussissaq',
+    intensity: 'Nukissap',
+    low: 'Minnerpaamik',
+    medium: 'Nalinginnaasumik',
+    high: 'Annerpassumik',
+    start: 'Atuissavaa',
+    stop: 'Nalinngissumik',
+    session: 'Nalunaarsorneq',
+    min: 'min.',
+    screenAwake: 'Isiginnaasoq',
+    screenSleep: 'Isiginnaasoqataanngikkaluarluni',
+    tempLabel: 'Isikkoq',
+    phaseWarming: 'Isikkoqqinnerani…',
+    phaseTherapeutic: 'Peqqissaarneq',
+    targetReached: 'Nalunaarusiorfigineqarpoq',
+    warmingUp: 'Isikkoqqinneq',
+    safetyTitle: 'Nalunaarusiorfigineq',
+    safetyBody:
+      'App-immi isikkoqqissaarissavaa atugarissaarissumillu nalunaarusiorfigineqassasoq. Isikkoq 15%-inik nalinginnaasumik nalunaarusiorfigineqarpoq. Isikkoq annerpassumik nalunaarusiorfigineqassasoq.',
+    autoStop: {
+      'time-limit': 'Peqqissaarneq naaperpoq',
+      'low-battery': 'Isikkoq minnerpaamik — nalinngissumik',
+      'tab-hidden': 'Nalinngissumik: nalunaarusiorfigineqarpoq',
+    },
+    cores: 'isikkorfigineqarsinnaasumit',
+    core: 'isikkorfigineqarsinnaasumik',
+    waitingForTemp: 'Isikkoq nalunaarusiorfigineqarsinnaappoq',
+    therapyTimer: 'Peqqissaarneqarsinnaanngitsumik',
   },
 };
 
