@@ -1,79 +1,78 @@
 /**
- * Premium + free-session-count management.
+ * Premium + Medium-intensity trial management.
  *
- * Free tier: up to FREE_SESSION_LIMIT lifetime sessions.
- * Premium: unlimited sessions, Medium/High intensity, 30-min duration.
+ * Free tier:
+ *   • Low  — unlimited sessions
+ *   • Medium — MEDIUM_TRIAL_LIMIT free sessions, then premium required
+ *   • High  — always premium
  *
- * For Google Play billing, replace purchase() / restore() with the
- * RevenueCat or @capacitor-community/in-app-purchases plugin calls
- * and keep the localStorage flags as a local cache.
+ * Premium ($2.99 one-time): all intensities + 30-min sessions, unlimited.
  *
- * Product ID to register in Play Console: "warm_premium_lifetime"
+ * TODO (Play Store): replace purchase() / restore() bodies with
+ * RevenueCat or @capacitor-community/in-app-purchases calls.
+ * Product ID: "warm_premium_lifetime"
  */
 
 import { useState, useCallback } from 'react';
 
-const PREMIUM_KEY  = 'warm_premium_v1';
-const SESSIONS_KEY = 'warm_free_sessions_v1';
+const PREMIUM_KEY      = 'warm_premium_v1';
+const TRIALS_KEY       = 'warm_medium_trials_v1';
 
-export const FREE_SESSION_LIMIT  = 5;
-export const PREMIUM_PRODUCT_ID  = 'warm_premium_lifetime';
+export const MEDIUM_TRIAL_LIMIT = 2;
+export const PREMIUM_PRODUCT_ID = 'warm_premium_lifetime';
 
-// ── Local-storage helpers ─────────────────────────────────────────────────────
+// ── Storage helpers ───────────────────────────────────────────────────────────
 function readPremium(): boolean {
   try { return localStorage.getItem(PREMIUM_KEY) === '1'; } catch { return false; }
 }
-function readSessionsUsed(): number {
-  try { return Math.max(0, parseInt(localStorage.getItem(SESSIONS_KEY) ?? '0', 10)); }
+function readTrialsUsed(): number {
+  try { return Math.max(0, parseInt(localStorage.getItem(TRIALS_KEY) ?? '0', 10)); }
   catch { return 0; }
 }
 
 // ── Hook ─────────────────────────────────────────────────────────────────────
 export interface PremiumHook {
   isPremium: boolean;
-  /** Remaining free sessions (Infinity when premium). */
-  freeSessionsLeft: number;
-  /** Call this at the moment the user taps Start (debited once per session). */
-  consumeSession: () => void;
-  /** Returns true when the user may start a session. */
-  canStart: boolean;
+  /** Free Medium sessions remaining (Infinity when premium). */
+  mediumTrialsLeft: number;
+  /** True if user may use Medium intensity (trial available or premium). */
+  canUseMedium: boolean;
+  /** Debit one Medium trial. No-op when premium. Call at session start. */
+  consumeMediumTrial: () => void;
   purchase: () => Promise<boolean>;
   restore:  () => Promise<boolean>;
 }
 
 export function usePremium(): PremiumHook {
-  const [isPremium,     setIsPremium]     = useState<boolean>(readPremium);
-  const [sessionsUsed,  setSessionsUsed]  = useState<number>(readSessionsUsed);
+  const [isPremium,   setIsPremium]   = useState<boolean>(readPremium);
+  const [trialsUsed,  setTrialsUsed]  = useState<number>(readTrialsUsed);
 
-  const freeSessionsLeft = isPremium
+  const mediumTrialsLeft = isPremium
     ? Infinity
-    : Math.max(0, FREE_SESSION_LIMIT - sessionsUsed);
+    : Math.max(0, MEDIUM_TRIAL_LIMIT - trialsUsed);
 
-  const canStart = isPremium || freeSessionsLeft > 0;
+  const canUseMedium = isPremium || mediumTrialsLeft > 0;
 
-  const consumeSession = useCallback(() => {
+  const consumeMediumTrial = useCallback(() => {
     if (isPremium) return;
-    const next = readSessionsUsed() + 1;
-    try { localStorage.setItem(SESSIONS_KEY, String(next)); } catch { /* ignore */ }
-    setSessionsUsed(next);
+    const next = readTrialsUsed() + 1;
+    try { localStorage.setItem(TRIALS_KEY, String(next)); } catch { /* ignore */ }
+    setTrialsUsed(next);
   }, [isPremium]);
 
   const purchase = useCallback(async (): Promise<boolean> => {
-    // ── TODO (Play Store): replace with Google Play Billing ──────────────────
-    // const { customerInfo } = await Purchases.purchaseProduct({ productIdentifier: PREMIUM_PRODUCT_ID });
-    // const ok = !!customerInfo.entitlements.active['premium'];
-    // ─────────────────────────────────────────────────────────────────────────
+    // TODO: await Purchases.purchaseProduct({ productIdentifier: PREMIUM_PRODUCT_ID })
     try { localStorage.setItem(PREMIUM_KEY, '1'); } catch { /* ignore */ }
     setIsPremium(true);
     return true;
   }, []);
 
   const restore = useCallback(async (): Promise<boolean> => {
-    // ── TODO (Play Store): await Purchases.restorePurchases() ─────────────────
+    // TODO: await Purchases.restorePurchases()
     const stored = readPremium();
     setIsPremium(stored);
     return stored;
   }, []);
 
-  return { isPremium, freeSessionsLeft, canStart, consumeSession, purchase, restore };
+  return { isPremium, mediumTrialsLeft, canUseMedium, consumeMediumTrial, purchase, restore };
 }

@@ -19,11 +19,11 @@ export interface PremiumStrings {
   lockedHint: string;
 }
 
-export interface SessionStrings {
-  /** e.g. "free sessions left" — prepended with the number */
+export interface TrialStrings {
+  /** shown on Medium button when trials remain, e.g. "Try" */
+  badge: string;
+  /** appended to count, e.g. "free Medium trials left" */
   left: string;
-  /** shown when 0 remain */
-  none: string;
 }
 
 export interface Translations {
@@ -55,7 +55,7 @@ export interface Translations {
   waitingForTemp: string;
   therapyTimer: string;
   premium: PremiumStrings;
-  sessions: SessionStrings;
+  trial: TrialStrings;
 }
 
 const T: Record<Lang, Translations> = {
@@ -100,7 +100,7 @@ const T: Record<Lang, Translations> = {
       lockedHint: 'Premium',
       benefit3: 'Unlimited sessions',
     },
-    sessions: { left: 'free sessions left', none: 'No free sessions left' },
+    trial: { badge: 'Try', left: 'free Medium trials left' },
   },
 
   es: {
@@ -144,7 +144,7 @@ const T: Record<Lang, Translations> = {
       lockedHint: 'Premium',
       benefit3: 'Sesiones ilimitadas',
     },
-    sessions: { left: 'sesiones gratuitas restantes', none: 'Sin sesiones gratuitas' },
+    trial: { badge: 'Probar', left: 'pruebas de Media restantes' },
   },
 
   pt: {
@@ -188,7 +188,7 @@ const T: Record<Lang, Translations> = {
       lockedHint: 'Premium',
       benefit3: 'Sessões ilimitadas',
     },
-    sessions: { left: 'sessões gratuitas restantes', none: 'Sem sessões gratuitas' },
+    trial: { badge: 'Testar', left: 'testes de Média restantes' },
   },
 
   fr: {
@@ -232,7 +232,7 @@ const T: Record<Lang, Translations> = {
       lockedHint: 'Premium',
       benefit3: 'Sessions illimitées',
     },
-    sessions: { left: 'séances gratuites restantes', none: 'Plus de séances gratuites' },
+    trial: { badge: 'Essai', left: 'essais Moyenne restants' },
   },
 
   de: {
@@ -276,7 +276,7 @@ const T: Record<Lang, Translations> = {
       lockedHint: 'Premium',
       benefit3: 'Unbegrenzte Sitzungen',
     },
-    sessions: { left: 'kostenlose Sitzungen übrig', none: 'Keine kostenlosen Sitzungen' },
+    trial: { badge: 'Testen', left: 'Testläufe Mittel übrig' },
   },
 
   it: {
@@ -320,7 +320,7 @@ const T: Record<Lang, Translations> = {
       lockedHint: 'Premium',
       benefit3: 'Sessioni illimitate',
     },
-    sessions: { left: 'sessioni gratuite rimanenti', none: 'Nessuna sessione gratuita rimasta' },
+    trial: { badge: 'Prova', left: 'prove Media rimanenti' },
   },
 
   ru: {
@@ -364,7 +364,7 @@ const T: Record<Lang, Translations> = {
       lockedHint: 'Премиум',
       benefit3: 'Безлимитные сеансы',
     },
-    sessions: { left: 'бесплатных сеансов осталось', none: 'Бесплатные сеансы исчерпаны' },
+    trial: { badge: 'Проба', left: 'пробных сеанса осталось' },
   },
 
   fi: {
@@ -408,7 +408,7 @@ const T: Record<Lang, Translations> = {
       lockedHint: 'Premium',
       benefit3: 'Rajattomat istunnot',
     },
-    sessions: { left: 'ilmaista istuntoa jäljellä', none: 'Ei ilmaisia istuntoja' },
+    trial: { badge: 'Kokeile', left: 'koeilmaista Keski-istuntoa jäljellä' },
   },
 
   sv: {
@@ -452,7 +452,7 @@ const T: Record<Lang, Translations> = {
       lockedHint: 'Premium',
       benefit3: 'Obegränsade sessioner',
     },
-    sessions: { left: 'gratis sessioner kvar', none: 'Inga gratis sessioner kvar' },
+    trial: { badge: 'Prova', left: 'gratis Medelsessioner kvar' },
   },
 
   mn: {
@@ -496,7 +496,7 @@ const T: Record<Lang, Translations> = {
       lockedHint: 'Премиум',
       benefit3: 'Хязааргүй сессүүд',
     },
-    sessions: { left: 'үнэгүй сесс үлдсэн', none: 'Үнэгүй сесс дүүссэн' },
+    trial: { badge: 'Турших', left: 'дунд эрчмийн туршилт үлдсэн' },
   },
 
   kl: {
@@ -540,7 +540,7 @@ const T: Record<Lang, Translations> = {
       lockedHint: 'Premium',
       benefit3: 'Nalunngissumik nalunaarsorneq',
     },
-    sessions: { left: 'nalunaarsorneqarsinnaappoq', none: 'Nalunaarsorneqarsinnaanngikkaluarluni' },
+    trial: { badge: 'Nalunnaarut', left: 'nalunaarsorneqarsinnaanngitsumik' },
   },
 };
 

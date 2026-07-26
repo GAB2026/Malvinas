@@ -8,10 +8,10 @@ import {
   TherapeuticDuration,
 } from '@/hooks/useWarmSession';
 import { useTranslations } from '@/lib/i18n';
-import { usePremium, FREE_SESSION_LIMIT } from '@/hooks/usePremium';
+import { usePremium, MEDIUM_TRIAL_LIMIT } from '@/hooks/usePremium';
 import PremiumSheet from '@/components/PremiumSheet';
 import {
-  Flame, Battery, Cpu, AlertTriangle, ShieldAlert, Thermometer, Lock,
+  Flame, Battery, Cpu, AlertTriangle, ShieldAlert, Thermometer, Lock, Sparkles,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -27,7 +27,7 @@ function formatTime(seconds: number): string {
 
 export default function Home() {
   const t = useTranslations();
-  const { isPremium, freeSessionsLeft, canStart, consumeSession } = usePremium();
+  const { isPremium, mediumTrialsLeft, canUseMedium, consumeMediumTrial } = usePremium();
   const [showPremiumSheet, setShowPremiumSheet] = useState(false);
 
   const {
@@ -59,32 +59,31 @@ export default function Home() {
     : phase === 'warming' ? Math.min((deviceTempC - 34) / (targetC - 34), 0.99)
     : 0;
 
-  const intensityLabels: Record<Intensity, string> = {
-    low: t.low, medium: t.medium, high: t.high,
-  };
-
-  // Wrap start: gate on canStart, debit a session
+  // ── Gate logic ───────────────────────────────────────────────────────────────
+  // Low   → always free, unlimited sessions
+  // Medium → 2 free trial sessions, then premium required
+  // High  → premium only, no trials
   const handleStart = () => {
-    if (!canStart) { setShowPremiumSheet(true); return; }
-    consumeSession();
+    if (intensity === 'high' && !isPremium) { setShowPremiumSheet(true); return; }
+    if (intensity === 'medium' && !canUseMedium) { setShowPremiumSheet(true); return; }
+    if (intensity === 'medium' && !isPremium) consumeMediumTrial();
     start();
   };
 
   const handleIntensityClick = (level: Intensity) => {
-    if (level !== 'low' && !isPremium) {
-      setShowPremiumSheet(true);
-      return;
-    }
+    if (level === 'high' && !isPremium) { setShowPremiumSheet(true); return; }
+    if (level === 'medium' && !canUseMedium) { setShowPremiumSheet(true); return; }
     setIntensity(level);
   };
 
   const handleDurationClick = (d: TherapeuticDuration) => {
-    if (d === 30 && !isPremium) {
-      setShowPremiumSheet(true);
-      return;
-    }
+    if (d === 30 && !isPremium) { setShowPremiumSheet(true); return; }
     setSessionDuration(d);
   };
+
+  // Medium button display state
+  const mediumHasTrials = !isPremium && mediumTrialsLeft > 0;
+  const mediumLocked    = !isPremium && mediumTrialsLeft === 0;
 
   return (
     <div className="relative min-h-[100dvh] w-full flex flex-col items-center justify-center overflow-hidden bg-background px-6 py-12">
@@ -155,28 +154,26 @@ export default function Home() {
           </div>
 
           <div className="flex flex-col gap-2">
-            <div className="flex items-center justify-between">
-              <AnimatePresence mode="wait">
-                {phase === 'idle' && (
-                  <motion.span key="idle" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                    className="text-xs text-muted-foreground">—</motion.span>
-                )}
-                {phase === 'warming' && (
-                  <motion.span key="warming" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                    className="text-xs text-amber-400 font-medium flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse inline-block" />
-                    {t.phaseWarming}
-                  </motion.span>
-                )}
-                {phase === 'therapeutic' && (
-                  <motion.span key="therapeutic" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                    className="text-xs text-primary font-medium flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse inline-block" />
-                    {t.phaseTherapeutic}
-                  </motion.span>
-                )}
-              </AnimatePresence>
-            </div>
+            <AnimatePresence mode="wait">
+              {phase === 'idle' && (
+                <motion.span key="idle" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                  className="text-xs text-muted-foreground">—</motion.span>
+              )}
+              {phase === 'warming' && (
+                <motion.span key="warming" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                  className="text-xs text-amber-400 font-medium flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse inline-block" />
+                  {t.phaseWarming}
+                </motion.span>
+              )}
+              {phase === 'therapeutic' && (
+                <motion.span key="therapeutic" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                  className="text-xs text-primary font-medium flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse inline-block" />
+                  {t.phaseTherapeutic}
+                </motion.span>
+              )}
+            </AnimatePresence>
 
             <div className="w-full h-1.5 rounded-full bg-white/5 overflow-hidden">
               <motion.div
@@ -230,33 +227,23 @@ export default function Home() {
             </div>
           </motion.button>
 
-          <AnimatePresence>
+          {/* Phase / trial hint */}
+          <AnimatePresence mode="wait">
             {phase === 'therapeutic' && (
-              <motion.p initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+              <motion.p key="therapy" initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
                 className="mt-3 text-xs text-muted-foreground">{t.therapyTimer}</motion.p>
             )}
             {phase === 'warming' && (
-              <motion.p initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+              <motion.p key="warming-hint" initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
                 className="mt-3 text-xs text-muted-foreground">
                 {t.waitingForTemp} · {targetC}°C
               </motion.p>
             )}
-            {!running && !isPremium && (
-              <motion.p
-                key={freeSessionsLeft}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                className={`mt-3 text-xs text-center ${
-                  freeSessionsLeft === 0
-                    ? 'text-destructive font-medium'
-                    : freeSessionsLeft === 1
-                    ? 'text-amber-400'
-                    : 'text-muted-foreground'
-                }`}
-              >
-                {freeSessionsLeft === 0
-                  ? t.sessions.none
-                  : `${freeSessionsLeft} / ${FREE_SESSION_LIMIT} ${t.sessions.left}`}
+            {!running && intensity === 'medium' && mediumHasTrials && (
+              <motion.p key="trial-hint" initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                className="mt-3 text-xs text-amber-400 flex items-center gap-1.5">
+                <Sparkles size={11} />
+                {mediumTrialsLeft} / {MEDIUM_TRIAL_LIMIT} {t.trial.left}
               </motion.p>
             )}
           </AnimatePresence>
@@ -272,33 +259,66 @@ export default function Home() {
               <Cpu size={11} /> {workerCount} {workerCount === 1 ? t.core : t.cores}
             </span>
           </div>
+
           <div className="flex p-1 bg-card rounded-2xl border border-card-border">
-            {(['low', 'medium', 'high'] as Intensity[]).map((level) => {
-              const locked = level !== 'low' && !isPremium;
-              const selected = intensity === level;
-              return (
-                <button
-                  key={level}
-                  onClick={() => handleIntensityClick(level)}
-                  className={`flex-1 py-3 text-sm font-medium rounded-xl transition-all duration-300 relative ${
-                    selected && !locked
-                      ? 'bg-secondary text-foreground shadow-md'
-                      : locked
-                      ? 'text-muted-foreground/50'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
-                  }`}
-                >
-                  {locked ? (
-                    <span className="flex items-center justify-center gap-1">
-                      <Lock size={11} className="shrink-0" />
-                      <span>{intensityLabels[level]}</span>
-                    </span>
-                  ) : (
-                    intensityLabels[level]
-                  )}
-                </button>
-              );
-            })}
+            {/* Low — unlimited, always free */}
+            <button
+              onClick={() => setIntensity('low')}
+              className={`flex-1 py-3 text-sm font-medium rounded-xl transition-all duration-300 ${
+                intensity === 'low'
+                  ? 'bg-secondary text-foreground shadow-md'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
+              }`}
+            >
+              {t.low}
+            </button>
+
+            {/* Medium — sparkle when trials remain, lock when exhausted */}
+            <button
+              onClick={() => handleIntensityClick('medium')}
+              className={`flex-1 py-3 text-sm font-medium rounded-xl transition-all duration-300 ${
+                intensity === 'medium' && !mediumLocked
+                  ? 'bg-secondary text-foreground shadow-md'
+                  : mediumLocked
+                  ? 'text-muted-foreground/50'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
+              }`}
+            >
+              {mediumLocked ? (
+                <span className="flex items-center justify-center gap-1">
+                  <Lock size={11} />
+                  {t.medium}
+                </span>
+              ) : mediumHasTrials ? (
+                <span className="flex items-center justify-center gap-1">
+                  <Sparkles size={11} className="text-amber-400" />
+                  {t.medium}
+                </span>
+              ) : (
+                t.medium
+              )}
+            </button>
+
+            {/* High — premium only */}
+            <button
+              onClick={() => handleIntensityClick('high')}
+              className={`flex-1 py-3 text-sm font-medium rounded-xl transition-all duration-300 ${
+                intensity === 'high' && isPremium
+                  ? 'bg-secondary text-foreground shadow-md'
+                  : !isPremium
+                  ? 'text-muted-foreground/50'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
+              }`}
+            >
+              {!isPremium ? (
+                <span className="flex items-center justify-center gap-1">
+                  <Lock size={11} />
+                  {t.high}
+                </span>
+              ) : (
+                t.high
+              )}
+            </button>
           </div>
         </div>
 
@@ -328,8 +348,8 @@ export default function Home() {
                 >
                   {locked ? (
                     <span className="flex items-center justify-center gap-1">
-                      <Lock size={11} className="shrink-0" />
-                      <span>{d} {t.min}</span>
+                      <Lock size={11} />
+                      {d} {t.min}
                     </span>
                   ) : (
                     `${d} ${t.min}`
@@ -357,7 +377,7 @@ export default function Home() {
             <span>{wakeLockActive ? t.screenAwake : t.screenSleep}</span>
           </div>
           {running && (
-            <div className="flex items-center gap-1.5 text-muted-foreground">
+            <div className="flex items-center gap-1.5">
               <span className="font-mono">{formatTime(elapsed)}</span>
             </div>
           )}
@@ -372,7 +392,6 @@ export default function Home() {
         </div>
       </div>
 
-      {/* Premium sheet */}
       <PremiumSheet open={showPremiumSheet} onClose={() => setShowPremiumSheet(false)} />
     </div>
   );

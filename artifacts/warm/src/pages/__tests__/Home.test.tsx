@@ -2,6 +2,20 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
 import React from 'react';
 
+// ─── usePremium mock ─────────────────────────────────────────────────────────
+
+vi.mock('@/hooks/usePremium', () => ({
+  MEDIUM_TRIAL_LIMIT: 2,
+  usePremium: () => ({
+    isPremium: false,
+    mediumTrialsLeft: 2,
+    canUseMedium: true,
+    consumeMediumTrial: vi.fn(),
+    purchase: vi.fn().mockResolvedValue(true),
+    restore:  vi.fn().mockResolvedValue(false),
+  }),
+}));
+
 // ─── Framer-motion stub ───────────────────────────────────────────────────────
 
 vi.mock('framer-motion', () => ({
