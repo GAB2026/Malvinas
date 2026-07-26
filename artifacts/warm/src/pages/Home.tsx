@@ -184,9 +184,6 @@ export default function Home() {
                   </motion.span>
                 )}
               </AnimatePresence>
-              <span className="text-xs text-muted-foreground">
-                {t.targetReached.toLowerCase()}: {targetC}°C
-              </span>
             </div>
 
             {/* Warm-up progress bar */}

@@ -34,16 +34,16 @@ interface BatteryManagerLike extends EventTarget {
 const AMBIENT_C = 34; // typical idle Android temp
 
 const MAX_DELTA_C: Record<Intensity, number> = {
-  low: 5,  // peaks at ~39 °C
-  medium: 8,  // peaks at ~42 °C
-  high: 12, // peaks at ~46 °C
+  low: 5,   // peaks at ~39 °C
+  medium: 8, // peaks at ~42 °C
+  high: 16,  // peaks at ~50 °C (dual GPU canvas + duty 1.0)
 };
 
 /** Target °C that triggers transition from warming → therapeutic phase. */
 export const TARGET_TEMP_C: Record<Intensity, number> = {
   low: 38,
   medium: 40,
-  high: 43,
+  high: 45,
 };
 
 /** Ramp constant: how quickly heatLevel approaches its max (seconds). */

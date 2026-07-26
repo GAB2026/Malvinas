@@ -12,9 +12,10 @@ interface IntensityProfile {
 }
 
 const PROFILES: Record<Intensity, IntensityProfile> = {
-  low: { workerFraction: 0.35, duty: 0.45, gpu: 0.25 },
-  medium: { workerFraction: 0.6, duty: 0.7, gpu: 0.55 },
-  high: { workerFraction: 1, duty: 0.92, gpu: 0.95 },
+  low:    { workerFraction: 0.35, duty: 0.45, gpu: 0.25 },
+  medium: { workerFraction: 0.6,  duty: 0.70, gpu: 0.55 },
+  // High: full duty (no idle gap) + full GPU (two canvases at max resolution).
+  high:   { workerFraction: 1,    duty: 1.0,  gpu: 1.0  },
 };
 
 export function workerCountFor(intensity: Intensity): number {

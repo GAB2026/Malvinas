@@ -1,5 +1,5 @@
 // GPU load generator: renders an expensive fragment shader in a loop on a
-// small hidden canvas. Intensity scales iteration count and render resolution.
+// hidden canvas. For maximum intensity, two canvases run simultaneously.
 
 const VERT = `
 attribute vec2 a_pos;
@@ -16,113 +16,119 @@ void main() {
   vec3 c = vec3(0.0);
   float x = uv.x * 3.0 - 1.5;
   float y = uv.y * 3.0 - 1.5;
-  // Fractal-style iteration: heavy per-pixel math.
   float zx = x, zy = y;
-  for (int i = 0; i < 512; i++) {
+  // Hard cap raised to 1024 so high-intensity can push the GPU fully.
+  for (int i = 0; i < 1024; i++) {
     if (float(i) >= u_iters) break;
     float nzx = zx * zx - zy * zy + 0.355 + 0.05 * sin(u_time * 0.3);
-    zy = 2.0 * zx * zy + 0.355;
-    zx = nzx;
-    c += 0.002 * vec3(sin(zx + u_time), cos(zy), sin(zx * zy));
+    float nzy = 2.0 * zx * zy + 0.355;
+    // Extra ALU work per iteration: nested trig to saturate shader cores.
+    float heat = sin(zx * 1.7 + u_time) * cos(nzy * 1.3 - u_time * 0.7);
+    zx = nzx + heat * 0.001;
+    zy = nzy;
+    c += 0.0015 * vec3(sin(zx + u_time), cos(zy), sin(zx * zy + heat));
   }
   gl_FragColor = vec4(c, 1.0);
 }
 `;
 
+interface GLContext {
+  canvas: HTMLCanvasElement;
+  gl: WebGLRenderingContext;
+  program: WebGLProgram;
+  raf: number;
+}
+
 export class GpuLoad {
-  private canvas: HTMLCanvasElement | null = null;
-  private gl: WebGLRenderingContext | null = null;
-  private program: WebGLProgram | null = null;
-  private raf = 0;
+  private contexts: GLContext[] = [];
   private running = false;
   private iters = 128;
-  private start = 0;
   private framesPerTick = 1;
+  private start = 0;
 
   /** intensity in [0,1] */
   begin(intensity: number) {
     this.stop();
-    const size = Math.round(64 + intensity * 448); // 64..512 px
-    this.iters = Math.round(32 + intensity * 480); // 32..512 iterations
-    this.framesPerTick = 1 + Math.round(intensity * 3); // redraws per frame
 
+    // At max intensity run two canvases; otherwise one.
+    const canvasCount = intensity >= 1 ? 2 : 1;
+    const size = Math.round(128 + intensity * 896); // 128..1024 px
+    this.iters = Math.round(64 + intensity * 960);  // 64..1024 iterations
+    this.framesPerTick = 1 + Math.round(intensity * 5); // 1..6 redraws/frame
+    this.start = performance.now();
+    this.running = true;
+
+    for (let c = 0; c < canvasCount; c++) {
+      const ctx = this._buildContext(size);
+      if (ctx) {
+        this.contexts.push(ctx);
+        this._tick(ctx);
+      }
+    }
+  }
+
+  private _buildContext(size: number): GLContext | null {
     const canvas = document.createElement('canvas');
     canvas.width = size;
     canvas.height = size;
     canvas.style.cssText =
       'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;pointer-events:none;';
     document.body.appendChild(canvas);
+
     const gl =
-      canvas.getContext('webgl', { powerPreference: 'high-performance' }) ||
-      canvas.getContext('experimental-webgl');
-    if (!gl) {
-      canvas.remove();
-      return; // WebGL unavailable — CPU workers still provide load
-    }
-    const ctx = gl as WebGLRenderingContext;
+      (canvas.getContext('webgl', { powerPreference: 'high-performance' }) ||
+       canvas.getContext('experimental-webgl')) as WebGLRenderingContext | null;
+
+    if (!gl) { canvas.remove(); return null; }
 
     const compile = (type: number, src: string) => {
-      const s = ctx.createShader(type)!;
-      ctx.shaderSource(s, src);
-      ctx.compileShader(s);
+      const s = gl.createShader(type)!;
+      gl.shaderSource(s, src);
+      gl.compileShader(s);
       return s;
     };
-    const program = ctx.createProgram()!;
-    ctx.attachShader(program, compile(ctx.VERTEX_SHADER, VERT));
-    ctx.attachShader(program, compile(ctx.FRAGMENT_SHADER, FRAG));
-    ctx.linkProgram(program);
-    ctx.useProgram(program);
+    const program = gl.createProgram()!;
+    gl.attachShader(program, compile(gl.VERTEX_SHADER, VERT));
+    gl.attachShader(program, compile(gl.FRAGMENT_SHADER, FRAG));
+    gl.linkProgram(program);
+    gl.useProgram(program);
 
-    const buf = ctx.createBuffer();
-    ctx.bindBuffer(ctx.ARRAY_BUFFER, buf);
-    ctx.bufferData(
-      ctx.ARRAY_BUFFER,
-      new Float32Array([-1, -1, 3, -1, -1, 3]),
-      ctx.STATIC_DRAW,
-    );
-    const loc = ctx.getAttribLocation(program, 'a_pos');
-    ctx.enableVertexAttribArray(loc);
-    ctx.vertexAttribPointer(loc, 2, ctx.FLOAT, false, 0, 0);
-    ctx.viewport(0, 0, size, size);
+    const buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+    const loc = gl.getAttribLocation(program, 'a_pos');
+    gl.enableVertexAttribArray(loc);
+    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+    gl.viewport(0, 0, size, size);
 
-    this.canvas = canvas;
-    this.gl = ctx;
-    this.program = program;
-    this.running = true;
-    this.start = performance.now();
-    this.tick();
+    return { canvas, gl, program, raf: 0 };
   }
 
-  private tick = () => {
-    if (!this.running || !this.gl || !this.program) return;
-    const gl = this.gl;
+  private _tick = (ctx: GLContext) => {
+    if (!this.running) return;
+    const { gl, program } = ctx;
     const t = (performance.now() - this.start) / 1000;
-    gl.uniform1f(gl.getUniformLocation(this.program, 'u_time'), t);
-    gl.uniform1f(gl.getUniformLocation(this.program, 'u_iters'), this.iters);
-    gl.uniform2f(
-      gl.getUniformLocation(this.program, 'u_res'),
-      gl.drawingBufferWidth,
-      gl.drawingBufferHeight,
-    );
+    gl.uniform1f(gl.getUniformLocation(program, 'u_time'), t);
+    gl.uniform1f(gl.getUniformLocation(program, 'u_iters'), this.iters);
+    gl.uniform2f(gl.getUniformLocation(program, 'u_res'), gl.drawingBufferWidth, gl.drawingBufferHeight);
     for (let i = 0; i < this.framesPerTick; i++) {
       gl.drawArrays(gl.TRIANGLES, 0, 3);
     }
-    // Force the GPU to actually finish the work each frame.
+    // Force the GPU to finish — prevents driver batching that would let it "rest".
     gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array(4));
-    this.raf = requestAnimationFrame(this.tick);
+    ctx.raf = requestAnimationFrame(() => this._tick(ctx));
   };
 
   stop() {
     this.running = false;
-    if (this.raf) cancelAnimationFrame(this.raf);
-    this.raf = 0;
-    if (this.gl) {
-      const ext = this.gl.getExtension('WEBGL_lose_context');
-      ext?.loseContext();
+    for (const ctx of this.contexts) {
+      if (ctx.raf) cancelAnimationFrame(ctx.raf);
+      try {
+        const ext = ctx.gl.getExtension('WEBGL_lose_context');
+        ext?.loseContext();
+      } catch { /* ignore */ }
+      ctx.canvas.remove();
     }
-    this.canvas?.remove();
-    this.canvas = null;
-    this.gl = null;
-    this.program = null;
+    this.contexts = [];
   }
 }
