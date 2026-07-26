@@ -7,9 +7,14 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { MapPin, RefreshCw, Share2, Navigation, Wifi, Edit3, Search, X } from 'lucide-react';
-import { Capacitor } from '@capacitor/core';
+import { Capacitor, registerPlugin } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
+
+interface ShareDirectPlugin {
+  share(options: { pkg: string; base64: string; mimeType: string; text: string }): Promise<void>;
+}
+const ShareDirect = registerPlugin<ShareDirectPlugin>('ShareDirect');
 
 function blobToBase64(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -560,7 +565,7 @@ function MainScreen() {
     setStoryBlob(null);
   };
 
-  const onShareToApp = async () => {
+  const onShareToApp = async (pkg: string) => {
     if (!storyBlob || distanceKm === null) return;
     const distText = distanceKm >= 1000
       ? Math.round(distanceKm).toLocaleString('es-AR')
@@ -570,16 +575,18 @@ function MainScreen() {
     if (Capacitor.isNativePlatform()) {
       try {
         const base64 = await blobToBase64(storyBlob);
-        const fileName = `malvinas-historia-${Date.now()}.png`;
-        await Filesystem.writeFile({ path: fileName, data: base64, directory: Directory.Cache });
-        const { uri } = await Filesystem.getUri({ path: fileName, directory: Directory.Cache });
-        await Share.share({
-          title: 'Las Malvinas son Argentinas',
-          text: shareText,
-          url: uri,
-          dialogTitle: 'Compartir imagen',
-        });
-      } catch { /* cancelado por el usuario */ }
+        // ShareDirect plugin: writes file, wraps in FileProvider URI, opens the specific app
+        await ShareDirect.share({ pkg, base64, mimeType: 'image/png', text: shareText });
+      } catch {
+        // Fallback: generic share sheet
+        try {
+          const base64 = await blobToBase64(storyBlob);
+          const fileName = `malvinas-historia-${Date.now()}.png`;
+          await Filesystem.writeFile({ path: fileName, data: base64, directory: Directory.Cache });
+          const { uri } = await Filesystem.getUri({ path: fileName, directory: Directory.Cache });
+          await Share.share({ title: 'Las Malvinas son Argentinas', text: shareText, url: uri });
+        } catch { /* cancelado */ }
+      }
     } else {
       const file = new File([storyBlob], 'malvinas-historia.png', { type: 'image/png' });
       if (navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -731,7 +738,7 @@ function MainScreen() {
             <div className="w-full flex gap-4 justify-center">
               {/* WhatsApp */}
               <button
-                onClick={onShareToApp}
+                onClick={() => onShareToApp('com.whatsapp')}
                 className="flex flex-col items-center gap-2 group"
                 aria-label="Compartir en WhatsApp"
               >
@@ -743,7 +750,7 @@ function MainScreen() {
 
               {/* Instagram */}
               <button
-                onClick={onShareToApp}
+                onClick={() => onShareToApp('com.instagram.android')}
                 className="flex flex-col items-center gap-2 group"
                 aria-label="Compartir en Instagram"
               >
@@ -755,7 +762,7 @@ function MainScreen() {
 
               {/* TikTok */}
               <button
-                onClick={onShareToApp}
+                onClick={() => onShareToApp('com.zhiliaoapp.musically')}
                 className="flex flex-col items-center gap-2 group"
                 aria-label="Compartir en TikTok"
               >
