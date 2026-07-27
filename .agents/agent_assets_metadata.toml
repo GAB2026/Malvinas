@@ -156,3 +156,9 @@ id = "hZ4Jr3m6VlXnCXzj2lwYC"
 uri = "file://screenshots/malvinas-feature.jpg"
 type = "image"
 title = "Feature Graphic — Banner Play Store"
+
+[[outputs]]
+id = "4EoZZBuSCg3wsa00Kem2v"
+uri = "file://artifacts/malvinas/public/icon-512.png"
+type = "image"
+title = "Ícono nuevo — Islas Malvinas"
