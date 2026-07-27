@@ -132,3 +132,9 @@ id = "l5iupIliQduZ6d7M-eMRL"
 uri = "file://qr-warm-v150.png"
 type = "image"
 title = "QR — Descargar Warm v1.5.0 APK"
+
+[[outputs]]
+id = "-LEO2RdSroASWUrpyz8ZO"
+uri = "file://qr-malvinas-v100.png"
+type = "image"
+title = "QR — Descargar Distancia a Las Malvinas v1.0.0 APK"
