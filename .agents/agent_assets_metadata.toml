@@ -138,3 +138,21 @@ id = "-LEO2RdSroASWUrpyz8ZO"
 uri = "file://qr-malvinas-v100.png"
 type = "image"
 title = "QR — Descargar Distancia a Las Malvinas v1.0.0 APK"
+
+[[outputs]]
+id = "Jhalb8oHx53r55lNtPj2I"
+uri = "file://screenshots/malvinas-screen1.jpg"
+type = "image"
+title = "Screenshot 1 — Pantalla principal"
+
+[[outputs]]
+id = "ldvTKHRe567-b-NSeOT1V"
+uri = "file://screenshots/malvinas-screen2.jpg"
+type = "image"
+title = "Screenshot 2 — Crear historia"
+
+[[outputs]]
+id = "hZ4Jr3m6VlXnCXzj2lwYC"
+uri = "file://screenshots/malvinas-feature.jpg"
+type = "image"
+title = "Feature Graphic — Banner Play Store"
