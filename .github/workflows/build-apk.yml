@@ -52,18 +52,27 @@ jobs:
         run: |
           echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > artifacts/malvinas/android/app/malvinas-release.jks
 
-      - name: Build release APK
+      - name: Build release APK + AAB
         working-directory: artifacts/malvinas/android
         env:
           KEYSTORE_FILE: ${{ github.workspace }}/artifacts/malvinas/android/app/malvinas-release.jks
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: ./gradlew assembleRelease
+        run: |
+          ./gradlew assembleRelease
+          ./gradlew bundleRelease
 
-      - name: Upload APK
+      - name: Upload APK (sideload / direct install)
         uses: actions/upload-artifact@v4
         with:
           name: malvinas-release-apk
           path: artifacts/malvinas/android/app/build/outputs/apk/release/app-release.apk
+          retention-days: 30
+
+      - name: Upload AAB (Google Play Store)
+        uses: actions/upload-artifact@v4
+        with:
+          name: malvinas-release-aab
+          path: artifacts/malvinas/android/app/build/outputs/bundle/release/app-release.aab
           retention-days: 30
