@@ -13,137 +13,144 @@
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     padding: 24px;
   }
-  .container { width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 20px; }
+  .screen { width: 100%; max-width: 360px; display: flex; flex-direction: column; align-items: center; gap: 28px; }
 
-  .label {
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.15em;
-    text-transform: uppercase;
-    color: #666;
-    padding: 0 4px;
-  }
-
-  /* 3-card row */
-  .btn-row {
+  /* ── Flame ── */
+  .flame-wrap {
+    position: relative;
+    width: 140px;
+    height: 200px;
     display: flex;
-    gap: 10px;
+    align-items: flex-end;
+    justify-content: center;
   }
 
-  .btn-card {
-    flex: 1;
+  .flame {
+    position: absolute;
+    bottom: 0;
+    border-radius: 50% 50% 20% 20% / 60% 60% 30% 30%;
+    transform-origin: bottom center;
+    animation: flicker 1.4s ease-in-out infinite alternate;
+  }
+
+  /* HIGH — full size */
+  .f-outer {
+    width: 120px; height: 180px;
+    background: radial-gradient(ellipse at 50% 80%, #ff6a00 0%, #c2410c 40%, #7c2d12 100%);
+    animation-duration: 1.2s;
+    opacity: 0.95;
+  }
+  .f-mid {
+    width: 80px; height: 130px;
+    background: radial-gradient(ellipse at 50% 80%, #fbbf24 0%, #f97316 50%, #ea580c 100%);
+    animation-duration: 1.0s;
+    animation-delay: 0.15s;
+  }
+  .f-inner {
+    width: 44px; height: 80px;
+    background: radial-gradient(ellipse at 50% 75%, #fff7ed 0%, #fef3c7 30%, #fde68a 70%, #fbbf24 100%);
+    animation-duration: 0.8s;
+    animation-delay: 0.25s;
+  }
+
+  /* Glow under */
+  .glow {
+    position: absolute;
+    bottom: -10px;
+    width: 100px; height: 30px;
+    background: radial-gradient(ellipse, rgba(249,115,22,0.55) 0%, transparent 70%);
+    filter: blur(6px);
+    animation: glowPulse 1.2s ease-in-out infinite alternate;
+  }
+
+  @keyframes flicker {
+    0%   { transform: scaleX(1)    scaleY(1)    rotate(-1deg); }
+    25%  { transform: scaleX(0.96) scaleY(1.02) rotate(1.5deg); }
+    50%  { transform: scaleX(1.02) scaleY(0.98) rotate(-0.5deg); }
+    75%  { transform: scaleX(0.97) scaleY(1.03) rotate(1deg); }
+    100% { transform: scaleX(1.01) scaleY(1.01) rotate(-1.5deg); }
+  }
+  @keyframes glowPulse {
+    0%   { opacity: 0.5; transform: scaleX(0.9); }
+    100% { opacity: 1;   transform: scaleX(1.1); }
+  }
+
+  /* temp readout */
+  .temp-display {
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
-    gap: 6px;
-    padding: 18px 8px;
-    border-radius: 18px;
-    border: 1px solid #2a2a2a;
-    background: #161616;
-    cursor: pointer;
-    transition: all 0.2s;
+    gap: 2px;
   }
+  .temp-val { font-size: 42px; font-weight: 700; color: #fff; line-height: 1; }
+  .temp-unit { font-size: 13px; color: #f97316; font-weight: 600; letter-spacing: 0.05em; }
+  .temp-phase { font-size: 11px; color: #555; margin-top: 2px; letter-spacing: 0.08em; text-transform: uppercase; }
 
+  /* ── Buttons ── */
+  .label {
+    font-size: 11px; font-weight: 600;
+    letter-spacing: 0.15em; text-transform: uppercase;
+    color: #555; align-self: flex-start; padding: 0 2px;
+    width: 100%;
+  }
+  .btn-row { display: flex; gap: 10px; width: 100%; }
+  .btn-card {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 5px; padding: 16px 8px;
+    border-radius: 18px; border: 1px solid #1e1e1e;
+    background: #141414; cursor: pointer;
+  }
   .btn-card.active {
-    background: #1e1410;
-    border-color: #c2410c;
-    box-shadow: 0 0 18px rgba(194,65,12,0.25);
+    background: #1e1410; border-color: #c2410c;
+    box-shadow: 0 0 20px rgba(194,65,12,0.3);
   }
-
-  .btn-name {
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    color: #555;
-  }
+  .btn-name { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: #444; }
   .btn-card.active .btn-name { color: #fb923c; }
-
-  .btn-mins {
-    font-size: 26px;
-    font-weight: 700;
-    color: #333;
-    line-height: 1;
-  }
-  .btn-card.active .btn-mins { color: #ffffff; }
-
-  .btn-unit {
-    font-size: 11px;
-    font-weight: 500;
-    color: #444;
-    letter-spacing: 0.05em;
-  }
+  .btn-mins { font-size: 28px; font-weight: 700; color: #2a2a2a; line-height: 1; }
+  .btn-card.active .btn-mins { color: #fff; }
+  .btn-unit { font-size: 10px; font-weight: 500; color: #333; }
   .btn-card.active .btn-unit { color: #fb923c; opacity: 0.8; }
-
-  /* flame icon on HIGH */
-  .flame { font-size: 16px; }
-
-  /* calibrating state example */
-  .calibrating {
-    background: #111;
-    border: 1px solid #2a2a2a;
-    border-radius: 16px;
-    padding: 20px 18px;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-  }
-  .cal-title {
-    font-size: 13px;
-    font-weight: 600;
-    color: #ccc;
-  }
-  .cal-sub {
-    font-size: 11px;
-    color: #555;
-  }
-  .progress-track {
-    height: 4px;
-    background: #222;
-    border-radius: 999px;
-    overflow: hidden;
-  }
-  .progress-fill {
-    height: 100%;
-    width: 60%;
-    background: linear-gradient(90deg, #c2410c, #f97316);
-    border-radius: 999px;
-  }
 </style>
 </head>
 <body>
-<div class="container">
+<div class="screen">
 
-  <!-- Calibrating state -->
-  <div class="calibrating">
-    <div class="cal-title">🌡 Chequeando temperatura máxima para tu dispositivo...</div>
-    <div class="progress-track"><div class="progress-fill"></div></div>
-    <div class="cal-sub">Esto solo ocurre una vez · No toques el teléfono</div>
+  <!-- Flame -->
+  <div class="flame-wrap">
+    <div class="glow"></div>
+    <div class="flame f-outer"></div>
+    <div class="flame f-mid"></div>
+    <div class="flame f-inner"></div>
   </div>
 
-  <!-- Post-calibration buttons -->
-  <div class="label">Intensidad</div>
-  <div class="btn-row">
+  <!-- Temp -->
+  <div class="temp-display">
+    <div class="temp-val">47.3</div>
+    <div class="temp-unit">°C · 117.1 °F</div>
+    <div class="temp-phase">calentando…</div>
+  </div>
 
-    <div class="btn-card">
-      <span class="btn-name">Baja</span>
-      <span class="btn-mins">16</span>
-      <span class="btn-unit">min</span>
+  <!-- Intensity buttons -->
+  <div style="width:100%; display:flex; flex-direction:column; gap:12px;">
+    <div class="label">Intensidad</div>
+    <div class="btn-row">
+      <div class="btn-card">
+        <span class="btn-name">Baja</span>
+        <span class="btn-mins">16</span>
+        <span class="btn-unit">min</span>
+      </div>
+      <div class="btn-card">
+        <span class="btn-name">Media</span>
+        <span class="btn-mins">8</span>
+        <span class="btn-unit">min</span>
+      </div>
+      <div class="btn-card active">
+        <span class="btn-name">🔥 Alta</span>
+        <span class="btn-mins">4</span>
+        <span class="btn-unit">min</span>
+      </div>
     </div>
-
-    <div class="btn-card">
-      <span class="btn-name">Media</span>
-      <span class="btn-mins">8</span>
-      <span class="btn-unit">min</span>
-    </div>
-
-    <div class="btn-card active">
-      <span class="btn-name">🔥 Alta</span>
-      <span class="btn-mins">4</span>
-      <span class="btn-unit">min</span>
-    </div>
-
   </div>
 
 </div>
