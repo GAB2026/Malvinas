@@ -174,3 +174,9 @@ id = "0en9NA2NSPJ9Ktyr51_3o"
 uri = "file://screenshots/thermal-pad-v12-qr.png"
 type = "image"
 title = "Thermal Pad v1.2 — QR de descarga"
+
+[[outputs]]
+id = "Bon0fJcWG4W7ZVj-KK80w"
+uri = "file://screenshots/thermal-pad-v15-qr2.png"
+type = "image"
+title = "Thermal Pad v1.5 — QR de descarga"
