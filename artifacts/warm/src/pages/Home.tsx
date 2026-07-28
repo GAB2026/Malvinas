@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import { useWarmSession, StopReason, Intensity } from '@/hooks/useWarmSession';
+import { useFireplaceAudio } from '@/hooks/useFireplaceAudio';
 import { useCalibration } from '@/hooks/useCalibration';
 import { useTranslations } from '@/lib/i18n';
 import { usePremium, MEDIUM_TRIAL_LIMIT } from '@/hooks/usePremium';
 import PremiumSheet from '@/components/PremiumSheet';
 import AnimatedFlame from '@/components/AnimatedFlame';
-import { Battery, AlertTriangle, ShieldAlert, Sparkles, Lock, Thermometer, RefreshCw } from 'lucide-react';
+import { Battery, AlertTriangle, ShieldAlert, Sparkles, Lock, Thermometer, RefreshCw, Volume2, VolumeX } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const AUTO_DISMISS_MS = 5000;
@@ -68,6 +69,7 @@ export default function Home() {
   const { isPremium, mediumTrialsLeft, canUseMedium, consumeMediumTrial } = usePremium();
   const [showPremiumSheet, setShowPremiumSheet] = useState(false);
   const { result: calibration, calibrating, progress } = useCalibration();
+  const { enabled: soundEnabled, toggleEnabled: toggleSound, startAudio, stopAudio, updateIntensity: updateAudioIntensity, updateHeatLevel } = useFireplaceAudio();
 
   const {
     running, intensity, setIntensity, start, stop,
@@ -93,13 +95,20 @@ export default function Home() {
   const mediumLocked    = !isPremium && mediumTrialsLeft === 0;
 
   const handleFlameClick = () => {
-    if (running) { stop(); return; }
+    if (running) { stop(); stopAudio(); return; }
     if (coolingDown) return;
     if (intensity === 'high' && !isPremium) { setShowPremiumSheet(true); return; }
     if (intensity === 'medium' && !canUseMedium) { setShowPremiumSheet(true); return; }
     if (intensity === 'medium' && !isPremium) consumeMediumTrial();
     start();
+    void startAudio(intensity);
   };
+
+  // Sync audio when heatLevel changes
+  useEffect(() => { if (running) updateHeatLevel(heatLevel); }, [heatLevel, running, updateHeatLevel]);
+
+  // Stop audio on auto-stop
+  useEffect(() => { if (!running && stopReason && stopReason !== 'user') stopAudio(); }, [running, stopReason, stopAudio]);
 
   const handleIntensityClick = (level: Intensity) => {
     if (running) return;
@@ -307,6 +316,14 @@ export default function Home() {
           {running && (
             <span className="font-mono">{formatTime(elapsed)}</span>
           )}
+          <button
+            onClick={toggleSound}
+            className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
+            aria-label={soundEnabled ? t.soundOn : t.soundOff}
+          >
+            {soundEnabled ? <Volume2 size={13} /> : <VolumeX size={13} />}
+            <span>{soundEnabled ? t.soundOn : t.soundOff}</span>
+          </button>
         </div>
 
         <div className="flex gap-3 bg-black/20 p-3.5 rounded-2xl border border-white/5 items-start">

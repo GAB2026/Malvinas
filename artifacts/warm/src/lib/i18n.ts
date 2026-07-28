@@ -65,6 +65,8 @@ export interface Translations {
   tapToStart: string;
   /** Badge shown when calibrated with real sensor */
   calibratedDevice: string;
+  soundOn: string;
+  soundOff: string;
 }
 
 const T: Record<Lang, Translations> = {
@@ -115,6 +117,8 @@ const T: Record<Lang, Translations> = {
     cooling: 'Cooling down…',
     tapToStart: 'Tap the flame to start',
     calibratedDevice: 'Calibrated for your device',
+    soundOn: 'Sound on',
+    soundOff: 'Sound off',
   },
 
   es: {
@@ -164,6 +168,8 @@ const T: Record<Lang, Translations> = {
     cooling: 'Enfriando…',
     tapToStart: 'Tocá la llama para iniciar',
     calibratedDevice: 'Calibrado para tu dispositivo',
+    soundOn: 'Sonido activado',
+    soundOff: 'Sin sonido',
   },
 
   pt: {
@@ -213,6 +219,8 @@ const T: Record<Lang, Translations> = {
     cooling: 'Esfriando…',
     tapToStart: 'Toque na chama para iniciar',
     calibratedDevice: 'Calibrado para o seu dispositivo',
+    soundOn: 'Som ativado',
+    soundOff: 'Sem som',
   },
 
   fr: {
@@ -262,6 +270,8 @@ const T: Record<Lang, Translations> = {
     cooling: 'Refroidissement…',
     tapToStart: 'Appuyez sur la flamme pour démarrer',
     calibratedDevice: 'Calibré pour votre appareil',
+    soundOn: 'Son activé',
+    soundOff: 'Son désactivé',
   },
 
   de: {
@@ -311,6 +321,8 @@ const T: Record<Lang, Translations> = {
     cooling: 'Abkühlen…',
     tapToStart: 'Flamme antippen zum Starten',
     calibratedDevice: 'Kalibriert für dein Gerät',
+    soundOn: 'Ton an',
+    soundOff: 'Ton aus',
   },
 
   it: {
@@ -360,6 +372,8 @@ const T: Record<Lang, Translations> = {
     cooling: 'Raffreddamento…',
     tapToStart: 'Tocca la fiamma per iniziare',
     calibratedDevice: 'Calibrato per il tuo dispositivo',
+    soundOn: 'Audio attivo',
+    soundOff: 'Audio disattivo',
   },
 
   ru: {
@@ -409,6 +423,8 @@ const T: Record<Lang, Translations> = {
     cooling: 'Охлаждение…',
     tapToStart: 'Нажмите на пламя для запуска',
     calibratedDevice: 'Калибровка выполнена',
+    soundOn: 'Звук вкл.',
+    soundOff: 'Звук выкл.',
   },
 
   fi: {
@@ -458,6 +474,8 @@ const T: Record<Lang, Translations> = {
     cooling: 'Jäähtyminen…',
     tapToStart: 'Käynnistä napauttamalla liekkiä',
     calibratedDevice: 'Kalibroitu laitteellesi',
+    soundOn: 'Ääni päällä',
+    soundOff: 'Ääni pois',
   },
 
   sv: {
@@ -507,6 +525,8 @@ const T: Record<Lang, Translations> = {
     cooling: 'Avkylning…',
     tapToStart: 'Tryck på lågan för att starta',
     calibratedDevice: 'Kalibrerad för din enhet',
+    soundOn: 'Ljud på',
+    soundOff: 'Ljud av',
   },
 
   mn: {
@@ -556,6 +576,8 @@ const T: Record<Lang, Translations> = {
     cooling: 'Хөргөж байна…',
     tapToStart: 'Эхлүүлэхийн тулд гал дээр дарна уу',
     calibratedDevice: 'Таны төхөөрөмжид тохируулагдсан',
+    soundOn: 'Дуу асаалттай',
+    soundOff: 'Дуугүй',
   },
 
   kl: {
@@ -605,6 +627,8 @@ const T: Record<Lang, Translations> = {
     cooling: 'Isikkoqqissaarissumik…',
     tapToStart: 'Isikkorfigineqarsinnaappoq',
     calibratedDevice: 'Nalunaarusiorfigineqarpoq',
+    soundOn: 'Nipaat',
+    soundOff: 'Nipaat nalinginnaasumik',
   },
 };
 
