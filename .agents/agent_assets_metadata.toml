@@ -162,3 +162,9 @@ id = "4EoZZBuSCg3wsa00Kem2v"
 uri = "file://artifacts/malvinas/public/icon-512.png"
 type = "image"
 title = "Ícono nuevo — Islas Malvinas"
+
+[[outputs]]
+id = "LoF3DgOn0PmRwqQkNoz8U"
+uri = "file://screenshots/warm-apk-qr.png"
+type = "image"
+title = "Warm v1.1 APK — QR de descarga"
