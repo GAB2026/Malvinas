@@ -100,7 +100,11 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
   const coolingRef      = useRef(false);
   // Mirror of thermalC state as a ref so the interval callback always reads
   // the latest value without a stale closure.
-  const thermalCRef     = useRef<number | null>(null);
+  const thermalCRef        = useRef<number | null>(null);
+  // Baseline temperature recorded at session start (first real reading).
+  // Delta is measured from HERE, not from calibration's ambientC, so a
+  // phone that's already warm doesn't skip the warming phase instantly.
+  const warmingBaselineRef = useRef<number | null>(null);
 
   const ambientC = calibration?.ambientC ?? AMBIENT_C;
 
@@ -154,6 +158,7 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
     const now = Date.now();
     startedAtRef.current = now;
     therapStartRef.current = null;
+    warmingBaselineRef.current = null; // will be set from first real reading
     runningRef.current = true;
     phaseRef.current = 'warming';
     setElapsed(0);
@@ -182,13 +187,21 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
 
       // Warming → therapeutic transition (run BEFORE async calls)
       if (phaseRef.current === 'warming') {
-        const intensity  = intensityRef.current;
-        const maxSecs    = MAX_WARMUP_SECS[intensity];
-        const timedOut   = secs >= maxSecs;
-        // With real sensor: transition when temp rose enough above ambient
-        const currentC   = thermalCRef.current;
-        const targetC    = ambientC + WARMUP_DELTA_C[intensity];
-        const tempReached = currentC !== null && currentC >= targetC;
+        const intensity = intensityRef.current;
+        const currentC  = thermalCRef.current;
+
+        // Establish baseline from the first real reading after session start.
+        // This avoids false-triggering when the phone is already warm.
+        if (warmingBaselineRef.current === null && currentC !== null) {
+          warmingBaselineRef.current = currentC;
+        }
+
+        const timedOut = secs >= MAX_WARMUP_SECS[intensity];
+
+        // Transition only if temperature rose enough above the SESSION-START baseline.
+        const baseline   = warmingBaselineRef.current;
+        const targetC    = (baseline ?? ambientC) + WARMUP_DELTA_C[intensity];
+        const tempReached = currentC !== null && baseline !== null && currentC >= targetC;
 
         if (tempReached || timedOut) {
           therapStartRef.current = now;
