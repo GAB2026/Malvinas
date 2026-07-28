@@ -164,12 +164,6 @@ describe('useWarmSession', () => {
     expect(result.current.therapeuticRemaining).toBeGreaterThan(800);
   });
 
-    const { result } = renderHook(() => useWarmSession(null));
-  });
-
-    const { result } = renderHook(() => useWarmSession(null));
-  });
-
   // ── auto-stop: time limit ─────────────────────────────────────────────────
 
   it('auto-stops with stopReason "time-limit" after warming + 15 min therapeutic (high intensity)', () => {

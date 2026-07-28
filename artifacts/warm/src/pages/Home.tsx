@@ -107,7 +107,7 @@ export default function Home() {
 
       {/* ── TOP: header + toast + flame ── */}
       <div className="z-10 flex flex-col items-center w-full">
-        <div className="flex flex-col items-center pt-8">
+        <div className="flex flex-col items-center pt-4">
           <h1 className="text-2xl font-medium tracking-wide text-foreground">Thermal Pad</h1>
           <p className="text-muted-foreground text-xs mt-0.5">{t.tagline}</p>
         </div>
@@ -132,35 +132,45 @@ export default function Home() {
             onClick={handleFlameClick}
             disabled={coolingDown && !running}
           />
-          <div className="h-5 flex items-center">
-            <AnimatePresence mode="wait">
-              {coolingDown && (
-                <motion.span key="cooling"
-                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                  className="text-xs text-sky-400 font-medium flex items-center gap-1.5">
-                  <RefreshCw size={11} className="animate-spin" />{t.cooling}
-                </motion.span>
-              )}
-              {!coolingDown && phase === 'warming' && (
-                <motion.span key="warming"
-                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                  className="text-xs text-amber-400 font-medium flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse inline-block" />
-                  {t.phaseWarming}
-                </motion.span>
-              )}
-              {!coolingDown && phase === 'therapeutic' && (
-                <motion.span key="therapeutic"
-                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                  className="text-xs text-primary font-medium flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse inline-block" />
-                  {t.phaseTherapeutic} · {formatTime(therapeuticRemaining)}
-                </motion.span>
-              )}
-              {!coolingDown && phase === 'idle' && (
-                <motion.span key="idle"
-                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                  className="text-xs text-muted-foreground">{t.tapToStart}
+          <div className="flex flex-col items-center gap-0.5">
+            <div className="h-5 flex items-center">
+              <AnimatePresence mode="wait">
+                {coolingDown && (
+                  <motion.span key="cooling"
+                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                    className="text-xs text-sky-400 font-medium flex items-center gap-1.5">
+                    <RefreshCw size={11} className="animate-spin" />{t.cooling}
+                  </motion.span>
+                )}
+                {!coolingDown && phase === 'warming' && (
+                  <motion.span key="warming"
+                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                    className="text-xs text-amber-400 font-medium flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse inline-block" />
+                    {t.phaseWarming}
+                  </motion.span>
+                )}
+                {!coolingDown && phase === 'therapeutic' && (
+                  <motion.span key="therapeutic"
+                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                    className="text-xs text-primary font-medium flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse inline-block" />
+                    {t.phaseTherapeutic} · {formatTime(therapeuticRemaining)}
+                  </motion.span>
+                )}
+                {!coolingDown && !running && (
+                  <motion.span key="idle"
+                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                    className="text-xs text-muted-foreground">{t.tapToStart}
+                  </motion.span>
+                )}
+              </AnimatePresence>
+            </div>
+            <AnimatePresence>
+              {running && !coolingDown && (
+                <motion.span
+                  initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                  className="text-[10px] text-muted-foreground/60">{t.tapToStop}
                 </motion.span>
               )}
             </AnimatePresence>

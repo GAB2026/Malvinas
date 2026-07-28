@@ -169,11 +169,7 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
       const secs = Math.floor((now - startedAtRef.current) / 1000);
       setElapsed(secs);
 
-      // Real thermal read (every tick on native, null on web)
-      const real = await readDeviceTemp();
-      if (real !== null) setThermalC(real);
-
-      // Transition warming → therapeutic after fixed warmup window
+      // Phase transitions — run BEFORE async calls so an exception can't block them
       if (phaseRef.current === 'warming' && secs >= WARMUP_SECS) {
         therapStartRef.current = now;
         phaseRef.current = 'therapeutic';
@@ -185,8 +181,15 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
         setTherapElapsed(tSecs);
         if (tSecs >= sessionMaxSecs(intensityRef.current)) {
           stopWith('time-limit');
+          return;
         }
       }
+
+      // Real thermal read — wrapped so a native plugin error never breaks the timer
+      try {
+        const real = await readDeviceTemp();
+        if (real !== null) setThermalC(real);
+      } catch { /* ignore */ }
     }, 1000);
     return () => clearInterval(id);
   }, [running, stopWith, sessionMaxSecs]);
