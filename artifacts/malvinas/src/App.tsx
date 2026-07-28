@@ -168,18 +168,6 @@ async function generateStoryImage(
   ctx.fillStyle = 'rgba(0, 20, 60, 0.55)';
   ctx.fillRect(0, 0, W, H);
 
-  // ── Banner image — positioned between km text and footer ──────
-  if (backgroundImg) {
-    const bannerW = 700;
-    const bannerH = Math.round(bannerW * (backgroundImg.naturalHeight / backgroundImg.naturalWidth));
-    const bannerX = (W - bannerW) / 2;
-    const bannerY = 1150;
-    ctx.save();
-    ctx.globalAlpha = 0.85;
-    ctx.drawImage(backgroundImg, bannerX, bannerY, bannerW, bannerH);
-    ctx.restore();
-  }
-
   // Shared text axis
   ctx.textAlign = 'center';
 
@@ -626,7 +614,7 @@ function MainScreen() {
       )}
 
       {/* Dark Overlay */}
-      <div className="absolute inset-0 z-10 bg-[#00143c]/50 backdrop-blur-[2px]" />
+      <div className="absolute inset-0 z-10 bg-[#00143c]/68 backdrop-blur-[3px]" />
 
       {/* Main UI */}
       <div className="relative z-20 flex flex-col items-center w-full max-w-md px-6 py-10 min-h-[100dvh] justify-between">
