@@ -25,11 +25,14 @@ interface BatteryManagerLike extends EventTarget {
   charging: boolean;
 }
 
-// ── Fallback simulated model (used when thermal sensor unavailable) ────────────
+// ── Simulated heat ramp (visual only — does NOT gate phase transition) ────────
 const AMBIENT_C = 34;
 const MAX_DELTA_C: Record<Intensity, number> = { low: 5, medium: 8, high: 16 };
 const RAMP_TAU: Record<Intensity, number>    = { low: 240, medium: 150, high: 90 };
 const MAX_HEAT: Record<Intensity, number>    = { low: 0.55, medium: 0.8, high: 1 };
+
+/** Fixed warm-up window before entering therapeutic phase (seconds). */
+const WARMUP_SECS = 25;
 
 function simulatedTemp(intensity: Intensity, elapsedSecs: number): number {
   const hl = MAX_HEAT[intensity] * (1 - Math.exp(-elapsedSecs / RAMP_TAU[intensity]));
@@ -99,12 +102,6 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
     return m * 60;
   }, [calibration]);
 
-  /** Target temp for warming→therapeutic transition. */
-  const targetTemp = useCallback((i: Intensity): number => {
-    if (!calibration) return TARGET_TEMP_C[i];
-    const frac = i === 'high' ? 0.85 : i === 'medium' ? 0.70 : 0.55;
-    return ambientC + (calibration.thermalMaxC - ambientC) * frac;
-  }, [calibration, ambientC]);
 
   const releaseWakeLock = useCallback(async () => {
     try { await wakeLockRef.current?.release(); } catch { /* ignore */ }
@@ -176,11 +173,8 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
       const real = await readDeviceTemp();
       if (real !== null) setThermalC(real);
 
-      // Temperature used for phase logic
-      const displayC = real ?? simulatedTemp(intensityRef.current, secs);
-      const target   = targetTemp(intensityRef.current);
-
-      if (phaseRef.current === 'warming' && displayC >= target) {
+      // Transition warming → therapeutic after fixed warmup window
+      if (phaseRef.current === 'warming' && secs >= WARMUP_SECS) {
         therapStartRef.current = now;
         phaseRef.current = 'therapeutic';
         setPhase('therapeutic');
@@ -195,7 +189,7 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
       }
     }, 1000);
     return () => clearInterval(id);
-  }, [running, stopWith, targetTemp, sessionMaxSecs]);
+  }, [running, stopWith, sessionMaxSecs]);
 
   // ── Cooldown poll — unlock button when device returns to ambient ────────────
   useEffect(() => {

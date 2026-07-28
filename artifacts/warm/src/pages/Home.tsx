@@ -118,7 +118,7 @@ export default function Home() {
   const glowIntensity = running ? 0.15 + heatLevel * 0.85 : 0;
 
   return (
-    <div className="relative min-h-[100dvh] w-full flex flex-col items-center overflow-hidden bg-background px-5 py-10">
+    <div className="relative min-h-[100dvh] w-full flex flex-col items-center overflow-hidden bg-background px-5 py-6">
 
       {/* Background glow */}
       <motion.div
@@ -149,7 +149,7 @@ export default function Home() {
       </div>
 
       {/* ── Flame ── */}
-      <div className="z-10 flex flex-col items-center flex-1 justify-center gap-5">
+      <div className="z-10 flex flex-col items-center flex-1 justify-center gap-3">
         <AnimatedFlame
           intensity={intensity}
           heatLevel={heatLevel}
@@ -247,10 +247,12 @@ export default function Home() {
               </span>
             </div>
           )}
-          <div className="flex items-center gap-1.5">
-            <div className={`w-2 h-2 rounded-full ${wakeLockActive ? 'bg-primary' : 'bg-muted'}`} />
-            <span>{wakeLockActive ? t.screenAwake : t.screenSleep}</span>
-          </div>
+          {wakeLockActive && (
+            <div className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-primary" />
+              <span>{t.screenAwake}</span>
+            </div>
+          )}
           {running && (
             <span className="font-mono">{formatTime(elapsed)}</span>
           )}
