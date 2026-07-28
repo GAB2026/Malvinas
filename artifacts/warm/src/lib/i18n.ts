@@ -71,7 +71,7 @@ export interface Translations {
 
 const T: Record<Lang, Translations> = {
   en: {
-    tagline: 'pocket fireplace',
+    tagline: 'thermal pad',
     intensity: 'Intensity',
     low: 'Low',
     medium: 'Medium',
@@ -113,7 +113,7 @@ const T: Record<Lang, Translations> = {
     },
     trial: { badge: 'Try', left: 'free Medium trials left' },
     calibrating: 'Checking maximum temperature for your device…',
-    calibratingNote: 'This only happens once · Do not touch the phone',
+    calibratingNote: 'Please don\'t turn off your phone',
     cooling: 'Cooling down…',
     tapToStart: 'Tap the flame to start',
     calibratedDevice: 'Calibrated for your device',
@@ -122,7 +122,7 @@ const T: Record<Lang, Translations> = {
   },
 
   es: {
-    tagline: 'chimenea de bolsillo',
+    tagline: 'almohadilla térmica',
     intensity: 'Intensidad',
     low: 'Baja',
     medium: 'Media',
@@ -164,7 +164,7 @@ const T: Record<Lang, Translations> = {
     },
     trial: { badge: 'Probar', left: 'pruebas de Media restantes' },
     calibrating: 'Chequeando temperatura máxima para tu dispositivo…',
-    calibratingNote: 'Esto solo ocurre una vez · No toques el teléfono',
+    calibratingNote: 'No apagues el teléfono por favor',
     cooling: 'Enfriando…',
     tapToStart: 'Tocá la llama para iniciar',
     calibratedDevice: 'Calibrado para tu dispositivo',
@@ -173,7 +173,7 @@ const T: Record<Lang, Translations> = {
   },
 
   pt: {
-    tagline: 'lareira de bolso',
+    tagline: 'almofada térmica',
     intensity: 'Intensidade',
     low: 'Baixa',
     medium: 'Média',
@@ -215,7 +215,7 @@ const T: Record<Lang, Translations> = {
     },
     trial: { badge: 'Testar', left: 'testes de Média restantes' },
     calibrating: 'Verificando temperatura máxima do dispositivo…',
-    calibratingNote: 'Isso acontece apenas uma vez · Não toque no celular',
+    calibratingNote: 'Não desligue o celular, por favor',
     cooling: 'Esfriando…',
     tapToStart: 'Toque na chama para iniciar',
     calibratedDevice: 'Calibrado para o seu dispositivo',
@@ -224,7 +224,7 @@ const T: Record<Lang, Translations> = {
   },
 
   fr: {
-    tagline: 'cheminée de poche',
+    tagline: 'coussin thermique',
     intensity: 'Intensité',
     low: 'Faible',
     medium: 'Moyenne',
@@ -266,7 +266,7 @@ const T: Record<Lang, Translations> = {
     },
     trial: { badge: 'Essai', left: 'essais Moyenne restants' },
     calibrating: "Vérification de la température maximale de l'appareil…",
-    calibratingNote: "Cela n'arrive qu'une fois · Ne touchez pas le téléphone",
+    calibratingNote: "Ne pas éteindre le téléphone, s'il vous plaît",
     cooling: 'Refroidissement…',
     tapToStart: 'Appuyez sur la flamme pour démarrer',
     calibratedDevice: 'Calibré pour votre appareil',
@@ -275,7 +275,7 @@ const T: Record<Lang, Translations> = {
   },
 
   de: {
-    tagline: 'Taschenkamin',
+    tagline: 'Wärmekissen',
     intensity: 'Intensität',
     low: 'Niedrig',
     medium: 'Mittel',
@@ -317,7 +317,7 @@ const T: Record<Lang, Translations> = {
     },
     trial: { badge: 'Testen', left: 'Testläufe Mittel übrig' },
     calibrating: 'Maximale Temperatur des Geräts wird ermittelt…',
-    calibratingNote: 'Das passiert nur einmal · Gerät nicht anfassen',
+    calibratingNote: 'Bitte schalte das Gerät nicht aus',
     cooling: 'Abkühlen…',
     tapToStart: 'Flamme antippen zum Starten',
     calibratedDevice: 'Kalibriert für dein Gerät',
@@ -326,7 +326,7 @@ const T: Record<Lang, Translations> = {
   },
 
   it: {
-    tagline: 'camino tascabile',
+    tagline: 'cuscinetto termico',
     intensity: 'Intensità',
     low: 'Bassa',
     medium: 'Media',
@@ -368,7 +368,7 @@ const T: Record<Lang, Translations> = {
     },
     trial: { badge: 'Prova', left: 'prove Media rimanenti' },
     calibrating: 'Verifica della temperatura massima del dispositivo…',
-    calibratingNote: 'Accade solo una volta · Non toccare il telefono',
+    calibratingNote: 'Non spegnere il telefono, per favore',
     cooling: 'Raffreddamento…',
     tapToStart: 'Tocca la fiamma per iniziare',
     calibratedDevice: 'Calibrato per il tuo dispositivo',
@@ -377,7 +377,7 @@ const T: Record<Lang, Translations> = {
   },
 
   ru: {
-    tagline: 'карманный камин',
+    tagline: 'грелка',
     intensity: 'Интенсивность',
     low: 'Низкая',
     medium: 'Средняя',
@@ -419,7 +419,7 @@ const T: Record<Lang, Translations> = {
     },
     trial: { badge: 'Проба', left: 'пробных сеанса осталось' },
     calibrating: 'Определение максимальной температуры устройства…',
-    calibratingNote: 'Это происходит только один раз · Не трогайте телефон',
+    calibratingNote: 'Пожалуйста, не выключайте телефон',
     cooling: 'Охлаждение…',
     tapToStart: 'Нажмите на пламя для запуска',
     calibratedDevice: 'Калибровка выполнена',
@@ -428,7 +428,7 @@ const T: Record<Lang, Translations> = {
   },
 
   fi: {
-    tagline: 'taskutakka',
+    tagline: 'lämpötyyny',
     intensity: 'Teho',
     low: 'Matala',
     medium: 'Keskitaso',
@@ -470,7 +470,7 @@ const T: Record<Lang, Translations> = {
     },
     trial: { badge: 'Kokeile', left: 'koeilmaista Keski-istuntoa jäljellä' },
     calibrating: 'Tarkistetaan laitteen maksimilämpötila…',
-    calibratingNote: 'Tämä tapahtuu vain kerran · Älä koske puhelimeen',
+    calibratingNote: 'Älä sammuta puhelinta, kiitos',
     cooling: 'Jäähtyminen…',
     tapToStart: 'Käynnistä napauttamalla liekkiä',
     calibratedDevice: 'Kalibroitu laitteellesi',
@@ -479,7 +479,7 @@ const T: Record<Lang, Translations> = {
   },
 
   sv: {
-    tagline: 'fickbrasa',
+    tagline: 'värmekudde',
     intensity: 'Intensitet',
     low: 'Låg',
     medium: 'Medel',
@@ -521,7 +521,7 @@ const T: Record<Lang, Translations> = {
     },
     trial: { badge: 'Prova', left: 'gratis Medelsessioner kvar' },
     calibrating: 'Kontrollerar enhetens maximala temperatur…',
-    calibratingNote: 'Detta sker bara en gång · Rör inte telefonen',
+    calibratingNote: 'Stäng inte av telefonen, tack',
     cooling: 'Avkylning…',
     tapToStart: 'Tryck på lågan för att starta',
     calibratedDevice: 'Kalibrerad för din enhet',
@@ -530,7 +530,7 @@ const T: Record<Lang, Translations> = {
   },
 
   mn: {
-    tagline: 'халааш зуух',
+    tagline: 'дулааны дэвсгэр',
     intensity: 'Эрчим',
     low: 'Бага',
     medium: 'Дунд',
@@ -572,7 +572,7 @@ const T: Record<Lang, Translations> = {
     },
     trial: { badge: 'Турших', left: 'дунд эрчмийн туршилт үлдсэн' },
     calibrating: 'Төхөөрөмжийн дээд температурыг шалгаж байна…',
-    calibratingNote: 'Энэ зөвхөн нэг удаа болно · Утсаа бүү хүй',
+    calibratingNote: 'Утсаа унтраахгүй байна уу',
     cooling: 'Хөргөж байна…',
     tapToStart: 'Эхлүүлэхийн тулд гал дээр дарна уу',
     calibratedDevice: 'Таны төхөөрөмжид тохируулагдсан',
@@ -623,7 +623,7 @@ const T: Record<Lang, Translations> = {
     },
     trial: { badge: 'Nalunnaarut', left: 'nalunaarsorneqarsinnaanngitsumik' },
     calibrating: 'Isikkoqqissaarissumik nalunaarusiorfigineqarpoq…',
-    calibratingNote: 'Ataatsimiittitaaneq · Nalunaarusiorfigineqarsinnaappoq',
+    calibratingNote: 'Telefoni silaannassinnaasoq',
     cooling: 'Isikkoqqissaarissumik…',
     tapToStart: 'Isikkorfigineqarsinnaappoq',
     calibratedDevice: 'Nalunaarusiorfigineqarpoq',

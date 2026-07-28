@@ -1,17 +1,13 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useWarmSession, StopReason, Intensity } from '@/hooks/useWarmSession';
-import { useFireplaceAudio } from '@/hooks/useFireplaceAudio';
 import { useCalibration } from '@/hooks/useCalibration';
 import { useTranslations } from '@/lib/i18n';
-import { usePremium, MEDIUM_TRIAL_LIMIT } from '@/hooks/usePremium';
-import PremiumSheet from '@/components/PremiumSheet';
+import { playCompletionChime } from '@/lib/chime';
 import AnimatedFlame from '@/components/AnimatedFlame';
-import { Battery, AlertTriangle, ShieldAlert, Sparkles, Lock, Thermometer, RefreshCw, Volume2, VolumeX } from 'lucide-react';
+import { Battery, AlertTriangle, ShieldAlert, Thermometer, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const AUTO_DISMISS_MS = 5000;
-
-function cToF(c: number): number { return (c * 9) / 5 + 32; }
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -66,64 +62,48 @@ function CalibrationScreen({ progress }: { progress: number }) {
 // ── Main app ──────────────────────────────────────────────────────────────────
 export default function Home() {
   const t = useTranslations();
-  const { isPremium, mediumTrialsLeft, canUseMedium, consumeMediumTrial } = usePremium();
-  const [showPremiumSheet, setShowPremiumSheet] = useState(false);
   const { result: calibration, calibrating, progress } = useCalibration();
-  const { enabled: soundEnabled, toggleEnabled: toggleSound, startAudio, stopAudio, updateIntensity: updateAudioIntensity, updateHeatLevel } = useFireplaceAudio();
 
   const {
     running, intensity, setIntensity, start, stop,
     phase, elapsed, therapeuticRemaining,
-    deviceTempC, heatLevel, stopReason,
-    wakeLockActive, batteryLevel, workerCount, coolingDown,
+    heatLevel, stopReason,
+    wakeLockActive, batteryLevel, coolingDown,
   } = useWarmSession(calibration);
 
   const [toastReason, setToastReason] = useState<StopReason>(null);
+  const prevStopReason = useRef<StopReason>(null);
 
   useEffect(() => { if (running) setToastReason(null); }, [running]);
+
   useEffect(() => {
-    if (stopReason && stopReason !== 'user') {
+    if (stopReason && stopReason !== 'user' && stopReason !== prevStopReason.current) {
+      prevStopReason.current = stopReason;
       setToastReason(stopReason);
+      // Play chime only on natural completion
+      if (stopReason === 'time-limit') void playCompletionChime();
       const id = setTimeout(() => setToastReason(null), AUTO_DISMISS_MS);
       return () => clearTimeout(id);
     }
     return undefined;
   }, [stopReason]);
 
-  // ── Premium / gate logic ──────────────────────────────────────────────────
-  const mediumHasTrials = !isPremium && mediumTrialsLeft > 0;
-  const mediumLocked    = !isPremium && mediumTrialsLeft === 0;
-
+  // ── All intensities unlocked for testing ─────────────────────────────────
   const handleFlameClick = () => {
-    if (running) { stop(); stopAudio(); return; }
+    if (running) { stop(); return; }
     if (coolingDown) return;
-    if (intensity === 'high' && !isPremium) { setShowPremiumSheet(true); return; }
-    if (intensity === 'medium' && !canUseMedium) { setShowPremiumSheet(true); return; }
-    if (intensity === 'medium' && !isPremium) consumeMediumTrial();
     start();
-    void startAudio(intensity);
   };
-
-  // Sync audio when heatLevel changes
-  useEffect(() => { if (running) updateHeatLevel(heatLevel); }, [heatLevel, running, updateHeatLevel]);
-
-  // Stop audio on auto-stop
-  useEffect(() => { if (!running && stopReason && stopReason !== 'user') stopAudio(); }, [running, stopReason, stopAudio]);
 
   const handleIntensityClick = (level: Intensity) => {
     if (running) return;
-    if (level === 'high' && !isPremium) { setShowPremiumSheet(true); return; }
-    if (level === 'medium' && !canUseMedium) { setShowPremiumSheet(true); return; }
     setIntensity(level);
   };
 
-  // ── Calibration screen ────────────────────────────────────────────────────
+  // ── Calibration screen ──────────────────────────────────────────────────
   if (calibrating || !calibration) {
     return <CalibrationScreen progress={progress} />;
   }
-
-  const tempC = Math.round(deviceTempC * 10) / 10;
-  const tempF = Math.round(cToF(deviceTempC) * 10) / 10;
 
   const minutes = (i: Intensity) =>
     i === 'high' ? calibration.highMinutes
@@ -151,7 +131,7 @@ export default function Home() {
 
       {/* Header */}
       <div className="z-10 flex flex-col items-center mb-2">
-        <h1 className="text-2xl font-medium tracking-wide text-foreground">Warm</h1>
+        <h1 className="text-2xl font-medium tracking-wide text-foreground">Thermal Pad</h1>
         <p className="text-muted-foreground text-xs mt-0.5">{t.tagline}</p>
       </div>
 
@@ -178,124 +158,82 @@ export default function Home() {
           disabled={coolingDown && !running}
         />
 
-        {/* Temp + phase */}
-        <div className="flex flex-col items-center gap-1">
-          <div className="flex items-baseline gap-1.5">
-            <motion.span
-              key={Math.floor(tempC)}
-              className="text-4xl font-light tabular-nums text-foreground"
-              initial={{ opacity: 0.6 }} animate={{ opacity: 1 }} transition={{ duration: 0.4 }}
-            >
-              {tempC.toFixed(1)}
+        {/* Phase indicator */}
+        <AnimatePresence mode="wait">
+          {coolingDown && (
+            <motion.span key="cooling"
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="text-xs text-sky-400 font-medium flex items-center gap-1.5">
+              <RefreshCw size={11} className="animate-spin" />
+              {t.cooling}
             </motion.span>
-            <span className="text-lg text-muted-foreground font-light">°C</span>
-            <span className="text-base text-muted-foreground/60 font-light ml-1">
-              {tempF.toFixed(1)}°F
-            </span>
-          </div>
-
-          <AnimatePresence mode="wait">
-            {coolingDown && (
-              <motion.span key="cooling"
-                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                className="text-xs text-sky-400 font-medium flex items-center gap-1.5">
-                <RefreshCw size={11} className="animate-spin" />
-                {t.cooling}
-              </motion.span>
-            )}
-            {!coolingDown && phase === 'warming' && (
-              <motion.span key="warming"
-                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                className="text-xs text-amber-400 font-medium flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse inline-block" />
-                {t.phaseWarming}
-              </motion.span>
-            )}
-            {!coolingDown && phase === 'therapeutic' && (
-              <motion.span key="therapeutic"
-                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                className="text-xs text-primary font-medium flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse inline-block" />
-                {t.phaseTherapeutic} · {formatTime(therapeuticRemaining)}
-              </motion.span>
-            )}
-            {!coolingDown && phase === 'idle' && (
-              <motion.span key="idle"
-                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                className="text-xs text-muted-foreground">
-                {t.tapToStart}
-              </motion.span>
-            )}
-          </AnimatePresence>
-        </div>
+          )}
+          {!coolingDown && phase === 'warming' && (
+            <motion.span key="warming"
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="text-xs text-amber-400 font-medium flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse inline-block" />
+              {t.phaseWarming}
+            </motion.span>
+          )}
+          {!coolingDown && phase === 'therapeutic' && (
+            <motion.span key="therapeutic"
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="text-xs text-primary font-medium flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse inline-block" />
+              {t.phaseTherapeutic} · {formatTime(therapeuticRemaining)}
+            </motion.span>
+          )}
+          {!coolingDown && phase === 'idle' && (
+            <motion.span key="idle"
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="text-xs text-muted-foreground">
+              {t.tapToStart}
+            </motion.span>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* ── Intensity cards ── */}
       <div className="z-10 w-full max-w-sm flex flex-col gap-3 mt-4">
-        <div className="flex justify-between items-center px-1">
-          <span className="text-xs font-medium text-muted-foreground uppercase tracking-widest">
-            {t.intensity}
-          </span>
-          {calibration.usingRealSensor && (
-            <span className="text-[10px] text-muted-foreground/50 flex items-center gap-1">
-              <Thermometer size={10} /> {t.calibratedDevice}
-            </span>
-          )}
-        </div>
+        <span className="text-xs font-medium text-muted-foreground uppercase tracking-widest px-1">
+          {t.intensity}
+        </span>
 
         <div className="flex gap-2.5">
           {intensities.map((level) => {
-            const active  = intensity === level && !running || intensity === level && running;
-            const locked  = level === 'high' && !isPremium || level === 'medium' && mediumLocked;
-            const hasTrial = level === 'medium' && mediumHasTrials;
-            const mins    = minutes(level);
+            const active = intensity === level;
+            const mins   = minutes(level);
 
             return (
               <button
                 key={level}
                 onClick={() => handleIntensityClick(level)}
-                disabled={running || locked}
+                disabled={running}
                 className={`flex-1 flex flex-col items-center gap-1.5 py-4 px-2 rounded-2xl border transition-all duration-300
                   disabled:cursor-not-allowed
                   ${active
                     ? 'bg-[#1e1410] border-orange-700 shadow-[0_0_18px_rgba(194,65,12,0.3)]'
-                    : locked
-                    ? 'border-white/5 bg-card opacity-40'
                     : 'border-white/8 bg-card hover:border-white/15 hover:bg-white/5'
                   }`}
               >
-                {/* Label row */}
-                <span className={`text-[11px] font-bold uppercase tracking-widest flex items-center gap-1
+                <span className={`text-[11px] font-bold uppercase tracking-widest
                   ${active ? 'text-orange-400' : 'text-muted-foreground'}`}>
-                  {locked && <Lock size={9} />}
-                  {hasTrial && !running && <Sparkles size={9} className="text-amber-400" />}
-                  {level === 'high' && active && '🔥 '}
+                  {level === 'high' && active ? '🔥 ' : ''}
                   {intensityLabels[level]}
                 </span>
-
-                {/* Minutes */}
                 <span className={`text-3xl font-bold leading-none tabular-nums
                   ${active ? 'text-white' : 'text-foreground/25'}`}>
                   {mins}
                 </span>
-                <span className={`text-[10px] font-medium ${active ? 'text-orange-400/80' : 'text-muted-foreground/40'}`}>
+                <span className={`text-[10px] font-medium
+                  ${active ? 'text-orange-400/80' : 'text-muted-foreground/40'}`}>
                   min
                 </span>
               </button>
             );
           })}
         </div>
-
-        {/* Trial hint */}
-        <AnimatePresence>
-          {!running && mediumHasTrials && intensity === 'medium' && (
-            <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="text-center text-xs text-amber-400 flex items-center justify-center gap-1.5">
-              <Sparkles size={11} />
-              {mediumTrialsLeft} / {MEDIUM_TRIAL_LIMIT} {t.trial.left}
-            </motion.p>
-          )}
-        </AnimatePresence>
       </div>
 
       {/* ── Footer ── */}
@@ -316,14 +254,6 @@ export default function Home() {
           {running && (
             <span className="font-mono">{formatTime(elapsed)}</span>
           )}
-          <button
-            onClick={toggleSound}
-            className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors"
-            aria-label={soundEnabled ? t.soundOn : t.soundOff}
-          >
-            {soundEnabled ? <Volume2 size={13} /> : <VolumeX size={13} />}
-            <span>{soundEnabled ? t.soundOn : t.soundOff}</span>
-          </button>
         </div>
 
         <div className="flex gap-3 bg-black/20 p-3.5 rounded-2xl border border-white/5 items-start">
@@ -334,8 +264,6 @@ export default function Home() {
           </p>
         </div>
       </div>
-
-      <PremiumSheet open={showPremiumSheet} onClose={() => setShowPremiumSheet(false)} />
     </div>
   );
 }
