@@ -4,6 +4,8 @@ import {
   workerCountFor,
   type Intensity,
 } from '@/lib/heat/heatEngine';
+import { readDeviceTemp } from '@/lib/thermal';
+import type { CalibrationResult } from './useCalibration';
 
 export type { Intensity } from '@/lib/heat/heatEngine';
 
@@ -16,109 +18,93 @@ export type StopReason =
   | 'tab-hidden'
   | null;
 
-/** Phase of a running session. */
-export type Phase = 'idle' | 'warming' | 'therapeutic';
-
-/** Available therapeutic durations (minutes). */
-export const THERAPEUTIC_DURATIONS = [15, 30] as const;
-export type TherapeuticDuration = (typeof THERAPEUTIC_DURATIONS)[number];
+export type Phase = 'idle' | 'warming' | 'therapeutic' | 'cooling';
 
 interface BatteryManagerLike extends EventTarget {
   level: number;
   charging: boolean;
 }
 
-// ── Temperature model ─────────────────────────────────────────────────────────
-// These are calibrated estimates; real device sensors vary but the model
-// produces realistic numbers consistent with user-observed battery drain rates.
-const AMBIENT_C = 34; // typical idle Android temp
+// ── Fallback simulated model (used when thermal sensor unavailable) ────────────
+const AMBIENT_C = 34;
+const MAX_DELTA_C: Record<Intensity, number> = { low: 5, medium: 8, high: 16 };
+const RAMP_TAU: Record<Intensity, number>    = { low: 240, medium: 150, high: 90 };
+const MAX_HEAT: Record<Intensity, number>    = { low: 0.55, medium: 0.8, high: 1 };
 
-const MAX_DELTA_C: Record<Intensity, number> = {
-  low: 5,   // peaks at ~39 °C
-  medium: 8, // peaks at ~42 °C
-  high: 16,  // peaks at ~50 °C (dual GPU canvas + duty 1.0)
-};
-
-/** Target °C that triggers transition from warming → therapeutic phase. */
-export const TARGET_TEMP_C: Record<Intensity, number> = {
-  low: 38,
-  medium: 40,
-  high: 45,
-};
-
-/** Ramp constant: how quickly heatLevel approaches its max (seconds). */
-const RAMP_TAU: Record<Intensity, number> = {
-  low: 240,
-  medium: 150,
-  high: 90,
-};
-const MAX_HEAT: Record<Intensity, number> = {
-  low: 0.55,
-  medium: 0.8,
-  high: 1,
-};
-
-function computeTemp(intensity: Intensity, heatLevel: number): number {
-  // Normalize heatLevel to 0..1 range
-  const normalized = heatLevel / MAX_HEAT[intensity];
-  return AMBIENT_C + MAX_DELTA_C[intensity] * normalized;
+function simulatedTemp(intensity: Intensity, elapsedSecs: number): number {
+  const hl = MAX_HEAT[intensity] * (1 - Math.exp(-elapsedSecs / RAMP_TAU[intensity]));
+  return AMBIENT_C + MAX_DELTA_C[intensity] * (hl / MAX_HEAT[intensity]);
 }
 
-// ── Hook interface ────────────────────────────────────────────────────────────
+/** Target °C for warming→therapeutic transition (simulated fallback). */
+export const TARGET_TEMP_C: Record<Intensity, number> = {
+  low: 38, medium: 40, high: 45,
+};
+
+// ── Hook interface ─────────────────────────────────────────────────────────────
 export interface WarmSession {
   running: boolean;
   intensity: Intensity;
   setIntensity: (i: Intensity) => void;
   start: () => void;
   stop: () => void;
-  /** Current session phase */
   phase: Phase;
-  /** Elapsed seconds since session start (both phases combined) */
   elapsed: number;
-  /** Elapsed seconds in therapeutic phase only */
   therapeuticElapsed: number;
-  /** Seconds remaining in therapeutic phase (0 while warming or idle) */
   therapeuticRemaining: number;
-  /** Simulated device temperature in °C */
+  /** Displayed temperature in °C — real sensor when available, else simulated. */
   deviceTempC: number;
-  /** Simulated heat level 0..1 — ramps up over time */
+  /** 0..1 heat ramp for visual effects (simulated model). */
   heatLevel: number;
-  /** Why the last session ended */
   stopReason: StopReason;
-  /** Whether a screen wake lock is held */
   wakeLockActive: boolean;
-  /** Battery level 0..1, or null when unavailable */
   batteryLevel: number | null;
-  /** CPU workers at current intensity */
   workerCount: number;
-  /** Selected therapeutic duration in minutes */
-  sessionDurationMin: TherapeuticDuration;
-  setSessionDuration: (d: TherapeuticDuration) => void;
+  /** Whether button is locked while device cools back to ambient. */
+  coolingDown: boolean;
 }
 
-// ── Implementation ────────────────────────────────────────────────────────────
-export function useWarmSession(): WarmSession {
+// ── Implementation ─────────────────────────────────────────────────────────────
+export function useWarmSession(calibration: CalibrationResult | null): WarmSession {
   const engineRef = useRef<HeatEngine | null>(null);
   if (!engineRef.current) engineRef.current = new HeatEngine();
 
-  const [running, setRunning] = useState(false);
-  const [intensity, setIntensityState] = useState<Intensity>('medium');
-  const [elapsed, setElapsed] = useState(0);
-  const [therapeuticElapsed, setTherapeuticElapsed] = useState(0);
-  const [phase, setPhase] = useState<Phase>('idle');
-  const [stopReason, setStopReason] = useState<StopReason>(null);
+  const [running, setRunning]               = useState(false);
+  const [intensity, setIntensityState]      = useState<Intensity>('medium');
+  const [elapsed, setElapsed]               = useState(0);
+  const [therapeuticElapsed, setTherapElapsed] = useState(0);
+  const [phase, setPhase]                   = useState<Phase>('idle');
+  const [stopReason, setStopReason]         = useState<StopReason>(null);
   const [wakeLockActive, setWakeLockActive] = useState(false);
-  const [batteryLevel, setBatteryLevel] = useState<number | null>(null);
-  const [sessionDurationMin, setSessionDurationMinState] =
-    useState<TherapeuticDuration>(15);
+  const [batteryLevel, setBatteryLevel]     = useState<number | null>(null);
+  const [thermalC, setThermalC]             = useState<number | null>(null);
+  const [coolingDown, setCoolingDown]       = useState(false);
 
-  const wakeLockRef = useRef<{ release: () => Promise<void> } | null>(null);
-  const startedAtRef = useRef(0);
-  const therapeuticStartedAtRef = useRef<number | null>(null);
-  const runningRef = useRef(false);
-  const intensityRef = useRef<Intensity>('medium');
-  const phaseRef = useRef<Phase>('idle');
-  const sessionDurationRef = useRef<TherapeuticDuration>(15);
+  const wakeLockRef     = useRef<{ release: () => Promise<void> } | null>(null);
+  const startedAtRef    = useRef(0);
+  const therapStartRef  = useRef<number | null>(null);
+  const runningRef      = useRef(false);
+  const intensityRef    = useRef<Intensity>('medium');
+  const phaseRef        = useRef<Phase>('idle');
+  const coolingRef      = useRef(false);
+
+  const ambientC = calibration?.ambientC ?? AMBIENT_C;
+
+  /** Session max in seconds for the current intensity from calibration. */
+  const sessionMaxSecs = useCallback((i: Intensity): number => {
+    if (!calibration) return 15 * 60;
+    const m = i === 'high' ? calibration.highMinutes
+            : i === 'medium' ? calibration.mediumMinutes
+            : calibration.lowMinutes;
+    return m * 60;
+  }, [calibration]);
+
+  /** Target temp for warming→therapeutic transition. */
+  const targetTemp = useCallback((i: Intensity): number => {
+    if (!calibration) return TARGET_TEMP_C[i];
+    const frac = i === 'high' ? 0.85 : i === 'medium' ? 0.70 : 0.55;
+    return ambientC + (calibration.thermalMaxC - ambientC) * frac;
+  }, [calibration, ambientC]);
 
   const releaseWakeLock = useCallback(async () => {
     try { await wakeLockRef.current?.release(); } catch { /* ignore */ }
@@ -126,51 +112,49 @@ export function useWarmSession(): WarmSession {
     setWakeLockActive(false);
   }, []);
 
-  const stopWith = useCallback(
-    (reason: StopReason) => {
-      engineRef.current?.stop();
-      runningRef.current = false;
-      phaseRef.current = 'idle';
-      therapeuticStartedAtRef.current = null;
-      setRunning(false);
-      setPhase('idle');
-      setStopReason(reason);
-      void releaseWakeLock();
-    },
-    [releaseWakeLock],
-  );
+  const stopWith = useCallback((reason: StopReason) => {
+    engineRef.current?.stop();
+    runningRef.current = false;
+    phaseRef.current = 'idle';
+    therapStartRef.current = null;
+    setRunning(false);
+    setPhase('idle');
+    setStopReason(reason);
+    void releaseWakeLock();
+    // Start cooldown if we have real thermal data
+    if (calibration?.usingRealSensor) {
+      coolingRef.current = true;
+      setCoolingDown(true);
+    }
+  }, [releaseWakeLock, calibration]);
 
   const acquireWakeLock = useCallback(async () => {
     try {
-      const nav = navigator as Navigator & {
-        wakeLock?: { request: (t: 'screen') => Promise<unknown> };
-      };
+      const nav = navigator as Navigator & { wakeLock?: { request: (t: 'screen') => Promise<unknown> } };
       if (nav.wakeLock) {
         const lock = await nav.wakeLock.request('screen');
         wakeLockRef.current = lock as { release: () => Promise<void> };
         setWakeLockActive(true);
-        (lock as EventTarget).addEventListener?.('release', () =>
-          setWakeLockActive(false),
-        );
+        (lock as EventTarget).addEventListener?.('release', () => setWakeLockActive(false));
       }
     } catch { setWakeLockActive(false); }
   }, []);
 
   const start = useCallback(() => {
-    if (runningRef.current) return;
-    engineRef.current!.start(intensity);
+    if (runningRef.current || coolingRef.current) return;
+    engineRef.current!.start(intensityRef.current);
     const now = Date.now();
     startedAtRef.current = now;
-    therapeuticStartedAtRef.current = null;
+    therapStartRef.current = null;
     runningRef.current = true;
     phaseRef.current = 'warming';
     setElapsed(0);
-    setTherapeuticElapsed(0);
+    setTherapElapsed(0);
     setPhase('warming');
     setStopReason(null);
     setRunning(true);
     void acquireWakeLock();
-  }, [intensity, acquireWakeLock]);
+  }, [acquireWakeLock]);
 
   const stop = useCallback(() => stopWith('user'), [stopWith]);
 
@@ -180,84 +164,77 @@ export function useWarmSession(): WarmSession {
     if (runningRef.current) engineRef.current!.setIntensity(i);
   }, []);
 
-  const setSessionDuration = useCallback((d: TherapeuticDuration) => {
-    sessionDurationRef.current = d;
-    setSessionDurationMinState(d);
-  }, []);
-
-  // ── Main tick ──────────────────────────────────────────────────────────────
+  // ── Main tick ────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!running) return;
-    const id = setInterval(() => {
-      const now = Date.now();
+    const id = setInterval(async () => {
+      const now  = Date.now();
       const secs = Math.floor((now - startedAtRef.current) / 1000);
       setElapsed(secs);
 
-      // Compute simulated temperature to decide phase transition
-      const tau = RAMP_TAU[intensityRef.current];
-      const maxH = MAX_HEAT[intensityRef.current];
-      const hl = maxH * (1 - Math.exp(-secs / tau));
-      const tempC = computeTemp(intensityRef.current, hl);
+      // Real thermal read (every tick on native, null on web)
+      const real = await readDeviceTemp();
+      if (real !== null) setThermalC(real);
 
-      if (
-        phaseRef.current === 'warming' &&
-        tempC >= TARGET_TEMP_C[intensityRef.current]
-      ) {
-        // Transition to therapeutic phase
-        therapeuticStartedAtRef.current = now;
+      // Temperature used for phase logic
+      const displayC = real ?? simulatedTemp(intensityRef.current, secs);
+      const target   = targetTemp(intensityRef.current);
+
+      if (phaseRef.current === 'warming' && displayC >= target) {
+        therapStartRef.current = now;
         phaseRef.current = 'therapeutic';
         setPhase('therapeutic');
       }
 
-      if (phaseRef.current === 'therapeutic' && therapeuticStartedAtRef.current) {
-        const tSecs = Math.floor(
-          (now - therapeuticStartedAtRef.current) / 1000,
-        );
-        setTherapeuticElapsed(tSecs);
-        const limitSecs = sessionDurationRef.current * 60;
-        if (tSecs >= limitSecs) {
+      if (phaseRef.current === 'therapeutic' && therapStartRef.current) {
+        const tSecs = Math.floor((now - therapStartRef.current) / 1000);
+        setTherapElapsed(tSecs);
+        if (tSecs >= sessionMaxSecs(intensityRef.current)) {
           stopWith('time-limit');
         }
       }
     }, 1000);
     return () => clearInterval(id);
-  }, [running, stopWith]);
+  }, [running, stopWith, targetTemp, sessionMaxSecs]);
 
-  // ── Visibility / safety wall-clock check ───────────────────────────────────
+  // ── Cooldown poll — unlock button when device returns to ambient ────────────
   useEffect(() => {
-    const onVisibility = () => {
-      if (document.hidden) {
-        if (runningRef.current) stopWith('tab-hidden');
-      } else if (runningRef.current) {
-        // Catch timer drift while hidden
-        if (phaseRef.current === 'therapeutic' && therapeuticStartedAtRef.current) {
-          const tSecs = Math.floor(
-            (Date.now() - therapeuticStartedAtRef.current) / 1000,
-          );
-          if (tSecs >= sessionDurationRef.current * 60) stopWith('time-limit');
-        }
+    if (!coolingDown) return;
+    const id = setInterval(async () => {
+      const temp = await readDeviceTemp();
+      if (temp === null || temp <= ambientC + 3) {
+        coolingRef.current = false;
+        setCoolingDown(false);
+        clearInterval(id);
+      }
+    }, 10_000);
+    return () => clearInterval(id);
+  }, [coolingDown, ambientC]);
+
+  // ── Visibility guard ─────────────────────────────────────────────────────────
+  useEffect(() => {
+    const onVis = () => {
+      if (document.hidden && runningRef.current) stopWith('tab-hidden');
+      else if (!document.hidden && runningRef.current && phaseRef.current === 'therapeutic' && therapStartRef.current) {
+        const tSecs = Math.floor((Date.now() - therapStartRef.current) / 1000);
+        if (tSecs >= sessionMaxSecs(intensityRef.current)) stopWith('time-limit');
       }
     };
-    document.addEventListener('visibilitychange', onVisibility);
-    return () => document.removeEventListener('visibilitychange', onVisibility);
-  }, [stopWith]);
+    document.addEventListener('visibilitychange', onVis);
+    return () => document.removeEventListener('visibilitychange', onVis);
+  }, [stopWith, sessionMaxSecs]);
 
-  // ── Battery monitoring ─────────────────────────────────────────────────────
+  // ── Battery ──────────────────────────────────────────────────────────────────
   useEffect(() => {
     let battery: BatteryManagerLike | null = null;
     const onLevel = () => {
       if (!battery) return;
       setBatteryLevel(battery.level);
-      if (runningRef.current && !battery.charging && battery.level <= LOW_BATTERY_CUTOFF) {
+      if (runningRef.current && !battery.charging && battery.level <= LOW_BATTERY_CUTOFF)
         stopWith('low-battery');
-      }
     };
-    const nav = navigator as Navigator & {
-      getBattery?: () => Promise<BatteryManagerLike>;
-    };
-    nav.getBattery?.().then((b) => {
-      battery = b;
-      onLevel();
+    (navigator as any).getBattery?.().then((b: BatteryManagerLike) => {
+      battery = b; onLevel();
       b.addEventListener('levelchange', onLevel);
       b.addEventListener('chargingchange', onLevel);
     });
@@ -267,43 +244,28 @@ export function useWarmSession(): WarmSession {
     };
   }, [stopWith]);
 
-  // ── Cleanup on unmount ─────────────────────────────────────────────────────
+  // ── Cleanup ──────────────────────────────────────────────────────────────────
   useEffect(() => {
     const engine = engineRef.current;
-    return () => {
-      engine?.stop();
-      void wakeLockRef.current?.release()?.catch(() => {});
-    };
+    return () => { engine?.stop(); void wakeLockRef.current?.release()?.catch(() => {}); };
   }, []);
 
-  // ── Derived values ─────────────────────────────────────────────────────────
-  const maxHeat = MAX_HEAT[intensity];
-  const tau = RAMP_TAU[intensity];
+  // ── Derived values ────────────────────────────────────────────────────────────
+  const maxHeat  = MAX_HEAT[intensity];
+  const tau      = RAMP_TAU[intensity];
   const heatLevel = running ? maxHeat * (1 - Math.exp(-elapsed / tau)) : 0;
-  const deviceTempC = running ? computeTemp(intensity, heatLevel) : AMBIENT_C;
-  const therapeuticLimitSecs = sessionDurationMin * 60;
-  const therapeuticRemaining =
-    phase === 'therapeutic'
-      ? Math.max(0, therapeuticLimitSecs - therapeuticElapsed)
-      : 0;
+  const simTemp   = running ? simulatedTemp(intensity, elapsed) : ambientC;
+  const deviceTempC = thermalC ?? simTemp;
+
+  const therapLimit = sessionMaxSecs(intensity);
+  const therapeuticRemaining = phase === 'therapeutic'
+    ? Math.max(0, therapLimit - therapeuticElapsed) : 0;
 
   return {
-    running,
-    intensity,
-    setIntensity,
-    start,
-    stop,
-    phase,
-    elapsed,
-    therapeuticElapsed,
-    therapeuticRemaining,
-    deviceTempC,
-    heatLevel,
-    stopReason,
-    wakeLockActive,
-    batteryLevel,
+    running, intensity, setIntensity, start, stop,
+    phase, elapsed, therapeuticElapsed, therapeuticRemaining,
+    deviceTempC, heatLevel, stopReason, wakeLockActive, batteryLevel,
     workerCount: workerCountFor(intensity),
-    sessionDurationMin,
-    setSessionDuration,
+    coolingDown,
   };
 }

@@ -56,6 +56,15 @@ export interface Translations {
   therapyTimer: string;
   premium: PremiumStrings;
   trial: TrialStrings;
+  /** Calibration screen */
+  calibrating: string;
+  calibratingNote: string;
+  /** Cooldown state */
+  cooling: string;
+  /** Idle hint under temperature */
+  tapToStart: string;
+  /** Badge shown when calibrated with real sensor */
+  calibratedDevice: string;
 }
 
 const T: Record<Lang, Translations> = {
@@ -101,6 +110,11 @@ const T: Record<Lang, Translations> = {
       benefit3: 'Unlimited sessions',
     },
     trial: { badge: 'Try', left: 'free Medium trials left' },
+    calibrating: 'Checking maximum temperature for your device…',
+    calibratingNote: 'This only happens once · Do not touch the phone',
+    cooling: 'Cooling down…',
+    tapToStart: 'Tap the flame to start',
+    calibratedDevice: 'Calibrated for your device',
   },
 
   es: {
@@ -145,6 +159,11 @@ const T: Record<Lang, Translations> = {
       benefit3: 'Sesiones ilimitadas',
     },
     trial: { badge: 'Probar', left: 'pruebas de Media restantes' },
+    calibrating: 'Chequeando temperatura máxima para tu dispositivo…',
+    calibratingNote: 'Esto solo ocurre una vez · No toques el teléfono',
+    cooling: 'Enfriando…',
+    tapToStart: 'Tocá la llama para iniciar',
+    calibratedDevice: 'Calibrado para tu dispositivo',
   },
 
   pt: {
@@ -189,6 +208,11 @@ const T: Record<Lang, Translations> = {
       benefit3: 'Sessões ilimitadas',
     },
     trial: { badge: 'Testar', left: 'testes de Média restantes' },
+    calibrating: 'Verificando temperatura máxima do dispositivo…',
+    calibratingNote: 'Isso acontece apenas uma vez · Não toque no celular',
+    cooling: 'Esfriando…',
+    tapToStart: 'Toque na chama para iniciar',
+    calibratedDevice: 'Calibrado para o seu dispositivo',
   },
 
   fr: {
@@ -233,6 +257,11 @@ const T: Record<Lang, Translations> = {
       benefit3: 'Sessions illimitées',
     },
     trial: { badge: 'Essai', left: 'essais Moyenne restants' },
+    calibrating: "Vérification de la température maximale de l'appareil…",
+    calibratingNote: "Cela n'arrive qu'une fois · Ne touchez pas le téléphone",
+    cooling: 'Refroidissement…',
+    tapToStart: 'Appuyez sur la flamme pour démarrer',
+    calibratedDevice: 'Calibré pour votre appareil',
   },
 
   de: {
@@ -277,6 +306,11 @@ const T: Record<Lang, Translations> = {
       benefit3: 'Unbegrenzte Sitzungen',
     },
     trial: { badge: 'Testen', left: 'Testläufe Mittel übrig' },
+    calibrating: 'Maximale Temperatur des Geräts wird ermittelt…',
+    calibratingNote: 'Das passiert nur einmal · Gerät nicht anfassen',
+    cooling: 'Abkühlen…',
+    tapToStart: 'Flamme antippen zum Starten',
+    calibratedDevice: 'Kalibriert für dein Gerät',
   },
 
   it: {
@@ -321,6 +355,11 @@ const T: Record<Lang, Translations> = {
       benefit3: 'Sessioni illimitate',
     },
     trial: { badge: 'Prova', left: 'prove Media rimanenti' },
+    calibrating: 'Verifica della temperatura massima del dispositivo…',
+    calibratingNote: 'Accade solo una volta · Non toccare il telefono',
+    cooling: 'Raffreddamento…',
+    tapToStart: 'Tocca la fiamma per iniziare',
+    calibratedDevice: 'Calibrato per il tuo dispositivo',
   },
 
   ru: {
@@ -365,6 +404,11 @@ const T: Record<Lang, Translations> = {
       benefit3: 'Безлимитные сеансы',
     },
     trial: { badge: 'Проба', left: 'пробных сеанса осталось' },
+    calibrating: 'Определение максимальной температуры устройства…',
+    calibratingNote: 'Это происходит только один раз · Не трогайте телефон',
+    cooling: 'Охлаждение…',
+    tapToStart: 'Нажмите на пламя для запуска',
+    calibratedDevice: 'Калибровка выполнена',
   },
 
   fi: {
@@ -409,6 +453,11 @@ const T: Record<Lang, Translations> = {
       benefit3: 'Rajattomat istunnot',
     },
     trial: { badge: 'Kokeile', left: 'koeilmaista Keski-istuntoa jäljellä' },
+    calibrating: 'Tarkistetaan laitteen maksimilämpötila…',
+    calibratingNote: 'Tämä tapahtuu vain kerran · Älä koske puhelimeen',
+    cooling: 'Jäähtyminen…',
+    tapToStart: 'Käynnistä napauttamalla liekkiä',
+    calibratedDevice: 'Kalibroitu laitteellesi',
   },
 
   sv: {
@@ -453,6 +502,11 @@ const T: Record<Lang, Translations> = {
       benefit3: 'Obegränsade sessioner',
     },
     trial: { badge: 'Prova', left: 'gratis Medelsessioner kvar' },
+    calibrating: 'Kontrollerar enhetens maximala temperatur…',
+    calibratingNote: 'Detta sker bara en gång · Rör inte telefonen',
+    cooling: 'Avkylning…',
+    tapToStart: 'Tryck på lågan för att starta',
+    calibratedDevice: 'Kalibrerad för din enhet',
   },
 
   mn: {
@@ -497,6 +551,11 @@ const T: Record<Lang, Translations> = {
       benefit3: 'Хязааргүй сессүүд',
     },
     trial: { badge: 'Турших', left: 'дунд эрчмийн туршилт үлдсэн' },
+    calibrating: 'Төхөөрөмжийн дээд температурыг шалгаж байна…',
+    calibratingNote: 'Энэ зөвхөн нэг удаа болно · Утсаа бүү хүй',
+    cooling: 'Хөргөж байна…',
+    tapToStart: 'Эхлүүлэхийн тулд гал дээр дарна уу',
+    calibratedDevice: 'Таны төхөөрөмжид тохируулагдсан',
   },
 
   kl: {
@@ -541,6 +600,11 @@ const T: Record<Lang, Translations> = {
       benefit3: 'Nalunngissumik nalunaarsorneq',
     },
     trial: { badge: 'Nalunnaarut', left: 'nalunaarsorneqarsinnaanngitsumik' },
+    calibrating: 'Isikkoqqissaarissumik nalunaarusiorfigineqarpoq…',
+    calibratingNote: 'Ataatsimiittitaaneq · Nalunaarusiorfigineqarsinnaappoq',
+    cooling: 'Isikkoqqissaarissumik…',
+    tapToStart: 'Isikkorfigineqarsinnaappoq',
+    calibratedDevice: 'Nalunaarusiorfigineqarpoq',
   },
 };
 

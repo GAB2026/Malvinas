@@ -1,18 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import {
-  useWarmSession,
-  StopReason,
-  Intensity,
-  TARGET_TEMP_C,
-  THERAPEUTIC_DURATIONS,
-  TherapeuticDuration,
-} from '@/hooks/useWarmSession';
+import { useWarmSession, StopReason, Intensity } from '@/hooks/useWarmSession';
+import { useCalibration } from '@/hooks/useCalibration';
 import { useTranslations } from '@/lib/i18n';
 import { usePremium, MEDIUM_TRIAL_LIMIT } from '@/hooks/usePremium';
 import PremiumSheet from '@/components/PremiumSheet';
-import {
-  Flame, Battery, Cpu, AlertTriangle, ShieldAlert, Thermometer, Lock, Sparkles,
-} from 'lucide-react';
+import AnimatedFlame from '@/components/AnimatedFlame';
+import { Battery, AlertTriangle, ShieldAlert, Sparkles, Lock, Thermometer, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const AUTO_DISMISS_MS = 5000;
@@ -25,18 +18,63 @@ function formatTime(seconds: number): string {
   return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
 }
 
+// ── Calibration screen ────────────────────────────────────────────────────────
+function CalibrationScreen({ progress }: { progress: number }) {
+  const t = useTranslations();
+  return (
+    <div className="relative min-h-[100dvh] w-full flex flex-col items-center justify-center bg-background px-8 gap-8">
+      <motion.div
+        className="pointer-events-none absolute inset-0 flex items-center justify-center"
+        animate={{ opacity: [0.05, 0.12, 0.05] }}
+        transition={{ duration: 2.5, repeat: Infinity }}
+      >
+        <div className="w-[70vw] h-[70vw] rounded-full bg-primary/30 blur-[80px]" />
+      </motion.div>
+
+      <div className="z-10 flex flex-col items-center gap-6 w-full max-w-xs text-center">
+        <motion.div
+          animate={{ scale: [1, 1.08, 1] }}
+          transition={{ duration: 1.4, repeat: Infinity }}
+        >
+          <Thermometer size={48} className="text-primary" />
+        </motion.div>
+
+        <div className="flex flex-col gap-2">
+          <p className="text-lg font-medium text-foreground leading-snug">
+            {t.calibrating}
+          </p>
+          <p className="text-sm text-muted-foreground">{t.calibratingNote}</p>
+        </div>
+
+        {/* Progress bar */}
+        <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden">
+          <motion.div
+            className="h-full bg-primary rounded-full"
+            animate={{ width: `${Math.round(progress * 100)}%` }}
+            transition={{ duration: 0.8, ease: 'linear' }}
+          />
+        </div>
+        <p className="text-xs text-muted-foreground tabular-nums">
+          {Math.round(progress * 100)}%
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ── Main app ──────────────────────────────────────────────────────────────────
 export default function Home() {
   const t = useTranslations();
   const { isPremium, mediumTrialsLeft, canUseMedium, consumeMediumTrial } = usePremium();
   const [showPremiumSheet, setShowPremiumSheet] = useState(false);
+  const { result: calibration, calibrating, progress } = useCalibration();
 
   const {
     running, intensity, setIntensity, start, stop,
     phase, elapsed, therapeuticRemaining,
     deviceTempC, heatLevel, stopReason,
-    wakeLockActive, batteryLevel, workerCount,
-    sessionDurationMin, setSessionDuration,
-  } = useWarmSession();
+    wakeLockActive, batteryLevel, workerCount, coolingDown,
+  } = useWarmSession(calibration);
 
   const [toastReason, setToastReason] = useState<StopReason>(null);
 
@@ -50,20 +88,13 @@ export default function Home() {
     return undefined;
   }, [stopReason]);
 
-  const glowIntensity = running ? 0.2 + heatLevel * 0.8 : 0;
-  const tempC = Math.round(deviceTempC * 10) / 10;
-  const tempF = Math.round(cToF(deviceTempC) * 10) / 10;
-  const targetC = TARGET_TEMP_C[intensity];
+  // ── Premium / gate logic ──────────────────────────────────────────────────
+  const mediumHasTrials = !isPremium && mediumTrialsLeft > 0;
+  const mediumLocked    = !isPremium && mediumTrialsLeft === 0;
 
-  const warmProgress = phase === 'therapeutic' ? 1
-    : phase === 'warming' ? Math.min((deviceTempC - 34) / (targetC - 34), 0.99)
-    : 0;
-
-  // ── Gate logic ───────────────────────────────────────────────────────────────
-  // Low   → always free, unlimited sessions
-  // Medium → 2 free trial sessions, then premium required
-  // High  → premium only, no trials
-  const handleStart = () => {
+  const handleFlameClick = () => {
+    if (running) { stop(); return; }
+    if (coolingDown) return;
     if (intensity === 'high' && !isPremium) { setShowPremiumSheet(true); return; }
     if (intensity === 'medium' && !canUseMedium) { setShowPremiumSheet(true); return; }
     if (intensity === 'medium' && !isPremium) consumeMediumTrial();
@@ -71,298 +102,195 @@ export default function Home() {
   };
 
   const handleIntensityClick = (level: Intensity) => {
+    if (running) return;
     if (level === 'high' && !isPremium) { setShowPremiumSheet(true); return; }
     if (level === 'medium' && !canUseMedium) { setShowPremiumSheet(true); return; }
     setIntensity(level);
   };
 
-  const handleDurationClick = (d: TherapeuticDuration) => {
-    if (d === 30 && !isPremium) { setShowPremiumSheet(true); return; }
-    setSessionDuration(d);
+  // ── Calibration screen ────────────────────────────────────────────────────
+  if (calibrating || !calibration) {
+    return <CalibrationScreen progress={progress} />;
+  }
+
+  const tempC = Math.round(deviceTempC * 10) / 10;
+  const tempF = Math.round(cToF(deviceTempC) * 10) / 10;
+
+  const minutes = (i: Intensity) =>
+    i === 'high' ? calibration.highMinutes
+    : i === 'medium' ? calibration.mediumMinutes
+    : calibration.lowMinutes;
+
+  const intensities: Intensity[] = ['low', 'medium', 'high'];
+  const intensityLabels: Record<Intensity, string> = {
+    low: t.low, medium: t.medium, high: t.high,
   };
 
-  // Medium button display state
-  const mediumHasTrials = !isPremium && mediumTrialsLeft > 0;
-  const mediumLocked    = !isPremium && mediumTrialsLeft === 0;
+  const glowIntensity = running ? 0.15 + heatLevel * 0.85 : 0;
 
   return (
-    <div className="relative min-h-[100dvh] w-full flex flex-col items-center justify-center overflow-hidden bg-background px-6 py-12">
+    <div className="relative min-h-[100dvh] w-full flex flex-col items-center overflow-hidden bg-background px-5 py-10">
 
       {/* Background glow */}
       <motion.div
         className="pointer-events-none absolute inset-0 flex items-center justify-center"
-        initial={{ opacity: 0 }}
         animate={{ opacity: glowIntensity }}
-        transition={{ duration: 1 }}
+        transition={{ duration: 1.2 }}
       >
-        <div className="w-[80vw] h-[80vw] max-w-md max-h-md rounded-full bg-primary/30 blur-[100px]" />
+        <div className="w-[85vw] h-[85vw] max-w-lg rounded-full bg-primary/25 blur-[110px]" />
       </motion.div>
 
       {/* Header */}
-      <div className="absolute top-8 left-0 right-0 flex flex-col items-center z-10">
-        <div className="flex items-center gap-2 text-primary">
-          <Flame size={24} className={running ? 'animate-pulse' : ''} />
-          <h1 className="text-2xl font-medium tracking-wide">Warm</h1>
-        </div>
-        <p className="text-muted-foreground text-sm mt-1">{t.tagline}</p>
+      <div className="z-10 flex flex-col items-center mb-2">
+        <h1 className="text-2xl font-medium tracking-wide text-foreground">Warm</h1>
+        <p className="text-muted-foreground text-xs mt-0.5">{t.tagline}</p>
       </div>
 
-      <div className="z-10 flex flex-col items-center w-full max-w-sm mt-12 mb-auto gap-8">
+      {/* Toast */}
+      <div className="z-10 h-9 w-full max-w-sm flex items-center justify-center mt-1">
+        <AnimatePresence>
+          {toastReason && (
+            <motion.div key={toastReason}
+              initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
+              className="flex items-center gap-2 bg-destructive/10 text-destructive px-4 py-1.5 rounded-full border border-destructive/20 text-xs">
+              <AlertTriangle size={13} /> {t.autoStop[toastReason]}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
 
-        {/* Auto-stop toast */}
-        <div className="h-10 w-full flex items-center justify-center">
-          <AnimatePresence>
-            {toastReason && (
-              <motion.div
-                key={toastReason}
-                initial={{ opacity: 0, y: -8 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -8 }}
-                className="flex items-center gap-2 bg-destructive/10 text-destructive-foreground px-4 py-2 rounded-full border border-destructive/20 text-sm"
-              >
-                <AlertTriangle size={14} className="text-destructive" />
-                <span className="text-destructive">{t.autoStop[toastReason]}</span>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+      {/* ── Flame ── */}
+      <div className="z-10 flex flex-col items-center flex-1 justify-center gap-5">
+        <AnimatedFlame
+          intensity={intensity}
+          heatLevel={heatLevel}
+          running={running}
+          onClick={handleFlameClick}
+          disabled={coolingDown && !running}
+        />
 
-        {/* ── Temperature Display ── */}
-        <div className="w-full bg-card/60 border border-card-border rounded-3xl px-6 py-5 flex flex-col gap-3 backdrop-blur-sm">
-          <div className="flex items-center gap-2 text-muted-foreground text-xs uppercase tracking-widest">
-            <Thermometer size={13} />
-            <span>{t.tempLabel}</span>
+        {/* Temp + phase */}
+        <div className="flex flex-col items-center gap-1">
+          <div className="flex items-baseline gap-1.5">
+            <motion.span
+              key={Math.floor(tempC)}
+              className="text-4xl font-light tabular-nums text-foreground"
+              initial={{ opacity: 0.6 }} animate={{ opacity: 1 }} transition={{ duration: 0.4 }}
+            >
+              {tempC.toFixed(1)}
+            </motion.span>
+            <span className="text-lg text-muted-foreground font-light">°C</span>
+            <span className="text-base text-muted-foreground/60 font-light ml-1">
+              {tempF.toFixed(1)}°F
+            </span>
           </div>
 
-          <div className="flex items-end gap-4">
-            <div className="flex items-baseline gap-1">
-              <motion.span
-                key={Math.floor(tempC)}
-                className="text-5xl font-light tabular-nums text-foreground"
-                initial={{ opacity: 0.6 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 0.4 }}
-              >
-                {tempC.toFixed(1)}
-              </motion.span>
-              <span className="text-2xl text-muted-foreground font-light">°C</span>
-            </div>
-            <div className="flex items-baseline gap-1 mb-0.5 text-muted-foreground">
-              <span className="text-xl font-light tabular-nums">{tempF.toFixed(1)}</span>
-              <span className="text-base font-light">°F</span>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-2">
-            <AnimatePresence mode="wait">
-              {phase === 'idle' && (
-                <motion.span key="idle" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                  className="text-xs text-muted-foreground">—</motion.span>
-              )}
-              {phase === 'warming' && (
-                <motion.span key="warming" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                  className="text-xs text-amber-400 font-medium flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse inline-block" />
-                  {t.phaseWarming}
-                </motion.span>
-              )}
-              {phase === 'therapeutic' && (
-                <motion.span key="therapeutic" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                  className="text-xs text-primary font-medium flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse inline-block" />
-                  {t.phaseTherapeutic}
-                </motion.span>
-              )}
-            </AnimatePresence>
-
-            <div className="w-full h-1.5 rounded-full bg-white/5 overflow-hidden">
-              <motion.div
-                className={`h-full rounded-full ${phase === 'therapeutic' ? 'bg-primary' : 'bg-amber-500'}`}
-                animate={{ width: `${warmProgress * 100}%` }}
-                transition={{ duration: 1, ease: 'linear' }}
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* ── Main Button ── */}
-        <div className="flex flex-col items-center">
-          <motion.button
-            onClick={running ? stop : handleStart}
-            className={`relative flex items-center justify-center w-44 h-44 rounded-full shadow-2xl outline-none transition-transform active:scale-95 ${
-              running
-                ? 'bg-primary text-primary-foreground'
-                : 'bg-card text-foreground border border-card-border'
-            }`}
-            animate={{
-              boxShadow: running
-                ? `0 0 ${40 + heatLevel * 60}px ${10 + heatLevel * 20}px rgba(244,91,38,${0.4 + heatLevel * 0.4})`
-                : '0 4px 20px 0px rgba(0,0,0,0.5)',
-            }}
-            transition={{ duration: 1 }}
-          >
-            {running && (
-              <motion.div
-                className="absolute inset-0 rounded-full border-2 border-white/20"
-                animate={{ scale: [1, 1.05, 1], opacity: [0.4, 0.7, 0.4] }}
-                transition={{ duration: 2 - heatLevel, repeat: Infinity, ease: 'easeInOut' }}
-              />
-            )}
-            <div className="flex flex-col items-center gap-1">
-              <span className="text-2xl font-medium tracking-wider uppercase">
-                {running ? t.stop : t.start}
-              </span>
-              {running && phase === 'therapeutic' && (
-                <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                  className="font-mono text-lg text-white/90">
-                  {formatTime(therapeuticRemaining)}
-                </motion.span>
-              )}
-              {running && phase === 'warming' && (
-                <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-                  className="text-xs text-white/70 text-center max-w-[100px] leading-tight">
-                  {t.phaseWarming}
-                </motion.span>
-              )}
-            </div>
-          </motion.button>
-
-          {/* Phase / trial hint */}
           <AnimatePresence mode="wait">
-            {phase === 'therapeutic' && (
-              <motion.p key="therapy" initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                className="mt-3 text-xs text-muted-foreground">{t.therapyTimer}</motion.p>
+            {coolingDown && (
+              <motion.span key="cooling"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                className="text-xs text-sky-400 font-medium flex items-center gap-1.5">
+                <RefreshCw size={11} className="animate-spin" />
+                {t.cooling}
+              </motion.span>
             )}
-            {phase === 'warming' && (
-              <motion.p key="warming-hint" initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                className="mt-3 text-xs text-muted-foreground">
-                {t.waitingForTemp} · {targetC}°C
-              </motion.p>
+            {!coolingDown && phase === 'warming' && (
+              <motion.span key="warming"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                className="text-xs text-amber-400 font-medium flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse inline-block" />
+                {t.phaseWarming}
+              </motion.span>
             )}
-            {!running && intensity === 'medium' && mediumHasTrials && (
-              <motion.p key="trial-hint" initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                className="mt-3 text-xs text-amber-400 flex items-center gap-1.5">
-                <Sparkles size={11} />
-                {mediumTrialsLeft} / {MEDIUM_TRIAL_LIMIT} {t.trial.left}
-              </motion.p>
+            {!coolingDown && phase === 'therapeutic' && (
+              <motion.span key="therapeutic"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                className="text-xs text-primary font-medium flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse inline-block" />
+                {t.phaseTherapeutic} · {formatTime(therapeuticRemaining)}
+              </motion.span>
+            )}
+            {!coolingDown && phase === 'idle' && (
+              <motion.span key="idle"
+                initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                className="text-xs text-muted-foreground">
+                {t.tapToStart}
+              </motion.span>
             )}
           </AnimatePresence>
         </div>
+      </div>
 
-        {/* ── Intensity ── */}
-        <div className="w-full flex flex-col gap-3">
-          <div className="flex justify-between items-center px-1">
-            <span className="text-xs font-medium text-muted-foreground uppercase tracking-widest">
-              {t.intensity}
+      {/* ── Intensity cards ── */}
+      <div className="z-10 w-full max-w-sm flex flex-col gap-3 mt-4">
+        <div className="flex justify-between items-center px-1">
+          <span className="text-xs font-medium text-muted-foreground uppercase tracking-widest">
+            {t.intensity}
+          </span>
+          {calibration.usingRealSensor && (
+            <span className="text-[10px] text-muted-foreground/50 flex items-center gap-1">
+              <Thermometer size={10} /> {t.calibratedDevice}
             </span>
-            <span className="text-xs text-muted-foreground flex items-center gap-1">
-              <Cpu size={11} /> {workerCount} {workerCount === 1 ? t.core : t.cores}
-            </span>
-          </div>
-
-          <div className="flex p-1 bg-card rounded-2xl border border-card-border">
-            {/* Low — unlimited, always free */}
-            <button
-              onClick={() => setIntensity('low')}
-              className={`flex-1 py-3 text-sm font-medium rounded-xl transition-all duration-300 ${
-                intensity === 'low'
-                  ? 'bg-secondary text-foreground shadow-md'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
-              }`}
-            >
-              {t.low}
-            </button>
-
-            {/* Medium — sparkle when trials remain, lock when exhausted */}
-            <button
-              onClick={() => handleIntensityClick('medium')}
-              className={`flex-1 py-3 text-sm font-medium rounded-xl transition-all duration-300 ${
-                intensity === 'medium' && !mediumLocked
-                  ? 'bg-secondary text-foreground shadow-md'
-                  : mediumLocked
-                  ? 'text-muted-foreground/50'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
-              }`}
-            >
-              {mediumLocked ? (
-                <span className="flex items-center justify-center gap-1">
-                  <Lock size={11} />
-                  {t.medium}
-                </span>
-              ) : mediumHasTrials ? (
-                <span className="flex items-center justify-center gap-1">
-                  <Sparkles size={11} className="text-amber-400" />
-                  {t.medium}
-                </span>
-              ) : (
-                t.medium
-              )}
-            </button>
-
-            {/* High — premium only */}
-            <button
-              onClick={() => handleIntensityClick('high')}
-              className={`flex-1 py-3 text-sm font-medium rounded-xl transition-all duration-300 ${
-                intensity === 'high' && isPremium
-                  ? 'bg-secondary text-foreground shadow-md'
-                  : !isPremium
-                  ? 'text-muted-foreground/50'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
-              }`}
-            >
-              {!isPremium ? (
-                <span className="flex items-center justify-center gap-1">
-                  <Lock size={11} />
-                  {t.high}
-                </span>
-              ) : (
-                t.high
-              )}
-            </button>
-          </div>
+          )}
         </div>
 
-        {/* ── Session Duration ── */}
-        <div className="w-full flex flex-col gap-3">
-          <div className="px-1">
-            <span className="text-xs font-medium text-muted-foreground uppercase tracking-widest">
-              {t.session}
-            </span>
-          </div>
-          <div className="flex p-1 bg-card rounded-2xl border border-card-border">
-            {THERAPEUTIC_DURATIONS.map((d) => {
-              const locked = d === 30 && !isPremium;
-              const selected = sessionDurationMin === d;
-              return (
-                <button
-                  key={d}
-                  onClick={() => handleDurationClick(d as TherapeuticDuration)}
-                  disabled={running && !locked}
-                  className={`flex-1 py-3 text-sm font-medium rounded-xl transition-all duration-300 ${
-                    selected && !locked
-                      ? 'bg-secondary text-foreground shadow-md'
-                      : locked
-                      ? 'text-muted-foreground/50'
-                      : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
-                  } disabled:opacity-40 disabled:cursor-not-allowed`}
-                >
-                  {locked ? (
-                    <span className="flex items-center justify-center gap-1">
-                      <Lock size={11} />
-                      {d} {t.min}
-                    </span>
-                  ) : (
-                    `${d} ${t.min}`
-                  )}
-                </button>
-              );
-            })}
-          </div>
+        <div className="flex gap-2.5">
+          {intensities.map((level) => {
+            const active  = intensity === level && !running || intensity === level && running;
+            const locked  = level === 'high' && !isPremium || level === 'medium' && mediumLocked;
+            const hasTrial = level === 'medium' && mediumHasTrials;
+            const mins    = minutes(level);
+
+            return (
+              <button
+                key={level}
+                onClick={() => handleIntensityClick(level)}
+                disabled={running || locked}
+                className={`flex-1 flex flex-col items-center gap-1.5 py-4 px-2 rounded-2xl border transition-all duration-300
+                  disabled:cursor-not-allowed
+                  ${active
+                    ? 'bg-[#1e1410] border-orange-700 shadow-[0_0_18px_rgba(194,65,12,0.3)]'
+                    : locked
+                    ? 'border-white/5 bg-card opacity-40'
+                    : 'border-white/8 bg-card hover:border-white/15 hover:bg-white/5'
+                  }`}
+              >
+                {/* Label row */}
+                <span className={`text-[11px] font-bold uppercase tracking-widest flex items-center gap-1
+                  ${active ? 'text-orange-400' : 'text-muted-foreground'}`}>
+                  {locked && <Lock size={9} />}
+                  {hasTrial && !running && <Sparkles size={9} className="text-amber-400" />}
+                  {level === 'high' && active && '🔥 '}
+                  {intensityLabels[level]}
+                </span>
+
+                {/* Minutes */}
+                <span className={`text-3xl font-bold leading-none tabular-nums
+                  ${active ? 'text-white' : 'text-foreground/25'}`}>
+                  {mins}
+                </span>
+                <span className={`text-[10px] font-medium ${active ? 'text-orange-400/80' : 'text-muted-foreground/40'}`}>
+                  min
+                </span>
+              </button>
+            );
+          })}
         </div>
+
+        {/* Trial hint */}
+        <AnimatePresence>
+          {!running && mediumHasTrials && intensity === 'medium' && (
+            <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              className="text-center text-xs text-amber-400 flex items-center justify-center gap-1.5">
+              <Sparkles size={11} />
+              {mediumTrialsLeft} / {MEDIUM_TRIAL_LIMIT} {t.trial.left}
+            </motion.p>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* ── Footer ── */}
-      <div className="mt-auto w-full max-w-sm flex flex-col gap-5 z-10 pb-6">
+      <div className="z-10 w-full max-w-sm flex flex-col gap-4 mt-6">
         <div className="flex justify-center gap-5 text-xs text-muted-foreground">
           {batteryLevel !== null && (
             <div className="flex items-center gap-1.5">
@@ -377,16 +305,14 @@ export default function Home() {
             <span>{wakeLockActive ? t.screenAwake : t.screenSleep}</span>
           </div>
           {running && (
-            <div className="flex items-center gap-1.5">
-              <span className="font-mono">{formatTime(elapsed)}</span>
-            </div>
+            <span className="font-mono">{formatTime(elapsed)}</span>
           )}
         </div>
 
-        <div className="flex gap-3 bg-black/20 p-4 rounded-2xl border border-white/5 backdrop-blur-sm items-start">
-          <ShieldAlert size={17} className="text-muted-foreground shrink-0 mt-0.5" />
-          <p className="text-[11px] text-muted-foreground leading-relaxed">
-            <strong className="text-foreground/80 font-medium">{t.safetyTitle}:</strong>{' '}
+        <div className="flex gap-3 bg-black/20 p-3.5 rounded-2xl border border-white/5 items-start">
+          <ShieldAlert size={15} className="text-muted-foreground shrink-0 mt-0.5" />
+          <p className="text-[10px] text-muted-foreground leading-relaxed">
+            <strong className="text-foreground/70 font-medium">{t.safetyTitle}:</strong>{' '}
             {t.safetyBody}
           </p>
         </div>
