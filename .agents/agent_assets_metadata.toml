@@ -168,3 +168,9 @@ id = "LoF3DgOn0PmRwqQkNoz8U"
 uri = "file://screenshots/warm-apk-qr.png"
 type = "image"
 title = "Warm v1.1 APK — QR de descarga"
+
+[[outputs]]
+id = "0en9NA2NSPJ9Ktyr51_3o"
+uri = "file://screenshots/thermal-pad-v12-qr.png"
+type = "image"
+title = "Thermal Pad v1.2 — QR de descarga"
