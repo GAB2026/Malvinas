@@ -182,17 +182,16 @@ async function generateStoryImage(
   ctx.shadowBlur    = 14;
   ctx.shadowOffsetX = 0;
   ctx.shadowOffsetY = 2;
-  ctx.fillText('ESTOY A', 540, 310);
+  ctx.fillText('ESTOY A', 540, 200);
   ctx.restore();
 
   // ── Separator line ────────────────────────────────────────────
   ctx.save();
   ctx.strokeStyle = '#74ACDF';
   ctx.lineWidth   = 4;
-  // Crisp 1-px-aligned stroke on a 4-px line: shift by 0.5 if lineWidth is even
   ctx.beginPath();
-  ctx.moveTo(160, 560);
-  ctx.lineTo(920, 560);
+  ctx.moveTo(160, 420);
+  ctx.lineTo(920, 420);
   ctx.stroke();
   ctx.restore();
 
@@ -209,7 +208,7 @@ async function generateStoryImage(
   ctx.shadowBlur    = 22;
   ctx.shadowOffsetX = 0;
   ctx.shadowOffsetY = 3;
-  ctx.fillText(formattedDist + ' km', 540, 900);
+  ctx.fillText(formattedDist + ' km', 540, 620);
   ctx.restore();
 
   // ── "de nuestras Islas Malvinas" ──────────────────────────────
@@ -221,7 +220,7 @@ async function generateStoryImage(
   ctx.shadowBlur    = 10;
   ctx.shadowOffsetX = 0;
   ctx.shadowOffsetY = 2;
-  ctx.fillText('de nuestras Islas Malvinas', 540, 1050);
+  ctx.fillText('de nuestras Islas Malvinas', 540, 780);
   ctx.restore();
 
   // ── Footer: location + date/time ─────────────────────────────
