@@ -168,6 +168,18 @@ async function generateStoryImage(
   ctx.fillStyle = 'rgba(0, 20, 60, 0.55)';
   ctx.fillRect(0, 0, W, H);
 
+  // ── Banner image — positioned between km text and footer ──────
+  if (backgroundImg) {
+    const bannerW = 700;
+    const bannerH = Math.round(bannerW * (backgroundImg.naturalHeight / backgroundImg.naturalWidth));
+    const bannerX = (W - bannerW) / 2;
+    const bannerY = 1150;
+    ctx.save();
+    ctx.globalAlpha = 0.85;
+    ctx.drawImage(backgroundImg, bannerX, bannerY, bannerW, bannerH);
+    ctx.restore();
+  }
+
   // Shared text axis
   ctx.textAlign = 'center';
 
