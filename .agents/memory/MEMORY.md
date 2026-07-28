@@ -1,0 +1,1 @@
+- [Malvinas release state](malvinas-release-state.md) — versionCode 12 en Prueba Cerrada; regla: incrementar versionCode ANTES de cada push que dispara build.
