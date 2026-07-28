@@ -74,10 +74,18 @@ export default function Home() {
     return undefined;
   }, [stopReason]);
 
+  // Prevent accidental double-tap: lock the flame for 2.5 s after starting.
+  const startLockRef = useRef(false);
   const handleFlameClick = () => {
-    if (running) { stop(); return; }
+    if (running) {
+      if (startLockRef.current) return; // too soon after start — ignore
+      stop();
+      return;
+    }
     if (coolingDown) return;
     start();
+    startLockRef.current = true;
+    setTimeout(() => { startLockRef.current = false; }, 2500);
   };
 
   const handleIntensityClick = (level: Intensity) => {
@@ -179,7 +187,7 @@ export default function Home() {
       </div>{/* end TOP */}
 
       {/* ── BOTTOM: intensity cards + footer ── */}
-      <div className="z-10 w-full max-w-sm flex flex-col gap-2 mt-4 pb-6">
+      <div className="z-10 w-full max-w-sm flex flex-col gap-2 mt-10 pb-6">
         <span className="text-xs font-medium text-muted-foreground uppercase tracking-widest px-1">
           {t.intensity}
         </span>

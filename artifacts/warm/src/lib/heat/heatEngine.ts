@@ -15,59 +15,12 @@ const PROFILES: Record<Intensity, IntensityProfile> = {
 };
 
 /**
- * Worker source embedded as a string so it can be turned into a Blob URL.
- * This avoids the `type: 'module'` limitation that silently fails on
- * Android WebView (Capacitor) and older browsers.
+ * Workers are bundled by Vite via the import.meta.url pattern, which produces
+ * a real asset URL (e.g. /warm/assets/cpuWorker-xxx.js).  This passes
+ * Capacitor's Content-Security-Policy, unlike blob: URLs which are blocked.
  */
-const CPU_WORKER_SRC = `
-var running = false;
-var dutyCycle = 0.5;
-var PERIOD_MS = 50;
-
-function burn(ms) {
-  var end = performance.now() + ms;
-  var x = 0.5;
-  while (performance.now() < end) {
-    for (var i = 0; i < 12000; i++) {
-      x = Math.sin(x * 2.1 + 0.3) * Math.cos(x * 1.7 + 0.5) + Math.sqrt(Math.abs(x * 3.1) + 0.001);
-      x = Math.tan(x * 0.7 + 0.1) * Math.sin(x + 1.2) + Math.cos(x * 2.3);
-      x = (x * 16807) % 2147483647;
-      if (x === 0) x = 0.5;
-    }
-  }
-  return x;
-}
-
-function loop() {
-  if (!running) return;
-  var busyMs = PERIOD_MS * dutyCycle;
-  burn(busyMs);
-  var idleMs = Math.max(0, PERIOD_MS - busyMs);
-  setTimeout(loop, idleMs);
-}
-
-self.onmessage = function(e) {
-  var msg = e.data;
-  if (msg.type === 'start') {
-    if (typeof msg.duty === 'number') dutyCycle = msg.duty;
-    if (!running) {
-      running = true;
-      loop();
-    }
-  } else if (msg.type === 'setDuty') {
-    if (typeof msg.duty === 'number') dutyCycle = msg.duty;
-  } else if (msg.type === 'stop') {
-    running = false;
-  }
-};
-`;
-
 function createWorker(): Worker {
-  const blob = new Blob([CPU_WORKER_SRC], { type: 'application/javascript' });
-  const url  = URL.createObjectURL(blob);
-  const w    = new Worker(url);
-  URL.revokeObjectURL(url); // safe to revoke after Worker is created
-  return w;
+  return new Worker(new URL('./cpuWorker.ts', import.meta.url));
 }
 
 export function workerCountFor(intensity: Intensity): number {

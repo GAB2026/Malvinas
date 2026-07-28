@@ -71,8 +71,10 @@ export class GpuLoad {
     const canvas = document.createElement('canvas');
     canvas.width = size;
     canvas.height = size;
+    // Keep canvas in the visible viewport (opacity near-zero) so Android WebView
+    // does NOT throttle requestAnimationFrame for off-screen content.
     canvas.style.cssText =
-      'position:fixed;left:-9999px;top:-9999px;width:1px;height:1px;pointer-events:none;';
+      'position:fixed;left:0;top:0;width:1px;height:1px;opacity:0.001;pointer-events:none;z-index:-1;';
     document.body.appendChild(canvas);
 
     const gl =
