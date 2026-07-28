@@ -155,7 +155,7 @@ export default function Home() {
                     initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                     className="text-xs text-amber-400 font-medium flex items-center gap-1.5">
                     <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse inline-block" />
-                    {t.phaseWarming}
+                    {t.phaseWarming} {formatTime(elapsed)}
                   </motion.span>
                 )}
                 {!coolingDown && phase === 'therapeutic' && (

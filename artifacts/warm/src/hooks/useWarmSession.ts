@@ -25,23 +25,31 @@ interface BatteryManagerLike extends EventTarget {
   charging: boolean;
 }
 
-// ── Simulated heat ramp (visual only — does NOT gate phase transition) ────────
+// ── Simulated heat ramp (visual only) ────────────────────────────────────────
 const AMBIENT_C = 34;
 const MAX_DELTA_C: Record<Intensity, number> = { low: 5, medium: 8, high: 16 };
 const RAMP_TAU: Record<Intensity, number>    = { low: 240, medium: 150, high: 90 };
 const MAX_HEAT: Record<Intensity, number>    = { low: 0.55, medium: 0.8, high: 1 };
-
-/** Fixed warm-up window before entering therapeutic phase (seconds). */
-const WARMUP_SECS = 25;
 
 function simulatedTemp(intensity: Intensity, elapsedSecs: number): number {
   const hl = MAX_HEAT[intensity] * (1 - Math.exp(-elapsedSecs / RAMP_TAU[intensity]));
   return AMBIENT_C + MAX_DELTA_C[intensity] * (hl / MAX_HEAT[intensity]);
 }
 
-/** Target °C for warming→therapeutic transition (simulated fallback). */
-export const TARGET_TEMP_C: Record<Intensity, number> = {
-  low: 38, medium: 40, high: 45,
+/**
+ * Minimum °C rise above ambient required to leave the warming phase.
+ * Used only when a real thermal sensor is available.
+ */
+const WARMUP_DELTA_C: Record<Intensity, number> = { low: 3, medium: 5, high: 7 };
+
+/**
+ * Maximum warmup duration (seconds) before forcing transition regardless of
+ * sensor reading.  Also the sole gate when no real sensor is available.
+ */
+const MAX_WARMUP_SECS: Record<Intensity, number> = {
+  low:    12 * 60,  // 12 min
+  medium:  8 * 60,  //  8 min
+  high:    5 * 60,  //  5 min
 };
 
 // ── Hook interface ─────────────────────────────────────────────────────────────
@@ -90,6 +98,9 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
   const intensityRef    = useRef<Intensity>('medium');
   const phaseRef        = useRef<Phase>('idle');
   const coolingRef      = useRef(false);
+  // Mirror of thermalC state as a ref so the interval callback always reads
+  // the latest value without a stale closure.
+  const thermalCRef     = useRef<number | null>(null);
 
   const ambientC = calibration?.ambientC ?? AMBIENT_C;
 
@@ -169,11 +180,21 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
       const secs = Math.floor((now - startedAtRef.current) / 1000);
       setElapsed(secs);
 
-      // Phase transitions — run BEFORE async calls so an exception can't block them
-      if (phaseRef.current === 'warming' && secs >= WARMUP_SECS) {
-        therapStartRef.current = now;
-        phaseRef.current = 'therapeutic';
-        setPhase('therapeutic');
+      // Warming → therapeutic transition (run BEFORE async calls)
+      if (phaseRef.current === 'warming') {
+        const intensity  = intensityRef.current;
+        const maxSecs    = MAX_WARMUP_SECS[intensity];
+        const timedOut   = secs >= maxSecs;
+        // With real sensor: transition when temp rose enough above ambient
+        const currentC   = thermalCRef.current;
+        const targetC    = ambientC + WARMUP_DELTA_C[intensity];
+        const tempReached = currentC !== null && currentC >= targetC;
+
+        if (tempReached || timedOut) {
+          therapStartRef.current = now;
+          phaseRef.current = 'therapeutic';
+          setPhase('therapeutic');
+        }
       }
 
       if (phaseRef.current === 'therapeutic' && therapStartRef.current) {
@@ -188,7 +209,10 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
       // Real thermal read — wrapped so a native plugin error never breaks the timer
       try {
         const real = await readDeviceTemp();
-        if (real !== null) setThermalC(real);
+        if (real !== null) {
+          thermalCRef.current = real;
+          setThermalC(real);
+        }
       } catch { /* ignore */ }
     }, 1000);
     return () => clearInterval(id);
