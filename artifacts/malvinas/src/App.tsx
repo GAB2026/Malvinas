@@ -139,34 +139,68 @@ async function generateStoryImage(
   ctx.imageSmoothingEnabled = true;
   ctx.imageSmoothingQuality  = 'high';
 
-  // ── Background ────────────────────────────────────────────────
-  if (backgroundImg) {
-    const imgAspect    = backgroundImg.naturalWidth / backgroundImg.naturalHeight;
-    const canvasAspect = W / H;
-    let sx, sy, sw, sh;
-    if (imgAspect > canvasAspect) {
-      sh = backgroundImg.naturalHeight;
-      sw = sh * canvasAspect;
-      sx = (backgroundImg.naturalWidth - sw) / 2;
-      sy = 0;
-    } else {
-      sw = backgroundImg.naturalWidth;
-      sh = sw / canvasAspect;
-      sx = 0;
-      sy = (backgroundImg.naturalHeight - sh) / 2;
-    }
-    ctx.drawImage(backgroundImg, sx, sy, sw, sh, 0, 0, W, H);
-  } else {
-    const grad = ctx.createLinearGradient(0, 0, 0, H);
-    grad.addColorStop(0, '#74ACDF');
-    grad.addColorStop(1, '#1a3d6e');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, W, H);
-  }
-
-  // Dark overlay — identical opacity to current design
-  ctx.fillStyle = 'rgba(0, 20, 60, 0.55)';
+  // ── Background — solid dark gradient, no photo behind text ───
+  const grad = ctx.createLinearGradient(0, 0, 0, H);
+  grad.addColorStop(0,   '#0D1B2A');
+  grad.addColorStop(0.5, '#12263d');
+  grad.addColorStop(1,   '#0a1520');
+  ctx.fillStyle = grad;
   ctx.fillRect(0, 0, W, H);
+
+  // Thin Argentine-blue accent band at top
+  ctx.fillStyle = '#74ACDF';
+  ctx.fillRect(0, 0, W, 18);
+  ctx.fillRect(0, H - 18, W, 18);
+
+  // ── Cartel photo — framed, below km text ─────────────────────
+  if (backgroundImg) {
+    const photoW = 820;
+    // maintain original aspect ratio
+    const photoH = Math.round(photoW * backgroundImg.naturalHeight / backgroundImg.naturalWidth);
+    // clamp so it doesn't overflow into footer
+    const clampedH = Math.min(photoH, 500);
+    const photoX = (W - photoW) / 2;
+    const photoY = 1180;
+
+    // rounded-rect clip
+    const r = 32;
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(photoX + r, photoY);
+    ctx.lineTo(photoX + photoW - r, photoY);
+    ctx.quadraticCurveTo(photoX + photoW, photoY, photoX + photoW, photoY + r);
+    ctx.lineTo(photoX + photoW, photoY + clampedH - r);
+    ctx.quadraticCurveTo(photoX + photoW, photoY + clampedH, photoX + photoW - r, photoY + clampedH);
+    ctx.lineTo(photoX + r, photoY + clampedH);
+    ctx.quadraticCurveTo(photoX, photoY + clampedH, photoX, photoY + clampedH - r);
+    ctx.lineTo(photoX, photoY + r);
+    ctx.quadraticCurveTo(photoX, photoY, photoX + r, photoY);
+    ctx.closePath();
+    ctx.clip();
+
+    // draw the top portion of the cartel image to fill the box
+    const srcH = Math.round(backgroundImg.naturalWidth * clampedH / photoW);
+    ctx.drawImage(backgroundImg, 0, 0, backgroundImg.naturalWidth, srcH, photoX, photoY, photoW, clampedH);
+    ctx.restore();
+
+    // subtle border around the photo
+    ctx.save();
+    ctx.strokeStyle = 'rgba(116,172,223,0.45)';
+    ctx.lineWidth   = 3;
+    ctx.beginPath();
+    ctx.moveTo(photoX + r, photoY);
+    ctx.lineTo(photoX + photoW - r, photoY);
+    ctx.quadraticCurveTo(photoX + photoW, photoY, photoX + photoW, photoY + r);
+    ctx.lineTo(photoX + photoW, photoY + clampedH - r);
+    ctx.quadraticCurveTo(photoX + photoW, photoY + clampedH, photoX + photoW - r, photoY + clampedH);
+    ctx.lineTo(photoX + r, photoY + clampedH);
+    ctx.quadraticCurveTo(photoX, photoY + clampedH, photoX, photoY + clampedH - r);
+    ctx.lineTo(photoX, photoY + r);
+    ctx.quadraticCurveTo(photoX, photoY, photoX + r, photoY);
+    ctx.closePath();
+    ctx.stroke();
+    ctx.restore();
+  }
 
   // Shared text axis
   ctx.textAlign = 'center';
@@ -614,7 +648,7 @@ function MainScreen() {
       )}
 
       {/* Dark Overlay */}
-      <div className="absolute inset-0 z-10 bg-[#00143c]/68 backdrop-blur-[3px]" />
+      <div className="absolute inset-0 z-10 bg-[#00143c]/75 backdrop-blur-[18px]" />
 
       {/* Main UI */}
       <div className="relative z-20 flex flex-col items-center w-full max-w-md px-6 py-10 min-h-[100dvh] justify-between">
