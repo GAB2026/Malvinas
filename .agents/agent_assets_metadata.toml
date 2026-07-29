@@ -234,3 +234,9 @@ id = "Lqszio2-J0nWPsHdFusu6"
 uri = "file://screenshots/qr-v2.3.png"
 type = "image"
 title = "QR — Thermal Pad v2.3"
+
+[[outputs]]
+id = "YJ7lf3gx_Y3gKHNjq1-7Q"
+uri = "file://screenshots/qr-v2.4.png"
+type = "image"
+title = "QR — Thermal Pad v2.4"
