@@ -74,6 +74,13 @@ export default function Home() {
     return undefined;
   }, [stopReason]);
 
+  // Immediate visual feedback — fires before React state update.
+  const [flamePulse, setFlamePulse] = useState(false);
+  const triggerPulse = () => {
+    setFlamePulse(true);
+    setTimeout(() => setFlamePulse(false), 600);
+  };
+
   // Prevent accidental double-tap: lock the flame for 2.5 s after starting.
   const startLockRef = useRef(false);
   const handleFlameClick = () => {
@@ -83,6 +90,7 @@ export default function Home() {
       return;
     }
     if (coolingDown) return;
+    triggerPulse();
     start();
     startLockRef.current = true;
     setTimeout(() => { startLockRef.current = false; }, 2500);
@@ -133,13 +141,29 @@ export default function Home() {
         </div>
 
         <div className="flex flex-col items-center gap-2 pt-1 pb-2">
-          <AnimatedFlame
-            intensity={intensity}
-            heatLevel={heatLevel}
-            running={running}
-            onClick={handleFlameClick}
-            disabled={coolingDown && !running}
-          />
+          {/* Pulse ring — renders instantly on pointerdown, no React state needed */}
+          <div className="relative">
+            <AnimatePresence>
+              {flamePulse && (
+                <motion.div
+                  key="pulse"
+                  className="absolute inset-0 rounded-full border-2 border-primary pointer-events-none"
+                  initial={{ scale: 0.8, opacity: 0.9 }}
+                  animate={{ scale: 2.2, opacity: 0 }}
+                  exit={{}}
+                  transition={{ duration: 0.55, ease: 'easeOut' }}
+                  style={{ margin: '-30%' }}
+                />
+              )}
+            </AnimatePresence>
+            <AnimatedFlame
+              intensity={intensity}
+              heatLevel={heatLevel}
+              running={running}
+              onClick={handleFlameClick}
+              disabled={coolingDown && !running}
+            />
+          </div>
           <div className="flex flex-col items-center gap-0.5">
             <div className="h-5 flex items-center">
               <AnimatePresence mode="wait">

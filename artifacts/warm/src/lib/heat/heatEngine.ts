@@ -20,7 +20,9 @@ const PROFILES: Record<Intensity, IntensityProfile> = {
  * Capacitor's Content-Security-Policy, unlike blob: URLs which are blocked.
  */
 function createWorker(): Worker {
-  return new Worker(new URL('./cpuWorker.ts', import.meta.url));
+  // {type:'module'} is required: Vite bundles the worker as a real asset URL
+  // that passes Capacitor's CSP. Confirmed working in v1.1.0.
+  return new Worker(new URL('./cpuWorker.ts', import.meta.url), { type: 'module' });
 }
 
 export function workerCountFor(intensity: Intensity): number {
