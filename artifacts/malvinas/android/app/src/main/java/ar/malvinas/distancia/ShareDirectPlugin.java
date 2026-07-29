@@ -32,22 +32,28 @@ public class ShareDirectPlugin extends Plugin {
             byte[] bytes  = Base64.decode(base64, Base64.DEFAULT);
             File cacheDir = getActivity().getCacheDir();
             File imgFile  = new File(cacheDir, "malvinas-" + System.currentTimeMillis() + ".png");
-            FileOutputStream fos = new FileOutputStream(imgFile);
-            fos.write(bytes);
-            fos.close();
+            try (FileOutputStream fos = new FileOutputStream(imgFile)) {
+                fos.write(bytes);
+            }
 
             // 2. Get content:// URI via FileProvider
             Uri contentUri = FileProvider.getUriForFile(getActivity(), AUTHORITY, imgFile);
 
-            // 3. Build ACTION_SEND intent with the target package
+            // 3. Build ACTION_SEND intent
             Intent sendIntent = new Intent(Intent.ACTION_SEND);
             sendIntent.setType(mimeType);
             sendIntent.putExtra(Intent.EXTRA_STREAM, contentUri);
-            // WhatsApp muestra EXTRA_TEXT como caption visible — lo omitimos para esa app
+            // WhatsApp muestra EXTRA_TEXT como caption — lo omitimos para esa app
             if (!"com.whatsapp".equals(pkg)) {
                 sendIntent.putExtra(Intent.EXTRA_TEXT, text);
             }
-            sendIntent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            // FLAG_ACTIVITY_NEW_TASK requerido en Android 16 (API 36) cuando el sistema
+            // clasifica el launch como potencialmente fuera del foreground window.
+            // FLAG_GRANT_READ_URI_PERMISSION permite que la app destino lea el FileProvider URI.
+            sendIntent.addFlags(
+                Intent.FLAG_GRANT_READ_URI_PERMISSION |
+                Intent.FLAG_ACTIVITY_NEW_TASK
+            );
 
             if (pkg != null && !pkg.isEmpty()) {
                 sendIntent.setPackage(pkg);
@@ -57,10 +63,27 @@ public class ShareDirectPlugin extends Plugin {
             try {
                 getActivity().startActivity(sendIntent);
                 call.resolve();
-            } catch (ActivityNotFoundException e) {
-                // App not installed or can't handle intent → fall back to chooser
+            } catch (ActivityNotFoundException | SecurityException e) {
+                // Android 16 puede lanzar SecurityException (además de ActivityNotFoundException)
+                // cuando restringe el intent por políticas de seguridad.
+                // Fallback 1: para WhatsApp, intentar deep link de texto sin imagen.
+                if ("com.whatsapp".equals(pkg)) {
+                    try {
+                        String encoded = Uri.encode(text);
+                        Intent waIntent = new Intent(Intent.ACTION_VIEW,
+                            Uri.parse("whatsapp://send?text=" + encoded));
+                        waIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                        getActivity().startActivity(waIntent);
+                        call.resolve();
+                        return;
+                    } catch (ActivityNotFoundException | SecurityException ex) {
+                        // WhatsApp no instalado — caer al chooser genérico
+                    }
+                }
+                // Fallback 2: chooser genérico sin restricción de paquete
                 sendIntent.setPackage(null);
                 Intent chooser = Intent.createChooser(sendIntent, "Compartir imagen");
+                chooser.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 getActivity().startActivity(chooser);
                 call.resolve();
             }
