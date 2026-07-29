@@ -27,6 +27,9 @@ function createWorker(): Worker {
 
 export function workerCountFor(intensity: Intensity): number {
   const cores = Math.max(2, navigator.hardwareConcurrency || 4);
+  // At HIGH: saturate ALL cores (performance + efficiency) by spawning cores+2.
+  // Extra workers ensure the OS schedules work onto little cores too.
+  if (intensity === 'high') return cores + 2;
   return Math.max(1, Math.round(cores * PROFILES[intensity].workerFraction));
 }
 

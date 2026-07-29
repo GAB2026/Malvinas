@@ -101,6 +101,7 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
   // Mirror of thermalC state as a ref so the interval callback always reads
   // the latest value without a stale closure.
   const thermalCRef        = useRef<number | null>(null);
+  const tempReadInFlightRef = useRef(false);
   // Baseline temperature recorded at session start (first real reading).
   // Delta is measured from HERE, not from calibration's ambientC, so a
   // phone that's already warm doesn't skip the warming phase instantly.
@@ -219,14 +220,23 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
         }
       }
 
-      // Real thermal read — wrapped so a native plugin error never breaks the timer
-      try {
-        const real = await readDeviceTemp();
-        if (real !== null) {
-          thermalCRef.current = real;
-          setThermalC(real);
-        }
-      } catch { /* ignore */ }
+      // Real thermal read — one call at a time, 8 s timeout max.
+      // Without this guard, slow sensors accumulate concurrent calls whose
+      // late-resolving values corrupt the warming baseline.
+      if (!tempReadInFlightRef.current) {
+        tempReadInFlightRef.current = true;
+        const timedRead = Promise.race([
+          readDeviceTemp(),
+          new Promise<null>(r => setTimeout(() => r(null), 8000)),
+        ]);
+        timedRead.then(real => {
+          if (real !== null) {
+            thermalCRef.current = real;
+            setThermalC(real);
+          }
+          tempReadInFlightRef.current = false;
+        }).catch(() => { tempReadInFlightRef.current = false; });
+      }
     }, 1000);
     return () => clearInterval(id);
   }, [running, stopWith, sessionMaxSecs]);
