@@ -6,6 +6,8 @@ on:
     paths:
       - 'artifacts/warm/**'
       - '.github/workflows/build-warm-apk.yml'
+    tags:
+      - 'warm-v*'
 
 jobs:
   build:
@@ -63,16 +65,30 @@ jobs:
           ./gradlew assembleRelease
           ./gradlew bundleRelease
 
-      - name: Upload APK (sideload / direct install)
+      - name: Upload APK artifact (CI storage)
         uses: actions/upload-artifact@v4
         with:
           name: warm-release-apk
           path: artifacts/warm/android/app/build/outputs/apk/release/app-release.apk
           retention-days: 30
 
-      - name: Upload AAB (Google Play Store)
+      - name: Upload AAB artifact (CI storage)
         uses: actions/upload-artifact@v4
         with:
           name: warm-release-aab
           path: artifacts/warm/android/app/build/outputs/bundle/release/app-release.aab
           retention-days: 30
+
+      - name: Publish GitHub Release (tags only)
+        if: startsWith(github.ref, 'refs/tags/warm-v')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Thermal Pad ${{ github.ref_name }}
+          files: |
+            artifacts/warm/android/app/build/outputs/apk/release/app-release.apk
+          generate_release_notes: false
+          body: |
+            APK directo para instalar en Android (habilitar "Instalar apps desconocidas").
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
