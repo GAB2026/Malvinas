@@ -37,10 +37,11 @@ function simulatedTemp(intensity: Intensity, elapsedSecs: number): number {
 }
 
 /**
- * Minimum °C rise above ambient required to leave the warming phase.
- * Used only when a real thermal sensor is available.
+ * Minimum °C rise above the settling baseline required to leave the warming
+ * phase. Lower thresholds → transition triggers as soon as genuine heating
+ * is detected, rather than waiting for a large delta that may never arrive.
  */
-const WARMUP_DELTA_C: Record<Intensity, number> = { low: 3, medium: 5, high: 7 };
+const WARMUP_DELTA_C: Record<Intensity, number> = { low: 2, medium: 3, high: 4 };
 
 /**
  * Maximum warmup duration (seconds) before forcing transition regardless of
@@ -197,7 +198,7 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
         // (post-calibration) hot value a second later. Taking the max ensures
         // the baseline reflects the true starting temperature, so the gate
         // requires a genuine rise above it — not just a stale→real jump.
-        const SETTLE_SECS = 45;
+        const SETTLE_SECS = 20;
         if (currentC !== null && secs <= SETTLE_SECS) {
           if (warmingBaselineRef.current === null || currentC > warmingBaselineRef.current) {
             warmingBaselineRef.current = currentC;

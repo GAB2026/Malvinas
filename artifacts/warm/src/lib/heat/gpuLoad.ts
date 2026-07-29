@@ -1,5 +1,5 @@
 // GPU load generator: renders an expensive fragment shader in a loop on a
-// hidden canvas. For maximum intensity, two canvases run simultaneously.
+// hidden canvas. At HIGH intensity, three canvases run simultaneously.
 
 const VERT = `
 attribute vec2 a_pos;
@@ -17,8 +17,8 @@ void main() {
   float x = uv.x * 3.0 - 1.5;
   float y = uv.y * 3.0 - 1.5;
   float zx = x, zy = y;
-  // Hard cap raised to 1024 so high-intensity can push the GPU fully.
-  for (int i = 0; i < 1024; i++) {
+  // Cap raised to 2048 — doubles shader ALU work per frame at HIGH.
+  for (int i = 0; i < 2048; i++) {
     if (float(i) >= u_iters) break;
     float nzx = zx * zx - zy * zy + 0.355 + 0.05 * sin(u_time * 0.3);
     float nzy = 2.0 * zx * zy + 0.355;
@@ -53,7 +53,7 @@ export class GpuLoad {
     // HIGH: 3 canvases; MEDIUM: 2; LOW: 1.
     const canvasCount = intensity >= 1 ? 3 : intensity >= 0.5 ? 2 : 1;
     const size = Math.round(128 + intensity * 896); // 128..1024 px
-    this.iters = Math.round(64 + intensity * 960);  // 64..1024 iterations
+    this.iters = Math.round(64 + intensity * 1984); // 64..2048 iterations
     this.framesPerTick = 1 + Math.round(intensity * 5); // 1..6 redraws/frame
     this.start = performance.now();
     this.running = true;
