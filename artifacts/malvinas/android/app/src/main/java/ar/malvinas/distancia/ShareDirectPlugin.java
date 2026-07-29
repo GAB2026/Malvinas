@@ -1,6 +1,7 @@
 package ar.malvinas.distancia;
 
 import android.content.ActivityNotFoundException;
+import android.content.ClipData;
 import android.content.Intent;
 import android.net.Uri;
 import android.util.Base64;
@@ -43,17 +44,23 @@ public class ShareDirectPlugin extends Plugin {
             Intent sendIntent = new Intent(Intent.ACTION_SEND);
             sendIntent.setType(mimeType);
             sendIntent.putExtra(Intent.EXTRA_STREAM, contentUri);
+
+            // CRITICAL FIX for Android 10+ (strictly enforced on Android 16):
+            // FLAG_GRANT_READ_URI_PERMISSION over EXTRA_STREAM alone does NOT
+            // propagate FileProvider read access to the receiving app.
+            // The permission grant is tied to ClipData — without it, the target
+            // app receives the URI but gets SecurityException when trying to open it.
+            sendIntent.setClipData(ClipData.newRawUri("", contentUri));
+            sendIntent.addFlags(
+                Intent.FLAG_GRANT_READ_URI_PERMISSION  |
+                Intent.FLAG_GRANT_WRITE_URI_PERMISSION |
+                Intent.FLAG_ACTIVITY_NEW_TASK
+            );
+
             // WhatsApp muestra EXTRA_TEXT como caption — lo omitimos para esa app
             if (!"com.whatsapp".equals(pkg)) {
                 sendIntent.putExtra(Intent.EXTRA_TEXT, text);
             }
-            // FLAG_ACTIVITY_NEW_TASK requerido en Android 16 (API 36) cuando el sistema
-            // clasifica el launch como potencialmente fuera del foreground window.
-            // FLAG_GRANT_READ_URI_PERMISSION permite que la app destino lea el FileProvider URI.
-            sendIntent.addFlags(
-                Intent.FLAG_GRANT_READ_URI_PERMISSION |
-                Intent.FLAG_ACTIVITY_NEW_TASK
-            );
 
             if (pkg != null && !pkg.isEmpty()) {
                 sendIntent.setPackage(pkg);
@@ -64,8 +71,6 @@ public class ShareDirectPlugin extends Plugin {
                 getActivity().startActivity(sendIntent);
                 call.resolve();
             } catch (ActivityNotFoundException | SecurityException e) {
-                // Android 16 puede lanzar SecurityException (además de ActivityNotFoundException)
-                // cuando restringe el intent por políticas de seguridad.
                 // Fallback 1: para WhatsApp, intentar deep link de texto sin imagen.
                 if ("com.whatsapp".equals(pkg)) {
                     try {
