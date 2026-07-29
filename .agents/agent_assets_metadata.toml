@@ -222,3 +222,15 @@ id = "yQepKp8aV9RmcwpxUhdNe"
 uri = "file://screenshots/thermal-pad-v22-qr.png"
 type = "image"
 title = "Thermal Pad v2.2 — QR de descarga"
+
+[[outputs]]
+id = "AF6Vkl5MZ8bHeB0-1aXB3"
+uri = "file://qr-v2.3.png"
+type = "image"
+title = "QR — Thermal Pad v2.3"
+
+[[outputs]]
+id = "Lqszio2-J0nWPsHdFusu6"
+uri = "file://screenshots/qr-v2.3.png"
+type = "image"
+title = "QR — Thermal Pad v2.3"
