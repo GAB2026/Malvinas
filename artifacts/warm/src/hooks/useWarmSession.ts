@@ -47,9 +47,9 @@ const WARMUP_DELTA_C: Record<Intensity, number> = { low: 3, medium: 5, high: 7 }
  * sensor reading.  Also the sole gate when no real sensor is available.
  */
 const MAX_WARMUP_SECS: Record<Intensity, number> = {
-  low:    12 * 60,  // 12 min
-  medium:  8 * 60,  //  8 min
-  high:    5 * 60,  //  5 min
+  low:    20 * 60,  // 20 min
+  medium: 12 * 60,  // 12 min
+  high:    8 * 60,  //  8 min
 };
 
 // ── Hook interface ─────────────────────────────────────────────────────────────

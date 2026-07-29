@@ -5,7 +5,9 @@
 
 let running = false;
 let dutyCycle = 1.0;
-const PERIOD_MS = 100;
+// 500 ms burn window: longer continuous blocks → less scheduler overhead,
+// more sustained thermal output from the ARM cores.
+const PERIOD_MS = 500;
 
 function burn(ms: number): number {
   const end = performance.now() + ms;

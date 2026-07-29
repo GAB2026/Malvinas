@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { HeatEngine } from '@/lib/heat/heatEngine';
 import { readDeviceTemp, THERMAL_AVAILABLE } from '@/lib/thermal';
 
-const STORAGE_KEY = 'warm-calibration-v2';
+const STORAGE_KEY = 'warm-calibration-v3'; // bumped → forces recalibration with new minimums
 const CALIBRATION_SECS = 60;
 const SAMPLE_INTERVAL_SECS = 5;
 
@@ -20,9 +20,9 @@ export interface CalibrationResult {
 const DEFAULT_RESULT: CalibrationResult = {
   ambientC: 34,
   thermalMaxC: 75,
-  highMinutes: 5,
-  mediumMinutes: 10,
-  lowMinutes: 20,
+  highMinutes: 10,
+  mediumMinutes: 20,
+  lowMinutes: 35,
   calibratedAt: Date.now(),
   usingRealSensor: false,
 };
@@ -65,9 +65,9 @@ function deriveMinutes(
     Math.round(Math.min(Math.max(s / 60, minM), maxM));
 
   return {
-    highMinutes:   clamp(highSecs,   2, 8),
-    mediumMinutes: clamp(mediumSecs, 5, 20),
-    lowMinutes:    clamp(lowSecs,   10, 40),
+    highMinutes:   clamp(highSecs,   8, 20),
+    mediumMinutes: clamp(mediumSecs, 15, 35),
+    lowMinutes:    clamp(lowSecs,   25, 50),
   };
 }
 
