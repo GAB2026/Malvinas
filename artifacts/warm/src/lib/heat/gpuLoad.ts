@@ -50,8 +50,8 @@ export class GpuLoad {
   begin(intensity: number) {
     this.stop();
 
-    // At max intensity run two canvases; otherwise one.
-    const canvasCount = intensity >= 1 ? 2 : 1;
+    // HIGH: 3 canvases; MEDIUM: 2; LOW: 1.
+    const canvasCount = intensity >= 1 ? 3 : intensity >= 0.5 ? 2 : 1;
     const size = Math.round(128 + intensity * 896); // 128..1024 px
     this.iters = Math.round(64 + intensity * 960);  // 64..1024 iterations
     this.framesPerTick = 1 + Math.round(intensity * 5); // 1..6 redraws/frame
