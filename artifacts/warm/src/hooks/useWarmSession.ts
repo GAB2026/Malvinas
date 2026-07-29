@@ -159,7 +159,8 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
     const now = Date.now();
     startedAtRef.current = now;
     therapStartRef.current = null;
-    warmingBaselineRef.current = null; // will be set from first real reading
+    warmingBaselineRef.current = null;
+    tempReadInFlightRef.current = false; // reset any stale in-flight flag
     runningRef.current = true;
     phaseRef.current = 'warming';
     setElapsed(0);
@@ -191,18 +192,24 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
         const intensity = intensityRef.current;
         const currentC  = thermalCRef.current;
 
-        // Establish baseline from the first real reading after session start.
-        // This avoids false-triggering when the phone is already warm.
-        if (warmingBaselineRef.current === null && currentC !== null) {
-          warmingBaselineRef.current = currentC;
+        // Build baseline as the rolling MAX seen in the first SETTLE_SECS.
+        // A stale sensor often returns a cold value first, then the real
+        // (post-calibration) hot value a second later. Taking the max ensures
+        // the baseline reflects the true starting temperature, so the gate
+        // requires a genuine rise above it — not just a stale→real jump.
+        const SETTLE_SECS = 45;
+        if (currentC !== null && secs <= SETTLE_SECS) {
+          if (warmingBaselineRef.current === null || currentC > warmingBaselineRef.current) {
+            warmingBaselineRef.current = currentC;
+          }
         }
 
-        const timedOut = secs >= MAX_WARMUP_SECS[intensity];
-
-        // Transition only if temperature rose enough above the SESSION-START baseline.
-        const baseline   = warmingBaselineRef.current;
-        const targetC    = (baseline ?? ambientC) + WARMUP_DELTA_C[intensity];
-        const tempReached = currentC !== null && baseline !== null && currentC >= targetC;
+        const timedOut    = secs >= MAX_WARMUP_SECS[intensity];
+        // Don't gate on temperature until the baseline has had time to settle.
+        const minTimeDone = secs > SETTLE_SECS;
+        const baseline    = warmingBaselineRef.current;
+        const targetC     = (baseline ?? ambientC) + WARMUP_DELTA_C[intensity];
+        const tempReached = minTimeDone && currentC !== null && baseline !== null && currentC >= targetC;
 
         if (tempReached || timedOut) {
           therapStartRef.current = now;
