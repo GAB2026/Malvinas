@@ -166,7 +166,7 @@ export default function Home() {
           </div>
           <div className="flex flex-col items-center gap-0.5">
             <div className="h-5 flex items-center">
-              <AnimatePresence mode="wait">
+              <AnimatePresence>
                 {coolingDown && (
                   <motion.span key="cooling"
                     initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}

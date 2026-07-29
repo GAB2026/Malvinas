@@ -198,7 +198,7 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
         // (post-calibration) hot value a second later. Taking the max ensures
         // the baseline reflects the true starting temperature, so the gate
         // requires a genuine rise above it — not just a stale→real jump.
-        const SETTLE_SECS = 20;
+        const SETTLE_SECS = 45;
         if (currentC !== null && secs <= SETTLE_SECS) {
           if (warmingBaselineRef.current === null || currentC > warmingBaselineRef.current) {
             warmingBaselineRef.current = currentC;
