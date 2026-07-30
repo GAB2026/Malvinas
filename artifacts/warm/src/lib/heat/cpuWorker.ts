@@ -1,5 +1,5 @@
 /// <reference lib="webworker" />
-// CPU load worker v2.5 — 4 independent FPU accumulators.
+// CPU load worker v2.6 — 4 independent FPU accumulators + throughput reporting.
 //
 // KEY INSIGHT: the previous single-accumulator chain (x = f(x) → x = g(x) → …)
 // creates data dependencies that STALL the ARM VFP pipeline — each op waits
@@ -22,14 +22,18 @@ const MEM_BUF = new Float64Array(65536); // 512 KB
 for (let i = 0; i < MEM_BUF.length; i++) MEM_BUF[i] = i * 0.001 + 1.0;
 const MEM_MASK = 65535;
 
-function burn(ms: number): number {
-  const end = performance.now() + ms;
+interface BurnResult { v: number; iters: number; ms: number; }
+
+function burn(ms: number): BurnResult {
+  const t0  = performance.now();
+  const end = t0 + ms;
 
   // Four independent chains — ARM FPU can issue ops across all four without
   // stalling on data dependencies.
   let a = 0.1234, b = 0.5678, c = 0.9012, d = 0.3456;
   let mi = 0;
   let n = 0x12345678; // integer accumulator
+  let iters = 0;      // counts completed 10 k-op blocks
 
   while (performance.now() < end) {
     for (let i = 0; i < 10000; i++) {
@@ -64,15 +68,22 @@ function burn(ms: number): number {
       if (!isFinite(c)) c = 0.9012;
       if (!isFinite(d)) d = 0.3456;
     }
+    iters++;
   }
-  return a + b + c + d + n;
+
+  // Checksum is the sink that forces V8 to treat the computation as live.
+  // It's transmitted to the main thread so the engine cannot dead-code-eliminate it.
+  return { v: a + b + c + d + n, iters, ms: performance.now() - t0 };
 }
 
 function loop() {
   if (!running) return;
   const busyMs = PERIOD_MS * dutyCycle;
-  const result = burn(busyMs);
-  self.postMessage({ type: 'heartbeat', v: result });
+  const { v, iters, ms } = burn(busyMs);
+  // postMessage sends the checksum (v) back to the main thread, ensuring V8
+  // cannot elide the computation as dead code.  iters and ms let the main
+  // thread compute real throughput (ops/s) to confirm work under throttling.
+  self.postMessage({ type: 'heartbeat', v, iters, ms });
   setTimeout(loop, Math.max(0, PERIOD_MS - busyMs));
 }
 

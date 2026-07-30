@@ -15,6 +15,20 @@ const PROFILES: Record<Intensity, IntensityProfile> = {
 };
 
 /**
+ * Data reported by each worker on every heartbeat (~every 500 ms).
+ * - iters: number of completed 10 k-op FPU blocks in this burn slice.
+ *   This is the valid signal for CPU throttling: if the OS suspends a
+ *   worker thread, performance.now() in the worker still advances (so
+ *   wall-clock burn-time is unreliable), but iters drops.
+ * - checksum: opaque FP result — forces V8 to keep the computation live
+ *   and confirms the computation was not dead-code-eliminated.
+ */
+export interface WorkerHeartbeat {
+  iters: number;
+  checksum: number;
+}
+
+/**
  * Workers are bundled by Vite via the import.meta.url pattern, which produces
  * a real asset URL (e.g. /warm/assets/cpuWorker-xxx.js).  This passes
  * Capacitor's Content-Security-Policy, unlike blob: URLs which are blocked.
@@ -38,9 +52,25 @@ export class HeatEngine {
   private gpu = new GpuLoad();
   private _running = false;
   private _intensity: Intensity = 'medium';
+  private _heartbeatHandlers: Array<(hb: WorkerHeartbeat) => void> = [];
 
   get running()    { return this._running; }
   get intensity()  { return this._intensity; }
+
+  /**
+   * Register a callback that fires on every worker heartbeat.
+   * Returns an unsubscribe function.
+   */
+  onHeartbeat(handler: (hb: WorkerHeartbeat) => void): () => void {
+    this._heartbeatHandlers.push(handler);
+    return () => {
+      this._heartbeatHandlers = this._heartbeatHandlers.filter(h => h !== handler);
+    };
+  }
+
+  private _dispatchHeartbeat(hb: WorkerHeartbeat) {
+    for (const h of this._heartbeatHandlers) h(hb);
+  }
 
   start(intensity: Intensity) {
     this.stop();
@@ -49,6 +79,14 @@ export class HeatEngine {
     const count   = workerCountFor(intensity);
     for (let i = 0; i < count; i++) {
       const w = createWorker();
+      w.onmessage = (e: MessageEvent) => {
+        if (e.data?.type === 'heartbeat') {
+          this._dispatchHeartbeat({
+            iters:    e.data.iters ?? 0,
+            checksum: e.data.v     ?? 0,
+          });
+        }
+      };
       w.postMessage({ type: 'start', duty: profile.duty });
       this.workers.push(w);
     }

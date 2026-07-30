@@ -1,4 +1,5 @@
 import '@testing-library/jest-dom';
+import { beforeEach } from 'vitest';
 
 // jsdom logs a noisy "Not implemented" error for canvas.getContext; silence it.
 // GpuLoad already handles null gracefully — this just keeps test output clean.

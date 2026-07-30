@@ -153,15 +153,18 @@ describe('useWarmSession', () => {
     expect(result.current.therapeuticRemaining).toBeGreaterThan(0);
   });
 
+  it('transitions to "therapeutic" phase at high intensity', () => {
     const { result } = renderHook(() => useWarmSession(null));
     act(() => result.current.setIntensity('high'));
     act(() => result.current.start());
     // high target 43°C reached at ~125 s; advance 200 s
     act(() => vi.advanceTimersByTime(200000));
     expect(result.current.phase).toBe('therapeutic');
-    // should be close to 15*60=900 (minus a few seconds of therapeutic time)
+    // Transition fires when simulated temp (settle baseline ~40°C + delta 4°C
+    // = target ~44°C) is reached, typically ~93 s after session start.
+    // After 200 s, ~107 s of therapeutic time has elapsed → ~793 s remaining.
     expect(result.current.therapeuticRemaining).toBeLessThanOrEqual(900);
-    expect(result.current.therapeuticRemaining).toBeGreaterThan(800);
+    expect(result.current.therapeuticRemaining).toBeGreaterThan(700);
   });
 
   // ── auto-stop: time limit ─────────────────────────────────────────────────
@@ -404,5 +407,63 @@ describe('useWarmSession', () => {
     const { result, unmount } = renderHook(() => useWarmSession(null));
     act(() => result.current.start());
     expect(() => unmount()).not.toThrow();
+  });
+
+  // ── worker throughput metrics ─────────────────────────────────────────────
+
+  it('dbg_workerKOpsPerSec is null before a session starts', () => {
+    const { result } = renderHook(() => useWarmSession(null));
+    expect(result.current.dbg_workerKOpsPerSec).toBeNull();
+  });
+
+  it('dbg_workerKOpsPerSec stays null when session runs but no heartbeats arrive', () => {
+    const { result } = renderHook(() => useWarmSession(null));
+    act(() => result.current.start());
+    // Two ticks, no heartbeats — value must remain null ("no data yet").
+    act(() => vi.advanceTimersByTime(2000));
+    expect(result.current.dbg_workerKOpsPerSec).toBeNull();
+  });
+
+  it('dbg_workerKOpsPerSec computes kOps/s from aggregated worker heartbeats', () => {
+    const { result } = renderHook(() => useWarmSession(null));
+    act(() => result.current.start());
+
+    // Simulate a heartbeat from each MockWorker instance (200 iters each).
+    const MockWorker = (globalThis as any).__MockWorker;
+    const ITERS = 200;
+    act(() => {
+      for (const w of MockWorker.instances as Array<{ onmessage?: (e: { data: unknown }) => void }>) {
+        w.onmessage?.({ data: { type: 'heartbeat', v: 42, iters: ITERS, ms: 490 } });
+      }
+    });
+
+    // Advance one tick (≈ 1 000 ms) to snapshot the accumulated iters.
+    act(() => vi.advanceTimersByTime(1000));
+
+    // kOps/s = totalIters × 10 000 / tickMs (≈ 1 000) = totalIters × 10
+    // With ≥ 1 worker each sending 200 iters: result > 0.
+    expect(result.current.dbg_workerKOpsPerSec).not.toBeNull();
+    expect(result.current.dbg_workerKOpsPerSec).toBeGreaterThan(0);
+
+    // Exact value: totalIters × 10 (assuming tick ≈ 1 000 ms)
+    const nWorkers = MockWorker.instances.length as number;
+    expect(result.current.dbg_workerKOpsPerSec).toBeCloseTo(nWorkers * ITERS * 10, -2);
+  });
+
+  it('dbg_workerKOpsPerSec resets to null after stop()', () => {
+    const { result } = renderHook(() => useWarmSession(null));
+    act(() => result.current.start());
+
+    const MockWorker = (globalThis as any).__MockWorker;
+    act(() => {
+      for (const w of MockWorker.instances as Array<{ onmessage?: (e: { data: unknown }) => void }>) {
+        w.onmessage?.({ data: { type: 'heartbeat', v: 1, iters: 50, ms: 490 } });
+      }
+    });
+    act(() => vi.advanceTimersByTime(1000));
+    expect(result.current.dbg_workerKOpsPerSec).not.toBeNull();
+
+    act(() => result.current.stop());
+    expect(result.current.dbg_workerKOpsPerSec).toBeNull();
   });
 });

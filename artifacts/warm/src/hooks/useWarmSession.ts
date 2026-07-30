@@ -3,6 +3,7 @@ import {
   HeatEngine,
   workerCountFor,
   type Intensity,
+  type WorkerHeartbeat,
 } from '@/lib/heat/heatEngine';
 import { readDeviceTemp } from '@/lib/thermal';
 import type { CalibrationResult } from './useCalibration';
@@ -42,6 +43,17 @@ function simulatedTemp(intensity: Intensity, elapsedSecs: number): number {
  * is detected, rather than waiting for a large delta that may never arrive.
  */
 const WARMUP_DELTA_C: Record<Intensity, number> = { low: 2, medium: 3, high: 4 };
+
+/**
+ * Default target temperature in °C per intensity level.
+ * Derived from AMBIENT_C + WARMUP_DELTA_C.  Exported so tests can assert
+ * the invariants without duplicating the arithmetic.
+ */
+export const TARGET_TEMP_C: Record<Intensity, number> = {
+  low:    AMBIENT_C + WARMUP_DELTA_C.low,
+  medium: AMBIENT_C + WARMUP_DELTA_C.medium,
+  high:   AMBIENT_C + WARMUP_DELTA_C.high,
+};
 
 /**
  * Maximum warmup duration (seconds) before forcing transition regardless of
@@ -92,6 +104,19 @@ export interface WarmSession {
   dbg_usingRealSensor: boolean;
   /** True once settle is done AND the settled baseline was already ≥60 °C. */
   dbg_baselineAlreadyHot: boolean;
+
+  /**
+   * Combined throughput of all CPU workers: kilo-ops per second,
+   * computed from the number of completed 10 k-FPU-op blocks reported by
+   * each worker heartbeat divided by the actual elapsed tick interval.
+   * null = no session running or no heartbeats received yet.
+   *
+   * This is the reliable signal for Android CPU throttling: if the OS
+   * suspends a worker thread, performance.now() in the worker continues
+   * advancing (so wall-clock burn-time is not a useful signal), but the
+   * worker completes fewer iterations — kOps/s drops.
+   */
+  dbg_workerKOpsPerSec: number | null;
 }
 
 // ── Implementation ─────────────────────────────────────────────────────────────
@@ -127,6 +152,18 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
   // phone that's already warm doesn't skip the warming phase instantly.
   const warmingBaselineRef = useRef<number | null>(null);
 
+  // ── Worker throughput tracking ────────────────────────────────────────────
+  // Accumulates completed 10 k-op blocks from all worker heartbeats between
+  // main-thread ticks.  Reset each tick.  The iter count is the only valid
+  // signal for CPU suspension: if the OS freezes a worker thread,
+  // performance.now() in the worker still advances, but iter count drops.
+  const hbIterAccRef      = useRef(0);     // sum of completed 10 k-op blocks
+  const lastTickMsRef     = useRef<number | null>(null); // wall-clock of last tick
+  // Stays false until the first heartbeat is received so that kOps/s reports
+  // null ("no data yet") instead of 0 ("data received, but zero throughput").
+  const hbEverReceivedRef = useRef(false);
+  const [workerKOpsPerSec, setWorkerKOpsPerSec] = useState<number | null>(null);
+
   const ambientC = calibration?.ambientC ?? AMBIENT_C;
 
   /** Session max in seconds for the current intensity from calibration. */
@@ -154,6 +191,11 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
     setPhase('idle');
     setStopReason(reason);
     void releaseWakeLock();
+    // Clear throughput metrics so overlay resets between sessions
+    hbIterAccRef.current      = 0;
+    lastTickMsRef.current     = null;
+    hbEverReceivedRef.current = false;
+    setWorkerKOpsPerSec(null);
     // Start cooldown if we have real thermal data
     if (calibration?.usingRealSensor) {
       coolingRef.current = true;
@@ -182,6 +224,11 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
     warmingBaselineRef.current = null;
     setWarmingBaseline(null);
     tempReadInFlightRef.current = false; // reset any stale in-flight flag
+    // Reset throughput accumulators for fresh session
+    hbIterAccRef.current      = 0;
+    lastTickMsRef.current     = null;
+    hbEverReceivedRef.current = false;
+    setWorkerKOpsPerSec(null);
     runningRef.current = true;
     phaseRef.current = 'warming';
     setElapsed(0);
@@ -200,6 +247,17 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
     if (runningRef.current) engineRef.current!.setIntensity(i);
   }, []);
 
+  // ── Worker heartbeat subscription ─────────────────────────────────────────
+  // Subscribe once on mount; the callback ref stays stable across sessions.
+  useEffect(() => {
+    const engine = engineRef.current!;
+    const unsub = engine.onHeartbeat((hb: WorkerHeartbeat) => {
+      hbIterAccRef.current += hb.iters;
+      hbEverReceivedRef.current = true;
+    });
+    return unsub;
+  }, []);
+
   // ── Main tick ────────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!running) return;
@@ -208,10 +266,39 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
       const secs = Math.floor((now - startedAtRef.current) / 1000);
       setElapsed(secs);
 
+      // ── Snapshot worker throughput (accumulated since last tick) ────────
+      // Use actual elapsed time between ticks rather than assuming 1000 ms;
+      // setInterval is not perfectly precise and tick skew accumulates.
+      // Formula: 1 iter = 10 000 FPU ops = 10 kOps
+      //          kOps/s = (iters × 10) / (tickElapsedMs / 1000)
+      //                 = iters × 10 000 / tickElapsedMs
+      const iters = hbIterAccRef.current;
+      hbIterAccRef.current = 0;
+      const tickElapsedMs = lastTickMsRef.current !== null
+        ? now - lastTickMsRef.current
+        : 1000; // first tick: assume nominal interval
+      lastTickMsRef.current = now;
+      // Only publish a value after the first heartbeat so the overlay shows
+      // "— (sin sesión)" rather than "0 kOps/s" while workers warm up.
+      setWorkerKOpsPerSec(
+        hbEverReceivedRef.current && tickElapsedMs > 0
+          ? Math.round(iters * 10_000 / tickElapsedMs)
+          : null,
+      );
+
       // Warming → therapeutic transition (run BEFORE async calls)
       if (phaseRef.current === 'warming') {
         const intensity = intensityRef.current;
-        const currentC  = thermalCRef.current;
+
+        // When a real hardware sensor is present, use its reading exclusively
+        // (null while in-flight).  When no sensor exists (web env, test env),
+        // fall back to the simulated model — same source already used for the
+        // displayed temperature — so the transition fires on schedule instead
+        // of waiting for the full MAX_WARMUP_SECS timeout.
+        const hasRealSensor = !!(calibration?.usingRealSensor);
+        const rawC    = thermalCRef.current;
+        const currentC = rawC !== null ? rawC
+          : (hasRealSensor ? null : simulatedTemp(intensity, secs));
 
         // Build baseline as the rolling MAX seen in the first SETTLE_SECS.
         // A stale sensor often returns a cold value first, then the real
@@ -366,5 +453,6 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
     dbg_ambientC: ambientC,
     dbg_usingRealSensor: calibration?.usingRealSensor ?? false,
     dbg_baselineAlreadyHot,
+    dbg_workerKOpsPerSec: workerKOpsPerSec,
   };
 }

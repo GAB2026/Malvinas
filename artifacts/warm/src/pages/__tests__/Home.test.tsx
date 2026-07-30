@@ -16,6 +16,41 @@ vi.mock('@/hooks/usePremium', () => ({
   }),
 }));
 
+// ─── useCalibration mock ──────────────────────────────────────────────────────
+// Without this, Home renders CalibrationScreen (calibration=null) and none
+// of the main-app UI is reachable.
+
+vi.mock('@/hooks/useCalibration', () => ({
+  useCalibration: () => ({
+    result: {
+      ambientC: 34,
+      usingRealSensor: false,
+      highMinutes: 10,
+      mediumMinutes: 20,
+      lowMinutes: 35,
+    },
+    calibrating: false,
+    progress: 1,
+    reset: vi.fn(),
+  }),
+}));
+
+// ─── AnimatedFlame mock ───────────────────────────────────────────────────────
+// AnimatedFlame uses framer-motion JSX without a top-level React import, which
+// causes "React is not defined" in the jsdom test environment.
+
+vi.mock('@/components/AnimatedFlame', () => ({
+  default: ({ onClick, disabled }: { onClick?: () => void; disabled?: boolean }) =>
+    React.createElement('button', { onClick, disabled, 'data-testid': 'animated-flame' }, '🔥'),
+}));
+
+// ─── Chime mock ───────────────────────────────────────────────────────────────
+// The Web Audio API is unavailable in jsdom; silence the completion chime.
+
+vi.mock('@/lib/chime', () => ({
+  playCompletionChime: vi.fn().mockResolvedValue(undefined),
+}));
+
 // ─── Framer-motion stub ───────────────────────────────────────────────────────
 
 vi.mock('framer-motion', () => ({
@@ -49,7 +84,7 @@ vi.mock('@/hooks/useWarmSession', () => {
 
 // ─── Shared mutable session stub ─────────────────────────────────────────────
 
-import type { StopReason } from '@/hooks/useWarmSession';
+import type { StopReason, Phase } from '@/hooks/useWarmSession';
 import Home from '../Home';
 
 const baseSession = {
@@ -58,7 +93,7 @@ const baseSession = {
   setIntensity: vi.fn(),
   start: vi.fn(),
   stop: vi.fn(),
-  phase: 'idle' as const,
+  phase: 'idle' as Phase,
   elapsed: 0,
   therapeuticElapsed: 0,
   therapeuticRemaining: 0,
@@ -68,8 +103,17 @@ const baseSession = {
   wakeLockActive: false,
   batteryLevel: null as number | null,
   workerCount: 2,
-  sessionDurationMin: 15 as const,
-  setSessionDuration: vi.fn(),
+  coolingDown: false,
+  // debug fields
+  dbg_thermalRaw: null as number | null,
+  dbg_simTemp: 34,
+  dbg_warmingBaseline: null as number | null,
+  dbg_targetC: null as number | null,
+  dbg_settleProgress: 0,
+  dbg_ambientC: 34,
+  dbg_usingRealSensor: false,
+  dbg_baselineAlreadyHot: false,
+  dbg_workerKOpsPerSec: null as number | null,
 };
 
 function setMockSession(overrides: Partial<typeof baseSession>) {
@@ -152,23 +196,24 @@ describe('Home — auto-stop toast', () => {
     expect(screen.getByText('Stopped: app moved to background')).toBeInTheDocument();
   });
 
-  // ── Temperature display ───────────────────────────────────────────────────
+  // ── Temperature display (debug overlay) ──────────────────────────────────
 
-  it('shows device temperature in °C and °F', () => {
-    setMockSession({ deviceTempC: 34 });
+  it('shows device temperature in the debug overlay', () => {
+    setMockSession({ deviceTempC: 36 });
     render(<Home />);
-    expect(screen.getByText('34.0')).toBeInTheDocument();
-    // 34°C = 93.2°F
-    expect(screen.getByText('93.2')).toBeInTheDocument();
+    // DebugOverlay "shown temp" row: fmt(deviceTempC)°C → "36.0°C"
+    expect(screen.getByText('36.0°C')).toBeInTheDocument();
   });
 
-  // ── Session duration selector ─────────────────────────────────────────────
+  // ── Intensity card minutes ────────────────────────────────────────────────
 
-  it('renders 15 min and 30 min session duration buttons', () => {
+  it('renders intensity cards with calibration-derived minute values', () => {
     setMockSession({});
     render(<Home />);
-    expect(screen.getByText('15 min')).toBeInTheDocument();
-    expect(screen.getByText('30 min')).toBeInTheDocument();
+    // Calibration mock: lowMinutes=35, mediumMinutes=20, highMinutes=10
+    expect(screen.getByText('35')).toBeInTheDocument();
+    expect(screen.getByText('20')).toBeInTheDocument();
+    expect(screen.getByText('10')).toBeInTheDocument();
   });
 
   // ── Phase labels ──────────────────────────────────────────────────────────
@@ -176,8 +221,9 @@ describe('Home — auto-stop toast', () => {
   it('shows warming phase indicator when phase is warming', () => {
     setMockSession({ running: true, phase: 'warming', deviceTempC: 36, heatLevel: 0.1 });
     render(<Home />);
-    // "Heating up…" appears in both the phase badge and the button label — at least one must be present
-    expect(screen.getAllByText('Heating up…').length).toBeGreaterThanOrEqual(1);
+    // Phase label is rendered as "Heating up… 00:00" (with elapsed time suffix);
+    // use a regex so the timer portion doesn't break the match.
+    expect(screen.getByText(/Heating up/)).toBeInTheDocument();
   });
 
   it('shows therapeutic phase indicator when phase is therapeutic', () => {
@@ -189,6 +235,7 @@ describe('Home — auto-stop toast', () => {
       therapeuticRemaining: 600,
     });
     render(<Home />);
-    expect(screen.getByText('Therapy active')).toBeInTheDocument();
+    // Label is "Therapy active · MM:SS"; use regex to match regardless of timer.
+    expect(screen.getByText(/Therapy active/)).toBeInTheDocument();
   });
 });

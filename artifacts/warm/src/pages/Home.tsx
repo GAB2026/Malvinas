@@ -13,13 +13,17 @@ const AUTO_DISMISS_MS = 5000;
 function DebugOverlay({
   thermalRaw, simTemp, deviceTempC, warmingBaseline, targetC,
   settleProgress, ambientC, usingRealSensor, phase, elapsed,
-  workerCount, running, baselineAlreadyHot, onRecalibrate,
+  workerCount, running, baselineAlreadyHot,
+  workerKOpsPerSec,
+  onRecalibrate,
 }: {
   thermalRaw: number | null; simTemp: number; deviceTempC: number;
   warmingBaseline: number | null; targetC: number | null;
   settleProgress: number; ambientC: number; usingRealSensor: boolean;
   phase: string; elapsed: number; workerCount: number; running: boolean;
-  baselineAlreadyHot: boolean; onRecalibrate: () => void;
+  baselineAlreadyHot: boolean;
+  workerKOpsPerSec: number | null;
+  onRecalibrate: () => void;
 }) {
   const fmt = (v: number | null, decimals = 1) =>
     v === null ? '—' : v.toFixed(decimals);
@@ -63,6 +67,14 @@ function DebugOverlay({
     ['phase',         phase,            'Fase actual', false],
     ['elapsed',       running ? `${elapsed}s` : '—', 'Segundos desde inicio de sesión', false],
     ['workers',       String(workerCount), 'CPU workers activos generando calor', false],
+    // ── Throughput metric (confirms real work is executing under throttling) ─
+    // kOps/s = completed 10k-FPU-op blocks × 10 / tick_elapsed_seconds.
+    // If Android suspends a worker thread, performance.now() in the worker
+    // still advances (wall-clock time is unreliable), but iter count drops.
+    ['worker kOps/s', workerKOpsPerSec === null
+        ? '— (sin sesión)'
+        : `${workerKOpsPerSec.toLocaleString()} kOps/s`,
+      'kilo-ops FPU/s en todos los workers. Baja cuando Android suspende threads (throttling).', false],
   ];
 
   return (
@@ -154,6 +166,7 @@ export default function Home() {
     dbg_thermalRaw, dbg_simTemp, dbg_warmingBaseline, dbg_targetC,
     dbg_settleProgress, dbg_ambientC, dbg_usingRealSensor, workerCount,
     deviceTempC, dbg_baselineAlreadyHot,
+    dbg_workerKOpsPerSec,
   } = useWarmSession(calibration);
 
   const [toastReason, setToastReason] = useState<StopReason>(null);
@@ -231,7 +244,7 @@ export default function Home() {
               <motion.div key={toastReason}
                 initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -4 }}
                 className="flex items-center gap-2 bg-destructive/10 text-destructive px-4 py-1 rounded-full border border-destructive/20 text-xs">
-                <AlertTriangle size={12} /> {t.autoStop[toastReason]}
+                <AlertTriangle size={12} /> {t.autoStop[toastReason as keyof typeof t.autoStop]}
               </motion.div>
             )}
           </AnimatePresence>
@@ -380,6 +393,7 @@ export default function Home() {
         workerCount={workerCount}
         running={running}
         baselineAlreadyHot={dbg_baselineAlreadyHot}
+        workerKOpsPerSec={dbg_workerKOpsPerSec}
         onRecalibrate={handleRecalibrate}
       />
 
