@@ -217,7 +217,10 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
 
   const start = useCallback(() => {
     if (runningRef.current || coolingRef.current) return;
-    engineRef.current!.start(intensityRef.current);
+    // Update all state BEFORE touching the engine so React renders
+    // "Calentando" on the very next frame. Creating N Web Workers is
+    // synchronous and blocks the JS thread for several hundred ms on Android,
+    // which delays every batched setState that follows it.
     const now = Date.now();
     startedAtRef.current = now;
     therapStartRef.current = null;
@@ -237,6 +240,13 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
     setStopReason(null);
     setRunning(true);
     void acquireWakeLock();
+    // Defer worker creation to after React renders the warming state.
+    // Double rAF ensures the browser has painted at least one frame first.
+    // Guard with runningRef so a rapid tap→stop before the frame fires
+    // doesn't leave orphaned workers running.
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      if (runningRef.current) engineRef.current!.start(intensityRef.current);
+    }));
   }, [acquireWakeLock]);
 
   const stop = useCallback(() => stopWith('user'), [stopWith]);
@@ -327,7 +337,13 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
         const baselineAlreadyHot = minTimeDone && baseline !== null && baseline >= THERAPEUTIC_ABS_C;
         const currentlyHot       = minTimeDone && currentC !== null && currentC >= THERAPEUTIC_ABS_C;
 
-        if (tempReached || baselineAlreadyHot || currentlyHot || timedOut) {
+        // Fast-track: sensor ≥80 °C at ANY point during warming → we are at
+        // (or very near) the thermal ceiling; transition immediately without
+        // waiting for the 45-s settle window to complete.
+        const FAST_TRACK_C = 80;
+        const fastTrack = currentC !== null && currentC >= FAST_TRACK_C;
+
+        if (tempReached || fastTrack || baselineAlreadyHot || currentlyHot || timedOut) {
           therapStartRef.current = now;
           phaseRef.current = 'therapeutic';
           setPhase('therapeutic');
