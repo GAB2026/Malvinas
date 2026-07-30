@@ -42,7 +42,10 @@ function simulatedTemp(intensity: Intensity, elapsedSecs: number): number {
  * phase. Lower thresholds → transition triggers as soon as genuine heating
  * is detected, rather than waiting for a large delta that may never arrive.
  */
-const WARMUP_DELTA_C: Record<Intensity, number> = { low: 2, medium: 3, high: 4 };
+// TEST v2.9: delta raised to 15 so target = baseline+15 ≥ 100°C — effectively
+// disables the delta gate and lets the 95°C absolute/fast-track conditions
+// or the 8-min timeout be the only exits from the warming phase.
+const WARMUP_DELTA_C: Record<Intensity, number> = { low: 15, medium: 15, high: 15 };
 
 /**
  * Default target temperature in °C per intensity level.
@@ -330,17 +333,15 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
         const targetC     = (baseline ?? ambientC) + WARMUP_DELTA_C[intensity];
         const tempReached = minTimeDone && currentC !== null && baseline !== null && currentC >= targetC;
 
-        // Absolute-temperature shortcut: if the real sensor already reads ≥60 °C
-        // (phone is genuinely hot — either pre-heated or throttle ceiling reached)
-        // don't wait for a further Δ rise that throttling makes impossible.
-        const THERAPEUTIC_ABS_C = 60;
+        // TEST v2.9: all absolute thresholds raised to 95°C so the warming
+        // phase keeps the heat engine at full load until the sensor actually
+        // hits 95°C or the 8-min timeout fires. This lets us observe the true
+        // thermal ceiling of the device under sustained maximum load.
+        const THERAPEUTIC_ABS_C = 95;
         const baselineAlreadyHot = minTimeDone && baseline !== null && baseline >= THERAPEUTIC_ABS_C;
         const currentlyHot       = minTimeDone && currentC !== null && currentC >= THERAPEUTIC_ABS_C;
 
-        // Fast-track: sensor ≥80 °C at ANY point during warming → we are at
-        // (or very near) the thermal ceiling; transition immediately without
-        // waiting for the 45-s settle window to complete.
-        const FAST_TRACK_C = 80;
+        const FAST_TRACK_C = 95;
         const fastTrack = currentC !== null && currentC >= FAST_TRACK_C;
 
         if (tempReached || fastTrack || baselineAlreadyHot || currentlyHot || timedOut) {
