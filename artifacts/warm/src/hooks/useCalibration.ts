@@ -81,19 +81,34 @@ export function useCalibration() {
     setCalibrating(true);
     setProgress(0);
 
-    // Try to get initial ambient temp from real sensor
-    const ambient = (await readDeviceTemp()) ?? DEFAULT_RESULT.ambientC;
-
     // On web / non-native: no thermal sensor — use defaults immediately
     if (!THERMAL_AVAILABLE) {
       await new Promise(r => setTimeout(r, 400)); // brief visual feedback
-      const calibrated = { ...DEFAULT_RESULT, ambientC: ambient, calibratedAt: Date.now() };
+      const calibrated = { ...DEFAULT_RESULT, calibratedAt: Date.now() };
       save(calibrated);
       setResult(calibrated);
       setProgress(1);
       setCalibrating(false);
       return;
     }
+
+    // Average several cold readings BEFORE starting the engine so we capture
+    // the true resting temperature rather than a leftover-heat value.
+    // We poll up to 5 times over 10 s and take the MINIMUM (coldest) reading
+    // to guard against a stale-hot sensor returning one warm outlier.
+    const PRE_SAMPLES = 5;
+    const PRE_INTERVAL_MS = 2000;
+    const preReadings: number[] = [];
+    for (let i = 0; i < PRE_SAMPLES; i++) {
+      const t = await readDeviceTemp();
+      if (t !== null) preReadings.push(t);
+      await new Promise(r => setTimeout(r, PRE_INTERVAL_MS));
+    }
+    // Use minimum of pre-readings as ambient (eliminates stale-hot outliers).
+    // Fall back to default if we got nothing.
+    const ambient = preReadings.length > 0
+      ? Math.min(...preReadings)
+      : DEFAULT_RESULT.ambientC;
 
     const engine = new HeatEngine();
     engineRef.current = engine;

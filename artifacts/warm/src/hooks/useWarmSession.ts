@@ -90,6 +90,8 @@ export interface WarmSession {
   dbg_ambientC: number;
   /** Whether the app is using a real hardware thermal sensor. */
   dbg_usingRealSensor: boolean;
+  /** True once settle is done AND the settled baseline was already ≥60 °C. */
+  dbg_baselineAlreadyHot: boolean;
 }
 
 // ── Implementation ─────────────────────────────────────────────────────────────
@@ -231,7 +233,14 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
         const targetC     = (baseline ?? ambientC) + WARMUP_DELTA_C[intensity];
         const tempReached = minTimeDone && currentC !== null && baseline !== null && currentC >= targetC;
 
-        if (tempReached || timedOut) {
+        // Absolute-temperature shortcut: if the real sensor already reads ≥60 °C
+        // (phone is genuinely hot — either pre-heated or throttle ceiling reached)
+        // don't wait for a further Δ rise that throttling makes impossible.
+        const THERAPEUTIC_ABS_C = 60;
+        const baselineAlreadyHot = minTimeDone && baseline !== null && baseline >= THERAPEUTIC_ABS_C;
+        const currentlyHot       = minTimeDone && currentC !== null && currentC >= THERAPEUTIC_ABS_C;
+
+        if (tempReached || baselineAlreadyHot || currentlyHot || timedOut) {
           therapStartRef.current = now;
           phaseRef.current = 'therapeutic';
           setPhase('therapeutic');
@@ -339,6 +348,8 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
   const dbg_targetC = warmingBaseline !== null
     ? warmingBaseline + WARMUP_DELTA_C[intensity]
     : null;
+  const dbg_baselineAlreadyHot =
+    elapsed > SETTLE_SECS_CONST && warmingBaseline !== null && warmingBaseline >= 60;
 
   return {
     running, intensity, setIntensity, start, stop,
@@ -354,5 +365,6 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
     dbg_settleProgress,
     dbg_ambientC: ambientC,
     dbg_usingRealSensor: calibration?.usingRealSensor ?? false,
+    dbg_baselineAlreadyHot,
   };
 }

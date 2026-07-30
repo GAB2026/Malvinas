@@ -13,48 +13,86 @@ const AUTO_DISMISS_MS = 5000;
 function DebugOverlay({
   thermalRaw, simTemp, deviceTempC, warmingBaseline, targetC,
   settleProgress, ambientC, usingRealSensor, phase, elapsed,
-  workerCount, running,
+  workerCount, running, baselineAlreadyHot, onRecalibrate,
 }: {
   thermalRaw: number | null; simTemp: number; deviceTempC: number;
   warmingBaseline: number | null; targetC: number | null;
   settleProgress: number; ambientC: number; usingRealSensor: boolean;
   phase: string; elapsed: number; workerCount: number; running: boolean;
+  baselineAlreadyHot: boolean; onRecalibrate: () => void;
 }) {
   const fmt = (v: number | null, decimals = 1) =>
-    v === null ? 'null' : v.toFixed(decimals);
+    v === null ? '—' : v.toFixed(decimals);
 
-  const rows: [string, string, string][] = [
-    // [label, value, explanation]
-    ['sensor hw',    usingRealSensor ? 'SÍ' : 'NO',        'Si es NO, NO hay sensor térmico real en uso'],
-    ['sensor raw',   thermalRaw === null ? '— (null)' : `${fmt(thermalRaw)}°C`, 'Lectura directa del sensor. null = web o no disponible'],
-    ['sim temp',     `${fmt(simTemp)}°C`,                  'Temperatura simulada por modelo matemático (siempre corre)'],
-    ['shown temp',   `${fmt(deviceTempC)}°C`,              'Lo que la app muestra: raw si disponible, sim si no'],
-    ['ambient cal',  `${fmt(ambientC)}°C`,                 'Temperatura ambiente medida en calibración'],
-    ['w.baseline',   warmingBaseline === null ? '— (sin datos)' : `${fmt(warmingBaseline)}°C`, 'MAX de lecturas reales durante settle. Base para el delta'],
-    ['w.target',     targetC === null ? '— (sin baseline)' : `${fmt(targetC)}°C`,             'baseline + WARMUP_DELTA → umbral para pasar a terapéutico'],
-    ['settle',       running ? `${Math.round(settleProgress * 100)}% (${Math.round(settleProgress * 45)}s/45s)` : '—', 'Progreso ventana 45s donde se construye el baseline'],
-    ['phase',        phase,                                'Fase actual de la sesión'],
-    ['elapsed',      running ? `${elapsed}s` : '—',        'Segundos desde inicio de sesión'],
-    ['workers',      String(workerCount),                  'Cantidad de CPU workers activos'],
+  // Warn if ambient looks wrong (phone was hot during calibration)
+  const ambientSuspect = ambientC > 50;
+
+  // Deduce warming transition mode
+  let transitionMode = '—';
+  if (phase === 'warming' && running) {
+    const settledDone = settleProgress >= 1;
+    if (!settledDone) transitionMode = `settle ${Math.round(settleProgress * 45)}s/45s`;
+    else if (baselineAlreadyHot) transitionMode = '⚡ baseline ≥60°C → transición inmediata';
+    else if (targetC !== null) transitionMode = `esperando ${fmt(thermalRaw)}°C ≥ ${fmt(targetC)}°C`;
+    else transitionMode = 'esperando baseline...';
+  } else if (phase !== 'idle') {
+    transitionMode = 'N/A (ya en ' + phase + ')';
+  }
+
+  const rows: [string, string, string, boolean?][] = [
+    // [label, value, explanation, isWarning?]
+    ['sensor hw',     usingRealSensor ? 'SÍ' : 'NO',
+      'Si NO: sin sensor real, app usa modelo simulado', !usingRealSensor],
+    ['sensor raw',    thermalRaw === null ? '— (null)' : `${fmt(thermalRaw)}°C`,
+      'Lectura directa del hardware. null = web / sensor no respondió aún', false],
+    ['sim temp',      `${fmt(simTemp)}°C`,
+      'Temperatura calculada por modelo matemático (independiente del sensor)', false],
+    ['shown temp',    `${fmt(deviceTempC)}°C`,
+      'Valor mostrado al usuario: raw si disponible, sim si no', false],
+    ['ambient cal',   `${fmt(ambientC)}°C${ambientSuspect ? ' ⚠️' : ''}`,
+      ambientSuspect ? '⚠️ SOSPECHOSO: celular estaba caliente al calibrar. Recalibrar con el cel frío.' : 'Temp ambiente medida antes de arrancar el motor en calibración',
+      ambientSuspect],
+    ['w.baseline',    warmingBaseline === null ? '— (sin datos)' : `${fmt(warmingBaseline)}°C`,
+      'Máximo de lecturas reales durante los 45s de settle', false],
+    ['w.target',      targetC === null ? '— (sin baseline)' : `${fmt(targetC)}°C`,
+      'baseline + WARMUP_DELTA_C[intensidad] = temperatura mínima para pasar a terapéutico', false],
+    ['w.mode',        transitionMode,
+      'Condición activa que decide el paso warming→terapéutico', baselineAlreadyHot],
+    ['settle',        running ? `${Math.round(settleProgress * 100)}% (${Math.round(settleProgress * 45)}s / 45s)` : '—',
+      'Ventana de 45s donde se construye el baseline con el MAX de lecturas', false],
+    ['phase',         phase,            'Fase actual', false],
+    ['elapsed',       running ? `${elapsed}s` : '—', 'Segundos desde inicio de sesión', false],
+    ['workers',       String(workerCount), 'CPU workers activos generando calor', false],
   ];
 
   return (
     <div style={{
       position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 9999,
-      background: 'rgba(0,0,0,0.88)', borderTop: '1px solid #ff6600',
+      background: 'rgba(0,0,0,0.90)', borderTop: '2px solid #ff6600',
       padding: '6px 8px', fontFamily: 'monospace', fontSize: 10,
-      color: '#e0e0e0', maxHeight: '38vh', overflowY: 'auto',
+      color: '#e0e0e0', maxHeight: '42vh', overflowY: 'auto',
     }}>
-      <div style={{ color: '#ff6600', fontWeight: 'bold', marginBottom: 4 }}>
-        🛠 DEBUG OVERLAY (temporal)
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+        <span style={{ color: '#ff6600', fontWeight: 'bold' }}>🛠 DEBUG (temporal)</span>
+        <button
+          onClick={onRecalibrate}
+          disabled={running}
+          style={{
+            background: running ? '#333' : '#7c2d12', color: running ? '#666' : '#fca5a5',
+            border: '1px solid #9a3412', borderRadius: 4, padding: '2px 8px',
+            fontFamily: 'monospace', fontSize: 10, cursor: running ? 'not-allowed' : 'pointer',
+          }}
+        >
+          ↺ Recalibrar (cel frío)
+        </button>
       </div>
       <table style={{ borderCollapse: 'collapse', width: '100%' }}>
         <tbody>
-          {rows.map(([label, value, note]) => (
-            <tr key={label} style={{ borderBottom: '1px solid #222' }}>
-              <td style={{ color: '#aaa', paddingRight: 6, paddingBottom: 2, whiteSpace: 'nowrap', verticalAlign: 'top' }}>{label}</td>
-              <td style={{ color: '#fff', fontWeight: 'bold', paddingRight: 8, whiteSpace: 'nowrap', verticalAlign: 'top' }}>{value}</td>
-              <td style={{ color: '#666', fontSize: 9, verticalAlign: 'top' }}>{note}</td>
+          {rows.map(([label, value, note, warn]) => (
+            <tr key={label} style={{ borderBottom: '1px solid #1a1a1a' }}>
+              <td style={{ color: warn ? '#fca5a5' : '#888', paddingRight: 6, paddingBottom: 2, whiteSpace: 'nowrap', verticalAlign: 'top' }}>{label}</td>
+              <td style={{ color: warn ? '#fca5a5' : '#fff', fontWeight: 'bold', paddingRight: 8, whiteSpace: 'nowrap', verticalAlign: 'top' }}>{value}</td>
+              <td style={{ color: warn ? '#f87171' : '#555', fontSize: 9, verticalAlign: 'top' }}>{note}</td>
             </tr>
           ))}
         </tbody>
@@ -105,7 +143,9 @@ function CalibrationScreen({ progress }: { progress: number }) {
 // ── Main app ──────────────────────────────────────────────────────────────────
 export default function Home() {
   const t = useTranslations();
-  const { result: calibration, calibrating, progress } = useCalibration();
+  const { result: calibration, calibrating, progress, reset: resetCalibration } = useCalibration();
+
+  const handleRecalibrate = () => { if (!running) resetCalibration(); };
 
   const {
     running, intensity, setIntensity, start, stop,
@@ -113,7 +153,7 @@ export default function Home() {
     heatLevel, stopReason, wakeLockActive, batteryLevel, coolingDown,
     dbg_thermalRaw, dbg_simTemp, dbg_warmingBaseline, dbg_targetC,
     dbg_settleProgress, dbg_ambientC, dbg_usingRealSensor, workerCount,
-    deviceTempC,
+    deviceTempC, dbg_baselineAlreadyHot,
   } = useWarmSession(calibration);
 
   const [toastReason, setToastReason] = useState<StopReason>(null);
@@ -339,6 +379,8 @@ export default function Home() {
         elapsed={elapsed}
         workerCount={workerCount}
         running={running}
+        baselineAlreadyHot={dbg_baselineAlreadyHot}
+        onRecalibrate={handleRecalibrate}
       />
 
     </div>
