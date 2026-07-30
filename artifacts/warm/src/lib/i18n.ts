@@ -58,6 +58,7 @@ export interface Translations {
   trial: TrialStrings;
   /** Calibration screen */
   calibrating: string;
+  calibratingOnce: string;
   calibratingNote: string;
   /** Cooldown state */
   cooling: string;
@@ -115,6 +116,7 @@ const T: Record<Lang, Translations> = {
     },
     trial: { badge: 'Try', left: 'free Medium trials left' },
     calibrating: 'Checking maximum temperature for your device…',
+    calibratingOnce: 'Once only',
     calibratingNote: 'Please don\'t turn off your phone',
     cooling: 'Cooling down…',
     tapToStart: 'Tap the flame to start',
@@ -166,7 +168,8 @@ const T: Record<Lang, Translations> = {
       benefit3: 'Sesiones ilimitadas',
     },
     trial: { badge: 'Probar', left: 'pruebas de Media restantes' },
-    calibrating: 'Chequeando temperatura máxima para tu dispositivo…',
+    calibrating: 'Chequeada temperatura máxima para tu dispositivo…',
+    calibratingOnce: 'Es por única vez',
     calibratingNote: 'No apagues el teléfono por favor',
     cooling: 'Enfriando…',
     tapToStart: 'Tocá la llama para iniciar',
@@ -219,6 +222,7 @@ const T: Record<Lang, Translations> = {
     },
     trial: { badge: 'Testar', left: 'testes de Média restantes' },
     calibrating: 'Verificando temperatura máxima do dispositivo…',
+    calibratingOnce: 'É uma única vez',
     calibratingNote: 'Não desligue o celular, por favor',
     cooling: 'Esfriando…',
     tapToStart: 'Toque na chama para iniciar',
@@ -271,6 +275,7 @@ const T: Record<Lang, Translations> = {
     },
     trial: { badge: 'Essai', left: 'essais Moyenne restants' },
     calibrating: "Vérification de la température maximale de l'appareil…",
+    calibratingOnce: 'Une seule fois',
     calibratingNote: "Ne pas éteindre le téléphone, s'il vous plaît",
     cooling: 'Refroidissement…',
     tapToStart: 'Appuyez sur la flamme pour démarrer',
@@ -323,6 +328,7 @@ const T: Record<Lang, Translations> = {
     },
     trial: { badge: 'Testen', left: 'Testläufe Mittel übrig' },
     calibrating: 'Maximale Temperatur des Geräts wird ermittelt…',
+    calibratingOnce: 'Nur einmal',
     calibratingNote: 'Bitte schalte das Gerät nicht aus',
     cooling: 'Abkühlen…',
     tapToStart: 'Flamme antippen zum Starten',
@@ -375,6 +381,7 @@ const T: Record<Lang, Translations> = {
     },
     trial: { badge: 'Prova', left: 'prove Media rimanenti' },
     calibrating: 'Verifica della temperatura massima del dispositivo…',
+    calibratingOnce: 'Solo una volta',
     calibratingNote: 'Non spegnere il telefono, per favore',
     cooling: 'Raffreddamento…',
     tapToStart: 'Tocca la fiamma per iniziare',
@@ -427,6 +434,7 @@ const T: Record<Lang, Translations> = {
     },
     trial: { badge: 'Проба', left: 'пробных сеанса осталось' },
     calibrating: 'Определение максимальной температуры устройства…',
+    calibratingOnce: 'Только один раз',
     calibratingNote: 'Пожалуйста, не выключайте телефон',
     cooling: 'Охлаждение…',
     tapToStart: 'Нажмите на пламя для запуска',
@@ -479,6 +487,7 @@ const T: Record<Lang, Translations> = {
     },
     trial: { badge: 'Kokeile', left: 'koeilmaista Keski-istuntoa jäljellä' },
     calibrating: 'Tarkistetaan laitteen maksimilämpötila…',
+    calibratingOnce: 'Vain kerran',
     calibratingNote: 'Älä sammuta puhelinta, kiitos',
     cooling: 'Jäähtyminen…',
     tapToStart: 'Käynnistä napauttamalla liekkiä',
@@ -531,6 +540,7 @@ const T: Record<Lang, Translations> = {
     },
     trial: { badge: 'Prova', left: 'gratis Medelsessioner kvar' },
     calibrating: 'Kontrollerar enhetens maximala temperatur…',
+    calibratingOnce: 'Bara en gång',
     calibratingNote: 'Stäng inte av telefonen, tack',
     cooling: 'Avkylning…',
     tapToStart: 'Tryck på lågan för att starta',
@@ -583,6 +593,7 @@ const T: Record<Lang, Translations> = {
     },
     trial: { badge: 'Турших', left: 'дунд эрчмийн туршилт үлдсэн' },
     calibrating: 'Төхөөрөмжийн дээд температурыг шалгаж байна…',
+    calibratingOnce: 'Зөвхөн нэг удаа',
     calibratingNote: 'Утсаа унтраахгүй байна уу',
     cooling: 'Хөргөж байна…',
     tapToStart: 'Эхлүүлэхийн тулд гал дээр дарна уу',
@@ -635,6 +646,7 @@ const T: Record<Lang, Translations> = {
     },
     trial: { badge: 'Nalunnaarut', left: 'nalunaarsorneqarsinnaanngitsumik' },
     calibrating: 'Isikkoqqissaarissumik nalunaarusiorfigineqarpoq…',
+    calibratingOnce: 'Ataatsimoortoqassasoq',
     calibratingNote: 'Telefoni silaannassinnaasoq',
     cooling: 'Isikkoqqissaarissumik…',
     tapToStart: 'Isikkorfigineqarsinnaappoq',

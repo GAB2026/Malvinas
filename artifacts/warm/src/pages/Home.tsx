@@ -137,6 +137,7 @@ function CalibrationScreen({ progress }: { progress: number }) {
         </motion.div>
         <div className="flex flex-col gap-2">
           <p className="text-lg font-medium text-foreground leading-snug">{t.calibrating}</p>
+          <p className="text-xs text-primary/70 font-medium">{t.calibratingOnce}</p>
           <p className="text-sm text-muted-foreground">{t.calibratingNote}</p>
         </div>
         <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden">
