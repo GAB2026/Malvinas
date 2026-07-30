@@ -9,6 +9,60 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 const AUTO_DISMISS_MS = 5000;
 
+// ── Debug overlay (temporary) ─────────────────────────────────────────────────
+function DebugOverlay({
+  thermalRaw, simTemp, deviceTempC, warmingBaseline, targetC,
+  settleProgress, ambientC, usingRealSensor, phase, elapsed,
+  workerCount, running,
+}: {
+  thermalRaw: number | null; simTemp: number; deviceTempC: number;
+  warmingBaseline: number | null; targetC: number | null;
+  settleProgress: number; ambientC: number; usingRealSensor: boolean;
+  phase: string; elapsed: number; workerCount: number; running: boolean;
+}) {
+  const fmt = (v: number | null, decimals = 1) =>
+    v === null ? 'null' : v.toFixed(decimals);
+
+  const rows: [string, string, string][] = [
+    // [label, value, explanation]
+    ['sensor hw',    usingRealSensor ? 'SÍ' : 'NO',        'Si es NO, NO hay sensor térmico real en uso'],
+    ['sensor raw',   thermalRaw === null ? '— (null)' : `${fmt(thermalRaw)}°C`, 'Lectura directa del sensor. null = web o no disponible'],
+    ['sim temp',     `${fmt(simTemp)}°C`,                  'Temperatura simulada por modelo matemático (siempre corre)'],
+    ['shown temp',   `${fmt(deviceTempC)}°C`,              'Lo que la app muestra: raw si disponible, sim si no'],
+    ['ambient cal',  `${fmt(ambientC)}°C`,                 'Temperatura ambiente medida en calibración'],
+    ['w.baseline',   warmingBaseline === null ? '— (sin datos)' : `${fmt(warmingBaseline)}°C`, 'MAX de lecturas reales durante settle. Base para el delta'],
+    ['w.target',     targetC === null ? '— (sin baseline)' : `${fmt(targetC)}°C`,             'baseline + WARMUP_DELTA → umbral para pasar a terapéutico'],
+    ['settle',       running ? `${Math.round(settleProgress * 100)}% (${Math.round(settleProgress * 45)}s/45s)` : '—', 'Progreso ventana 45s donde se construye el baseline'],
+    ['phase',        phase,                                'Fase actual de la sesión'],
+    ['elapsed',      running ? `${elapsed}s` : '—',        'Segundos desde inicio de sesión'],
+    ['workers',      String(workerCount),                  'Cantidad de CPU workers activos'],
+  ];
+
+  return (
+    <div style={{
+      position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 9999,
+      background: 'rgba(0,0,0,0.88)', borderTop: '1px solid #ff6600',
+      padding: '6px 8px', fontFamily: 'monospace', fontSize: 10,
+      color: '#e0e0e0', maxHeight: '38vh', overflowY: 'auto',
+    }}>
+      <div style={{ color: '#ff6600', fontWeight: 'bold', marginBottom: 4 }}>
+        🛠 DEBUG OVERLAY (temporal)
+      </div>
+      <table style={{ borderCollapse: 'collapse', width: '100%' }}>
+        <tbody>
+          {rows.map(([label, value, note]) => (
+            <tr key={label} style={{ borderBottom: '1px solid #222' }}>
+              <td style={{ color: '#aaa', paddingRight: 6, paddingBottom: 2, whiteSpace: 'nowrap', verticalAlign: 'top' }}>{label}</td>
+              <td style={{ color: '#fff', fontWeight: 'bold', paddingRight: 8, whiteSpace: 'nowrap', verticalAlign: 'top' }}>{value}</td>
+              <td style={{ color: '#666', fontSize: 9, verticalAlign: 'top' }}>{note}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = Math.floor(seconds % 60);
@@ -57,6 +111,9 @@ export default function Home() {
     running, intensity, setIntensity, start, stop,
     phase, elapsed, therapeuticRemaining,
     heatLevel, stopReason, wakeLockActive, batteryLevel, coolingDown,
+    dbg_thermalRaw, dbg_simTemp, dbg_warmingBaseline, dbg_targetC,
+    dbg_settleProgress, dbg_ambientC, dbg_usingRealSensor, workerCount,
+    deviceTempC,
   } = useWarmSession(calibration);
 
   const [toastReason, setToastReason] = useState<StopReason>(null);
@@ -268,6 +325,21 @@ export default function Home() {
           </p>
         </div>
       </div>{/* end BOTTOM */}
+
+      <DebugOverlay
+        thermalRaw={dbg_thermalRaw}
+        simTemp={dbg_simTemp}
+        deviceTempC={deviceTempC}
+        warmingBaseline={dbg_warmingBaseline}
+        targetC={dbg_targetC}
+        settleProgress={dbg_settleProgress}
+        ambientC={dbg_ambientC}
+        usingRealSensor={dbg_usingRealSensor}
+        phase={phase}
+        elapsed={elapsed}
+        workerCount={workerCount}
+        running={running}
+      />
 
     </div>
   );

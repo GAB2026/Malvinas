@@ -74,6 +74,22 @@ export interface WarmSession {
   workerCount: number;
   /** Whether button is locked while device cools back to ambient. */
   coolingDown: boolean;
+
+  // ── Debug fields ──────────────────────────────────────────────────────────
+  /** Raw thermal sensor reading in °C. null = no native sensor / web. */
+  dbg_thermalRaw: number | null;
+  /** Purely simulated temperature (exponential ramp model), regardless of sensor. */
+  dbg_simTemp: number;
+  /** Rolling-max baseline established during the first SETTLE_SECS. */
+  dbg_warmingBaseline: number | null;
+  /** Target °C required to leave the warming phase (baseline + WARMUP_DELTA_C). */
+  dbg_targetC: number | null;
+  /** Progress through the 45-s settle window (0..1). */
+  dbg_settleProgress: number;
+  /** Ambient °C from calibration (or default). */
+  dbg_ambientC: number;
+  /** Whether the app is using a real hardware thermal sensor. */
+  dbg_usingRealSensor: boolean;
 }
 
 // ── Implementation ─────────────────────────────────────────────────────────────
@@ -91,6 +107,7 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
   const [batteryLevel, setBatteryLevel]     = useState<number | null>(null);
   const [thermalC, setThermalC]             = useState<number | null>(null);
   const [coolingDown, setCoolingDown]       = useState(false);
+  const [warmingBaseline, setWarmingBaseline] = useState<number | null>(null);
 
   const wakeLockRef     = useRef<{ release: () => Promise<void> } | null>(null);
   const startedAtRef    = useRef(0);
@@ -161,6 +178,7 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
     startedAtRef.current = now;
     therapStartRef.current = null;
     warmingBaselineRef.current = null;
+    setWarmingBaseline(null);
     tempReadInFlightRef.current = false; // reset any stale in-flight flag
     runningRef.current = true;
     phaseRef.current = 'warming';
@@ -202,6 +220,7 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
         if (currentC !== null && secs <= SETTLE_SECS) {
           if (warmingBaselineRef.current === null || currentC > warmingBaselineRef.current) {
             warmingBaselineRef.current = currentC;
+            setWarmingBaseline(currentC);
           }
         }
 
@@ -313,11 +332,27 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
   const therapeuticRemaining = phase === 'therapeutic'
     ? Math.max(0, therapLimit - therapeuticElapsed) : 0;
 
+  const SETTLE_SECS_CONST = 45;
+  const dbg_settleProgress = running
+    ? Math.min(1, elapsed / SETTLE_SECS_CONST)
+    : 0;
+  const dbg_targetC = warmingBaseline !== null
+    ? warmingBaseline + WARMUP_DELTA_C[intensity]
+    : null;
+
   return {
     running, intensity, setIntensity, start, stop,
     phase, elapsed, therapeuticElapsed, therapeuticRemaining,
     deviceTempC, heatLevel, stopReason, wakeLockActive, batteryLevel,
     workerCount: workerCountFor(intensity),
     coolingDown,
+    // debug
+    dbg_thermalRaw: thermalC,
+    dbg_simTemp: simTemp,
+    dbg_warmingBaseline: warmingBaseline,
+    dbg_targetC,
+    dbg_settleProgress,
+    dbg_ambientC: ambientC,
+    dbg_usingRealSensor: calibration?.usingRealSensor ?? false,
   };
 }
