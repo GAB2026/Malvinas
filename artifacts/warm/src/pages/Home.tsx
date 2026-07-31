@@ -1,117 +1,14 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useWarmSession, StopReason, Intensity } from '@/hooks/useWarmSession';
 import { useCalibration } from '@/hooks/useCalibration';
+import { usePremium } from '@/hooks/usePremium';
 import { useTranslations } from '@/lib/i18n';
 import { playCompletionChime } from '@/lib/chime';
 import AnimatedFlame from '@/components/AnimatedFlame';
-import { Battery, AlertTriangle, ShieldAlert, Thermometer, RefreshCw } from 'lucide-react';
+import { Battery, AlertTriangle, ShieldAlert, Lock, Thermometer, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const AUTO_DISMISS_MS = 5000;
-
-// ── Debug overlay (temporary) ─────────────────────────────────────────────────
-function DebugOverlay({
-  thermalRaw, simTemp, deviceTempC, warmingBaseline, targetC,
-  settleProgress, ambientC, usingRealSensor, phase, elapsed,
-  workerCount, running, baselineAlreadyHot,
-  workerKOpsPerSec,
-  onRecalibrate,
-}: {
-  thermalRaw: number | null; simTemp: number; deviceTempC: number;
-  warmingBaseline: number | null; targetC: number | null;
-  settleProgress: number; ambientC: number; usingRealSensor: boolean;
-  phase: string; elapsed: number; workerCount: number; running: boolean;
-  baselineAlreadyHot: boolean;
-  workerKOpsPerSec: number | null;
-  onRecalibrate: () => void;
-}) {
-  const fmt = (v: number | null, decimals = 1) =>
-    v === null ? '—' : v.toFixed(decimals);
-
-  // Warn if ambient looks wrong (phone was hot during calibration)
-  const ambientSuspect = ambientC > 50;
-
-  // Deduce warming transition mode
-  let transitionMode = '—';
-  if (phase === 'warming' && running) {
-    const settledDone = settleProgress >= 1;
-    if (!settledDone) transitionMode = `settle ${Math.round(settleProgress * 45)}s/45s`;
-    else if (baselineAlreadyHot) transitionMode = '⚡ baseline ≥60°C → transición inmediata';
-    else if (targetC !== null) transitionMode = `esperando ${fmt(thermalRaw)}°C ≥ ${fmt(targetC)}°C`;
-    else transitionMode = 'esperando baseline...';
-  } else if (phase !== 'idle') {
-    transitionMode = 'N/A (ya en ' + phase + ')';
-  }
-
-  const rows: [string, string, string, boolean?][] = [
-    // [label, value, explanation, isWarning?]
-    ['sensor hw',     usingRealSensor ? 'SÍ' : 'NO',
-      'Si NO: sin sensor real, app usa modelo simulado', !usingRealSensor],
-    ['sensor raw',    thermalRaw === null ? '— (null)' : `${fmt(thermalRaw)}°C`,
-      'Lectura directa del hardware. null = web / sensor no respondió aún', false],
-    ['sim temp',      `${fmt(simTemp)}°C`,
-      'Temperatura calculada por modelo matemático (independiente del sensor)', false],
-    ['shown temp',    `${fmt(deviceTempC)}°C`,
-      'Valor mostrado al usuario: raw si disponible, sim si no', false],
-    ['ambient cal',   `${fmt(ambientC)}°C${ambientSuspect ? ' ⚠️' : ''}`,
-      ambientSuspect ? '⚠️ SOSPECHOSO: celular estaba caliente al calibrar. Recalibrar con el cel frío.' : 'Temp ambiente medida antes de arrancar el motor en calibración',
-      ambientSuspect],
-    ['w.baseline',    warmingBaseline === null ? '— (sin datos)' : `${fmt(warmingBaseline)}°C`,
-      'Máximo de lecturas reales durante los 45s de settle', false],
-    ['w.target',      targetC === null ? '— (sin baseline)' : `${fmt(targetC)}°C`,
-      'baseline + WARMUP_DELTA_C[intensidad] = temperatura mínima para pasar a terapéutico', false],
-    ['w.mode',        transitionMode,
-      'Condición activa que decide el paso warming→terapéutico', baselineAlreadyHot],
-    ['settle',        running ? `${Math.round(settleProgress * 100)}% (${Math.round(settleProgress * 45)}s / 45s)` : '—',
-      'Ventana de 45s donde se construye el baseline con el MAX de lecturas', false],
-    ['phase',         phase,            'Fase actual', false],
-    ['elapsed',       running ? `${elapsed}s` : '—', 'Segundos desde inicio de sesión', false],
-    ['workers',       String(workerCount), 'CPU workers activos generando calor', false],
-    // ── Throughput metric (confirms real work is executing under throttling) ─
-    // kOps/s = completed 10k-FPU-op blocks × 10 / tick_elapsed_seconds.
-    // If Android suspends a worker thread, performance.now() in the worker
-    // still advances (wall-clock time is unreliable), but iter count drops.
-    ['worker kOps/s', workerKOpsPerSec === null
-        ? '— (sin sesión)'
-        : `${workerKOpsPerSec.toLocaleString()} kOps/s`,
-      'kilo-ops FPU/s en todos los workers. Baja cuando Android suspende threads (throttling).', false],
-  ];
-
-  return (
-    <div style={{
-      position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 9999,
-      background: 'rgba(0,0,0,0.90)', borderTop: '2px solid #ff6600',
-      padding: '6px 8px', fontFamily: 'monospace', fontSize: 10,
-      color: '#e0e0e0', maxHeight: '42vh', overflowY: 'auto',
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-        <span style={{ color: '#ff6600', fontWeight: 'bold' }}>🛠 DEBUG (temporal)</span>
-        <button
-          onClick={onRecalibrate}
-          disabled={running}
-          style={{
-            background: running ? '#333' : '#7c2d12', color: running ? '#666' : '#fca5a5',
-            border: '1px solid #9a3412', borderRadius: 4, padding: '2px 8px',
-            fontFamily: 'monospace', fontSize: 10, cursor: running ? 'not-allowed' : 'pointer',
-          }}
-        >
-          ↺ Recalibrar (cel frío)
-        </button>
-      </div>
-      <table style={{ borderCollapse: 'collapse', width: '100%' }}>
-        <tbody>
-          {rows.map(([label, value, note, warn]) => (
-            <tr key={label} style={{ borderBottom: '1px solid #1a1a1a' }}>
-              <td style={{ color: warn ? '#fca5a5' : '#888', paddingRight: 6, paddingBottom: 2, whiteSpace: 'nowrap', verticalAlign: 'top' }}>{label}</td>
-              <td style={{ color: warn ? '#fca5a5' : '#fff', fontWeight: 'bold', paddingRight: 8, whiteSpace: 'nowrap', verticalAlign: 'top' }}>{value}</td>
-              <td style={{ color: warn ? '#f87171' : '#555', fontSize: 9, verticalAlign: 'top' }}>{note}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
 
 function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -153,25 +50,72 @@ function CalibrationScreen({ progress }: { progress: number }) {
   );
 }
 
+// ── Premium paywall sheet ─────────────────────────────────────────────────────
+function PremiumSheet({
+  onPurchase, onRestore, onDismiss,
+}: { onPurchase: () => void; onRestore: () => void; onDismiss: () => void }) {
+  const t = useTranslations();
+  const p = t.premium;
+  return (
+    <motion.div
+      className="fixed inset-0 z-50 flex flex-col items-center justify-end"
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+    >
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/70" onClick={onDismiss} />
+      <motion.div
+        className="relative z-10 w-full max-w-sm bg-[#120e08] border border-white/10 rounded-t-3xl px-6 pt-6 pb-10 flex flex-col gap-5"
+        initial={{ y: 80 }} animate={{ y: 0 }} exit={{ y: 80 }}
+        transition={{ type: 'spring', damping: 26, stiffness: 260 }}
+      >
+        {/* Handle */}
+        <div className="w-10 h-1 rounded-full bg-white/20 mx-auto -mt-1 mb-1" />
+        <div className="flex flex-col gap-1 text-center">
+          <span className="text-2xl">🔥</span>
+          <h2 className="text-lg font-semibold text-foreground">{p.title}</h2>
+          <p className="text-sm text-muted-foreground leading-relaxed">{p.subtitle}</p>
+        </div>
+        <ul className="flex flex-col gap-2 text-sm text-foreground/80">
+          {[p.benefit1, p.benefit2, p.benefit3].map((b) => (
+            <li key={b} className="flex items-center gap-2">
+              <span className="text-primary text-base">✓</span> {b}
+            </li>
+          ))}
+        </ul>
+        <button
+          onClick={onPurchase}
+          className="w-full py-3 rounded-2xl bg-primary text-white font-semibold text-sm tracking-wide shadow-lg active:scale-95 transition-transform"
+        >
+          {p.buyBtn}
+        </button>
+        <button
+          onClick={onRestore}
+          className="w-full text-xs text-muted-foreground underline-offset-2 hover:underline"
+        >
+          {p.restoreBtn}
+        </button>
+      </motion.div>
+    </motion.div>
+  );
+}
+
 // ── Main app ──────────────────────────────────────────────────────────────────
 export default function Home() {
   const t = useTranslations();
-  const { result: calibration, calibrating, progress, reset: resetCalibration } = useCalibration();
-
-  const handleRecalibrate = () => { if (!running) resetCalibration(); };
+  const { result: calibration, calibrating, progress } = useCalibration();
+  const { isPremium, mediumTrialsLeft, canUseMedium, consumeMediumTrial, purchase, restore } = usePremium();
 
   const {
     running, intensity, setIntensity, start, stop,
     phase, elapsed, therapeuticRemaining,
     heatLevel, stopReason, wakeLockActive, batteryLevel, coolingDown,
-    dbg_thermalRaw, dbg_simTemp, dbg_warmingBaseline, dbg_targetC,
-    dbg_settleProgress, dbg_ambientC, dbg_usingRealSensor, workerCount,
-    deviceTempC, dbg_baselineAlreadyHot,
-    dbg_workerKOpsPerSec,
+    deviceTempC,
+    workerCount,
   } = useWarmSession(calibration);
 
   const [toastReason, setToastReason] = useState<StopReason>(null);
   const prevStopReason = useRef<StopReason>(null);
+  const [showPremium, setShowPremium] = useState(false);
 
   useEffect(() => { if (running) setToastReason(null); }, [running]);
   useEffect(() => {
@@ -196,12 +140,16 @@ export default function Home() {
   const startLockRef = useRef(false);
   const handleFlameClick = () => {
     if (running) {
-      if (startLockRef.current) return; // too soon after start — ignore
+      if (startLockRef.current) return;
       stop();
       return;
     }
     if (coolingDown) return;
+    // Block start if selected intensity is locked
+    if (intensity === 'high' && !isPremium) { setShowPremium(true); return; }
+    if (intensity === 'medium' && !canUseMedium) { setShowPremium(true); return; }
     triggerPulse();
+    if (intensity === 'medium') consumeMediumTrial();
     start();
     startLockRef.current = true;
     setTimeout(() => { startLockRef.current = false; }, 2500);
@@ -209,7 +157,18 @@ export default function Home() {
 
   const handleIntensityClick = (level: Intensity) => {
     if (running) return;
+    if (level === 'high' && !isPremium) { setShowPremium(true); return; }
+    if (level === 'medium' && !canUseMedium) { setShowPremium(true); return; }
     setIntensity(level);
+  };
+
+  const handlePurchase = async () => {
+    await purchase();
+    setShowPremium(false);
+  };
+  const handleRestore = async () => {
+    await restore();
+    setShowPremium(false);
   };
 
   if (calibrating || !calibration) return <CalibrationScreen progress={progress} />;
@@ -220,6 +179,19 @@ export default function Home() {
   const intensities: Intensity[] = ['low', 'medium', 'high'];
   const intensityLabels: Record<Intensity, string> = { low: t.low, medium: t.medium, high: t.high };
   const glowIntensity = running ? 0.15 + heatLevel * 0.85 : 0;
+
+  // Per-intensity lock state
+  const isLocked = (level: Intensity) =>
+    (level === 'high' && !isPremium) ||
+    (level === 'medium' && !canUseMedium);
+
+  // Badge shown inside the card
+  const badge = (level: Intensity): string | null => {
+    if (level === 'high' && !isPremium) return t.premium.lockedHint;
+    if (level === 'medium' && !isPremium && canUseMedium)
+      return `${mediumTrialsLeft} ${t.trial.left}`;
+    return null;
+  };
 
   return (
     <div className="relative h-[100dvh] w-full flex flex-col items-center overflow-hidden bg-background px-5">
@@ -252,7 +224,6 @@ export default function Home() {
         </div>
 
         <div className="flex flex-col items-center gap-2 pt-1 pb-2">
-          {/* Pulse ring — renders instantly on pointerdown, no React state needed */}
           <div className="relative">
             <AnimatePresence>
               {flamePulse && (
@@ -328,26 +299,38 @@ export default function Home() {
         </span>
         <div className="flex gap-2">
           {intensities.map((level) => {
-            const active = intensity === level;
+            const active  = intensity === level;
+            const locked  = isLocked(level);
+            const cardBadge = badge(level);
             return (
               <button
                 key={level}
                 onClick={() => handleIntensityClick(level)}
                 disabled={running}
                 className={`flex-1 flex flex-col items-center gap-1 py-3 px-2 rounded-2xl border transition-all duration-300 disabled:cursor-not-allowed
-                  ${active
-                    ? 'bg-[#1e1410] border-orange-700 shadow-[0_0_18px_rgba(194,65,12,0.3)]'
-                    : 'border-white/8 bg-card hover:border-white/15 hover:bg-white/5'}`}
+                  ${locked
+                    ? 'border-white/8 bg-card opacity-60'
+                    : active
+                      ? 'bg-[#1e1410] border-orange-700 shadow-[0_0_18px_rgba(194,65,12,0.3)]'
+                      : 'border-white/8 bg-card hover:border-white/15 hover:bg-white/5'}`}
               >
-                <span className={`text-[11px] font-bold uppercase tracking-widest ${active ? 'text-orange-400' : 'text-muted-foreground'}`}>
-                  {level === 'high' && active ? '🔥 ' : ''}{intensityLabels[level]}
-                </span>
-                <span className={`text-3xl font-bold leading-none tabular-nums ${active ? 'text-white' : 'text-foreground/25'}`}>
+                {locked
+                  ? <Lock size={13} className="text-muted-foreground/50 mb-0.5" />
+                  : <span className={`text-[11px] font-bold uppercase tracking-widest ${active ? 'text-orange-400' : 'text-muted-foreground'}`}>
+                      {level === 'high' && active ? '🔥 ' : ''}{intensityLabels[level]}
+                    </span>
+                }
+                <span className={`text-3xl font-bold leading-none tabular-nums ${active && !locked ? 'text-white' : 'text-foreground/25'}`}>
                   {minutes(level)}
                 </span>
-                <span className={`text-[10px] font-medium ${active ? 'text-orange-400/80' : 'text-muted-foreground/40'}`}>
+                <span className={`text-[10px] font-medium ${active && !locked ? 'text-orange-400/80' : 'text-muted-foreground/40'}`}>
                   min
                 </span>
+                {cardBadge && (
+                  <span className="text-[9px] font-semibold text-primary/80 mt-0.5 leading-none">
+                    {cardBadge}
+                  </span>
+                )}
               </button>
             );
           })}
@@ -380,23 +363,16 @@ export default function Home() {
         </div>
       </div>{/* end BOTTOM */}
 
-      <DebugOverlay
-        thermalRaw={dbg_thermalRaw}
-        simTemp={dbg_simTemp}
-        deviceTempC={deviceTempC}
-        warmingBaseline={dbg_warmingBaseline}
-        targetC={dbg_targetC}
-        settleProgress={dbg_settleProgress}
-        ambientC={dbg_ambientC}
-        usingRealSensor={dbg_usingRealSensor}
-        phase={phase}
-        elapsed={elapsed}
-        workerCount={workerCount}
-        running={running}
-        baselineAlreadyHot={dbg_baselineAlreadyHot}
-        workerKOpsPerSec={dbg_workerKOpsPerSec}
-        onRecalibrate={handleRecalibrate}
-      />
+      {/* ── Premium sheet ── */}
+      <AnimatePresence>
+        {showPremium && (
+          <PremiumSheet
+            onPurchase={handlePurchase}
+            onRestore={handleRestore}
+            onDismiss={() => setShowPremium(false)}
+          />
+        )}
+      </AnimatePresence>
 
     </div>
   );

@@ -90,36 +90,6 @@ export interface WarmSession {
   /** Whether button is locked while device cools back to ambient. */
   coolingDown: boolean;
 
-  // ── Debug fields ──────────────────────────────────────────────────────────
-  /** Raw thermal sensor reading in °C. null = no native sensor / web. */
-  dbg_thermalRaw: number | null;
-  /** Purely simulated temperature (exponential ramp model), regardless of sensor. */
-  dbg_simTemp: number;
-  /** Rolling-max baseline established during the first SETTLE_SECS. */
-  dbg_warmingBaseline: number | null;
-  /** Target °C required to leave the warming phase (baseline + WARMUP_DELTA_C). */
-  dbg_targetC: number | null;
-  /** Progress through the 45-s settle window (0..1). */
-  dbg_settleProgress: number;
-  /** Ambient °C from calibration (or default). */
-  dbg_ambientC: number;
-  /** Whether the app is using a real hardware thermal sensor. */
-  dbg_usingRealSensor: boolean;
-  /** True once settle is done AND the settled baseline was already ≥60 °C. */
-  dbg_baselineAlreadyHot: boolean;
-
-  /**
-   * Combined throughput of all CPU workers: kilo-ops per second,
-   * computed from the number of completed 10 k-FPU-op blocks reported by
-   * each worker heartbeat divided by the actual elapsed tick interval.
-   * null = no session running or no heartbeats received yet.
-   *
-   * This is the reliable signal for Android CPU throttling: if the OS
-   * suspends a worker thread, performance.now() in the worker continues
-   * advancing (so wall-clock burn-time is not a useful signal), but the
-   * worker completes fewer iterations — kOps/s drops.
-   */
-  dbg_workerKOpsPerSec: number | null;
 }
 
 // ── Implementation ─────────────────────────────────────────────────────────────
@@ -444,13 +414,6 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
     ? Math.max(0, therapLimit - therapeuticElapsed) : 0;
 
   const SETTLE_SECS_CONST = 45;
-  const dbg_settleProgress = running
-    ? Math.min(1, elapsed / SETTLE_SECS_CONST)
-    : 0;
-  const dbg_targetC = warmingBaseline !== null
-    ? warmingBaseline + WARMUP_DELTA_C[intensity]
-    : null;
-  const dbg_baselineAlreadyHot =
     elapsed > SETTLE_SECS_CONST && warmingBaseline !== null && warmingBaseline >= 60;
 
   return {
@@ -460,14 +423,5 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
     workerCount: workerCountFor(intensity),
     coolingDown,
     // debug
-    dbg_thermalRaw: thermalC,
-    dbg_simTemp: simTemp,
-    dbg_warmingBaseline: warmingBaseline,
-    dbg_targetC,
-    dbg_settleProgress,
-    dbg_ambientC: ambientC,
-    dbg_usingRealSensor: calibration?.usingRealSensor ?? false,
-    dbg_baselineAlreadyHot,
-    dbg_workerKOpsPerSec: workerKOpsPerSec,
   };
 }
