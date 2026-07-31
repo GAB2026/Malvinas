@@ -276,3 +276,10 @@ id = "E3EZHkaLJtT605cG5b2ym"
 uri = "file://screenshots/qr-v3.1.png"
 type = "image"
 title = "QR — Thermal Pad v3.1"
+
+[[outputs]]
+id = "JlaV2t9Kk40armONnSA7A"
+uri = "file://screenshots/qr-v2.9-retry.png"
+type = "image"
+title = "QR — Thermal Pad v2.9"
+description = "Último APK disponible mientras CI compila v3.1"
