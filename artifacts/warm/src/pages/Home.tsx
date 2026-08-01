@@ -316,8 +316,8 @@ export default function Home() {
               >
                 {locked
                   ? <span className="flex flex-col items-center gap-0.5">
-                      <Lock size={13} className="text-muted-foreground/50" />
-                      <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/50">
+                      <Lock size={13} className="text-muted-foreground" />
+                      <span className="text-[11px] font-bold uppercase tracking-widest text-foreground/60">
                         {intensityLabels[level]}
                       </span>
                     </span>
