@@ -298,3 +298,10 @@ uri = "file://screenshots/qr-v3.2.png"
 type = "image"
 title = "QR — Thermal Pad v3.2"
 description = "Recalibración forzada · 2 intensidades · sin fast-track"
+
+[[outputs]]
+id = "ftfqRtJHdKV_akIbrrAOh"
+uri = "file://qr-warm-v3.3.png"
+type = "image"
+title = "Warm v3.3 — APK"
+description = "https://github.com/GAB2026/Malvinas/releases/download/warm-v3.3/app-release.apk"
