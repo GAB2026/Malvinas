@@ -291,3 +291,10 @@ uri = "file://screenshots/qr-v3.1-final.png"
 type = "image"
 title = "QR — Thermal Pad v3.1"
 description = "Sin debug, con paywall activo."
+
+[[outputs]]
+id = "PLcsvz3k8Td3jhVCs7c9Q"
+uri = "file://screenshots/qr-v3.2.png"
+type = "image"
+title = "QR — Thermal Pad v3.2"
+description = "Recalibración forzada · 2 intensidades · sin fast-track"
