@@ -315,7 +315,12 @@ export default function Home() {
                       : 'border-white/8 bg-card hover:border-white/15 hover:bg-white/5'}`}
               >
                 {locked
-                  ? <Lock size={13} className="text-muted-foreground/50 mb-0.5" />
+                  ? <span className="flex flex-col items-center gap-0.5">
+                      <Lock size={13} className="text-muted-foreground/50" />
+                      <span className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground/50">
+                        {intensityLabels[level]}
+                      </span>
+                    </span>
                   : <span className={`text-[11px] font-bold uppercase tracking-widest ${active ? 'text-orange-400' : 'text-muted-foreground'}`}>
                       {level === 'high' && active ? '🔥 ' : ''}{intensityLabels[level]}
                     </span>
