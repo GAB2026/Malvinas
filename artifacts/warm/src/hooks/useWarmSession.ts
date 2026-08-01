@@ -308,11 +308,7 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
         const baselineAlreadyHot = minTimeDone && baseline !== null && baseline >= THERAPEUTIC_ABS_C;
         const currentlyHot       = minTimeDone && currentC !== null && currentC >= THERAPEUTIC_ABS_C;
 
-        // Fast-track: sensor hits ≥80°C before settle ends → go straight to therapeutic.
-        const FAST_TRACK_C = 80;
-        const fastTrack = currentC !== null && currentC >= FAST_TRACK_C;
-
-        if (tempReached || fastTrack || baselineAlreadyHot || currentlyHot || timedOut) {
+        if (tempReached || baselineAlreadyHot || currentlyHot || timedOut) {
           therapStartRef.current = now;
           phaseRef.current = 'therapeutic';
           setPhase('therapeutic');

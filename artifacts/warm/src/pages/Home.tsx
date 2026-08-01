@@ -147,9 +147,7 @@ export default function Home() {
     if (coolingDown) return;
     // Block start if selected intensity is locked
     if (intensity === 'high' && !isPremium) { setShowPremium(true); return; }
-    if (intensity === 'medium' && !canUseMedium) { setShowPremium(true); return; }
     triggerPulse();
-    if (intensity === 'medium') consumeMediumTrial();
     start();
     startLockRef.current = true;
     setTimeout(() => { startLockRef.current = false; }, 2500);
@@ -158,7 +156,6 @@ export default function Home() {
   const handleIntensityClick = (level: Intensity) => {
     if (running) return;
     if (level === 'high' && !isPremium) { setShowPremium(true); return; }
-    if (level === 'medium' && !canUseMedium) { setShowPremium(true); return; }
     setIntensity(level);
   };
 
@@ -176,19 +173,22 @@ export default function Home() {
   const minutes = (i: Intensity) =>
     i === 'high' ? calibration.highMinutes : i === 'medium' ? calibration.mediumMinutes : calibration.lowMinutes;
 
-  const intensities: Intensity[] = ['low', 'medium', 'high'];
-  const intensityLabels: Record<Intensity, string> = { low: t.low, medium: t.medium, high: t.high };
+  // Only two intensities: medium (shown as "Baja") and high ("Alta").
+  // Low was removed — too little heat. Medium settings now fill the "Baja" slot.
+  const intensities: Intensity[] = ['medium', 'high'];
+  const intensityLabels: Record<Intensity, string> = {
+    low: t.low, medium: t.low, high: t.high,
+  };
   const glowIntensity = running ? 0.15 + heatLevel * 0.85 : 0;
 
   // Per-intensity lock state
   const isLocked = (level: Intensity) =>
-    (level === 'high' && !isPremium) ||
-    (level === 'medium' && !canUseMedium);
+    level === 'high' && !isPremium;
 
   // Badge shown inside the card
   const badge = (level: Intensity): string | null => {
     if (level === 'high' && !isPremium) return t.premium.lockedHint;
-    if (level === 'medium' && !isPremium && canUseMedium)
+    if (level === 'medium' && !isPremium && canUseMedium && mediumTrialsLeft < Infinity)
       return `${mediumTrialsLeft} ${t.trial.left}`;
     return null;
   };
