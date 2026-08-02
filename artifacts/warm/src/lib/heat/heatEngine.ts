@@ -54,6 +54,14 @@ export class HeatEngine {
   private _intensity: Intensity = 'medium';
   private _heartbeatHandlers: Array<(hb: WorkerHeartbeat) => void> = [];
 
+  // ── Burst scheduling ────────────────────────────────────────────────────────
+  // Alternates between full load (1500 ms) and near-idle (500 ms).
+  // Under Android CPU throttling, the brief idle allows cores to cool slightly
+  // so the next burst hits at a higher clock frequency before the governor
+  // clamps it again — net heat output is higher than sustained 100% load.
+  private _burstRunning = false;
+  private _burstHandle: ReturnType<typeof setTimeout> | null = null;
+
   get running()    { return this._running; }
   get intensity()  { return this._intensity; }
 
@@ -70,6 +78,27 @@ export class HeatEngine {
 
   private _dispatchHeartbeat(hb: WorkerHeartbeat) {
     for (const h of this._heartbeatHandlers) h(hb);
+  }
+
+  enableBurst() {
+    if (this._burstRunning) return;
+    this._burstRunning = true;
+    this._burstStep(true);
+  }
+
+  disableBurst() {
+    this._burstRunning = false;
+    if (this._burstHandle !== null) { clearTimeout(this._burstHandle); this._burstHandle = null; }
+    // Restore normal duty for current intensity
+    const duty = PROFILES[this._intensity].duty;
+    for (const w of this.workers) w.postMessage({ type: 'setDuty', duty });
+  }
+
+  private _burstStep(isHigh: boolean) {
+    if (!this._burstRunning || !this._running) return;
+    const duty = isHigh ? 1.0 : 0.05;
+    for (const w of this.workers) w.postMessage({ type: 'setDuty', duty });
+    this._burstHandle = setTimeout(() => this._burstStep(!isHigh), isHigh ? 1500 : 500);
   }
 
   start(intensity: Intensity) {

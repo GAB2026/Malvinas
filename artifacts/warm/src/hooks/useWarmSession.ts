@@ -89,7 +89,8 @@ export interface WarmSession {
   workerCount: number;
   /** Whether button is locked while device cools back to ambient. */
   coolingDown: boolean;
-
+  /** True when burst scheduling is active to fight CPU throttling. */
+  burstActive: boolean;
 }
 
 // ── Implementation ─────────────────────────────────────────────────────────────
@@ -137,6 +138,24 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
   const hbEverReceivedRef = useRef(false);
   const [workerKOpsPerSec, setWorkerKOpsPerSec] = useState<number | null>(null);
 
+  // ── Burst / throttle detection ────────────────────────────────────────────
+  // Baseline = rolling average of kOps during first BASELINE_TICKS ticks.
+  // When kOps drops below THROTTLE_RATIO × baseline for THROTTLE_COUNT
+  // consecutive ticks, burst mode is enabled.  It disables when kOps
+  // recovers above RECOVERY_RATIO × baseline for RECOVERY_COUNT ticks.
+  const BASELINE_TICKS  = 15;   // ticks (~15 s) to establish baseline
+  const THROTTLE_RATIO  = 0.65; // <65% of baseline → throttling
+  const RECOVERY_RATIO  = 0.80; // >80% of baseline → recovered
+  const THROTTLE_COUNT  = 3;    // consecutive ticks needed to enable burst
+  const RECOVERY_COUNT  = 5;    // consecutive ticks needed to disable burst
+  const baselineKOpsRef    = useRef<number | null>(null);
+  const baselineSumRef     = useRef(0);
+  const baselineCountRef   = useRef(0);
+  const throttleCountRef   = useRef(0);
+  const recoveryCountRef   = useRef(0);
+  const [burstActive, setBurstActive] = useState(false);
+  const burstActiveRef     = useRef(false); // mirrors state for tick closure
+
   const ambientC = calibration?.ambientC ?? AMBIENT_C;
 
   /** Session max in seconds for the current intensity from calibration. */
@@ -169,6 +188,16 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
     lastTickMsRef.current     = null;
     hbEverReceivedRef.current = false;
     setWorkerKOpsPerSec(null);
+    // Stop burst mode
+    engineRef.current?.disableBurst();
+    burstActiveRef.current = false;
+    setBurstActive(false);
+    // Reset burst/throttle detection state
+    baselineKOpsRef.current  = null;
+    baselineSumRef.current   = 0;
+    baselineCountRef.current = 0;
+    throttleCountRef.current = 0;
+    recoveryCountRef.current = 0;
     // Start cooldown if we have real thermal data
     if (calibration?.usingRealSensor) {
       coolingRef.current = true;
@@ -205,6 +234,14 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
     lastTickMsRef.current     = null;
     hbEverReceivedRef.current = false;
     setWorkerKOpsPerSec(null);
+    // Reset burst/throttle detection for fresh session
+    baselineKOpsRef.current  = null;
+    baselineSumRef.current   = 0;
+    baselineCountRef.current = 0;
+    throttleCountRef.current = 0;
+    recoveryCountRef.current = 0;
+    burstActiveRef.current   = false;
+    setBurstActive(false);
     runningRef.current = true;
     phaseRef.current = 'warming';
     setElapsed(0);
@@ -263,11 +300,54 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
       lastTickMsRef.current = now;
       // Only publish a value after the first heartbeat so the overlay shows
       // "— (sin sesión)" rather than "0 kOps/s" while workers warm up.
-      setWorkerKOpsPerSec(
-        hbEverReceivedRef.current && tickElapsedMs > 0
-          ? Math.round(iters * 10_000 / tickElapsedMs)
-          : null,
-      );
+      const kOps = hbEverReceivedRef.current && tickElapsedMs > 0
+        ? Math.round(iters * 10_000 / tickElapsedMs)
+        : null;
+      setWorkerKOpsPerSec(kOps);
+
+      // ── Burst / throttle detection (only at HIGH intensity, real sensor) ──
+      if (kOps !== null && intensityRef.current === 'high' && calibration?.usingRealSensor) {
+        // Build baseline during first BASELINE_TICKS ticks
+        if (baselineCountRef.current < BASELINE_TICKS) {
+          baselineSumRef.current  += kOps;
+          baselineCountRef.current++;
+          if (baselineCountRef.current === BASELINE_TICKS) {
+            baselineKOpsRef.current = baselineSumRef.current / BASELINE_TICKS;
+          }
+        } else if (baselineKOpsRef.current !== null) {
+          const baseline = baselineKOpsRef.current;
+          if (!engineRef.current!.running) { /* session stopped — skip */ }
+          else if (burstActiveRef.current) {
+            // Check recovery
+            if (kOps >= baseline * RECOVERY_RATIO) {
+              recoveryCountRef.current++;
+              throttleCountRef.current = 0;
+              if (recoveryCountRef.current >= RECOVERY_COUNT) {
+                engineRef.current!.disableBurst();
+                burstActiveRef.current = false;
+                setBurstActive(false);
+                recoveryCountRef.current = 0;
+              }
+            } else {
+              recoveryCountRef.current = 0;
+            }
+          } else {
+            // Check throttling
+            if (kOps < baseline * THROTTLE_RATIO) {
+              throttleCountRef.current++;
+              recoveryCountRef.current = 0;
+              if (throttleCountRef.current >= THROTTLE_COUNT) {
+                engineRef.current!.enableBurst();
+                burstActiveRef.current = true;
+                setBurstActive(true);
+                throttleCountRef.current = 0;
+              }
+            } else {
+              throttleCountRef.current = 0;
+            }
+          }
+        }
+      }
 
       // Warming → therapeutic transition (run BEFORE async calls)
       if (phaseRef.current === 'warming') {
@@ -417,7 +497,6 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
     phase, elapsed, therapeuticElapsed, therapeuticRemaining,
     deviceTempC, heatLevel, stopReason, wakeLockActive, batteryLevel,
     workerCount: workerCountFor(intensity),
-    coolingDown,
-    // debug
+    coolingDown, burstActive,
   };
 }
