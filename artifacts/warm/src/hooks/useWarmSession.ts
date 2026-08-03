@@ -158,13 +158,11 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
 
   const ambientC = calibration?.ambientC ?? AMBIENT_C;
 
-  /** Session max in seconds for the current intensity from calibration. */
+  /** Session max in seconds. HIGH is always 15 min; other intensities from calibration. */
   const sessionMaxSecs = useCallback((i: Intensity): number => {
-    if (!calibration) return 15 * 60;
-    const m = i === 'high' ? calibration.highMinutes
-            : i === 'medium' ? calibration.mediumMinutes
-            : calibration.lowMinutes;
-    return m * 60;
+    if (i === 'high') return 15 * 60;
+    if (!calibration) return 20 * 60;
+    return i === 'medium' ? calibration.mediumMinutes * 60 : calibration.lowMinutes * 60;
   }, [calibration]);
 
 
