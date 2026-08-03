@@ -144,8 +144,8 @@ export function useCalibration() {
       const sumT2  = samples.reduce((a, s) => a + s.t * s.t, 0);
       const rate   = (n * sumTY - sumT * sumY) / (n * sumT2 - sumT * sumT); // °C/s
       const lastTemp = samples[samples.length - 1].temp;
-      // Thermal max: extrapolate to where Android throttles (~80°C chip)
-      const thermalMaxC = Math.min(lastTemp + rate * 120, 80);
+      // Thermal max: extrapolate ceiling; cap at 90°C (hardware safety limit)
+      const thermalMaxC = Math.min(lastTemp + rate * 120, 90);
 
       calibrated = {
         ambientC: ambient,

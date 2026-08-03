@@ -76,7 +76,7 @@ function PremiumSheet({
           <p className="text-sm text-muted-foreground leading-relaxed">{p.subtitle}</p>
         </div>
         <ul className="flex flex-col gap-2 text-sm text-foreground/80">
-          {[p.benefit1, p.benefit2, p.benefit3].map((b) => (
+          {[p.benefit1, p.benefit2].map((b) => (
             <li key={b} className="flex items-center gap-2">
               <span className="text-primary text-base">✓</span> {b}
             </li>

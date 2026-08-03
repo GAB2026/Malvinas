@@ -363,32 +363,16 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
         const currentC = rawC !== null ? rawC
           : (hasRealSensor ? null : simulatedTemp(intensity, secs));
 
-        // Build baseline as the rolling MAX seen in the first SETTLE_SECS.
-        // A stale sensor often returns a cold value first, then the real
-        // (post-calibration) hot value a second later. Taking the max ensures
-        // the baseline reflects the true starting temperature, so the gate
-        // requires a genuine rise above it — not just a stale→real jump.
-        const SETTLE_SECS = 45;
-        if (currentC !== null && secs <= SETTLE_SECS) {
-          if (warmingBaselineRef.current === null || currentC > warmingBaselineRef.current) {
-            warmingBaselineRef.current = currentC;
-            setWarmingBaseline(currentC);
-          }
-        }
+        // Brief settle window to avoid a stale sensor triggering transition
+        // immediately at session start.  After that, transition as soon as
+        // the device reaches the target temperature or the timeout fires.
+        const SETTLE_SECS = 10;
+        const THERAPEUTIC_ABS_C = 85;
+        const timedOut     = secs >= MAX_WARMUP_SECS[intensity];
+        const minTimeDone  = secs > SETTLE_SECS;
+        const currentlyHot = minTimeDone && currentC !== null && currentC >= THERAPEUTIC_ABS_C;
 
-        const timedOut    = secs >= MAX_WARMUP_SECS[intensity];
-        // Don't gate on temperature until the baseline has had time to settle.
-        const minTimeDone = secs > SETTLE_SECS;
-        const baseline    = warmingBaselineRef.current;
-        const targetC     = (baseline ?? ambientC) + WARMUP_DELTA_C[intensity];
-        const tempReached = minTimeDone && currentC !== null && baseline !== null && currentC >= targetC;
-
-        // If the baseline settled above this threshold, skip straight to therapeutic.
-        const THERAPEUTIC_ABS_C = 80;
-        const baselineAlreadyHot = minTimeDone && baseline !== null && baseline >= THERAPEUTIC_ABS_C;
-        const currentlyHot       = minTimeDone && currentC !== null && currentC >= THERAPEUTIC_ABS_C;
-
-        if (tempReached || baselineAlreadyHot || currentlyHot || timedOut) {
+        if (currentlyHot || timedOut) {
           therapStartRef.current = now;
           phaseRef.current = 'therapeutic';
           setPhase('therapeutic');
