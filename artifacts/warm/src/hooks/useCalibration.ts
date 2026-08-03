@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { HeatEngine } from '@/lib/heat/heatEngine';
 import { readDeviceTemp, THERMAL_AVAILABLE } from '@/lib/thermal';
 
-const STORAGE_KEY = 'warm-calibration-v4'; // bumped → forces recalibration on v3.2 upgrade
+const STORAGE_KEY = 'warm-calibration-v5'; // bumped → forces recalibration on v3.6 upgrade (cap 80→90°C)
 const CALIBRATION_SECS = 60;
 const SAMPLE_INTERVAL_SECS = 5;
 
