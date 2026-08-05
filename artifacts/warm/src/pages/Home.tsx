@@ -138,9 +138,24 @@ export default function Home() {
 
   // Prevent accidental double-tap: lock the flame for 2.5 s after starting.
   const startLockRef = useRef(false);
+  // Two-tap-to-stop: first tap arms, second tap within 2 s confirms.
+  const [pendingStop, setPendingStop] = useState(false);
+  const pendingStopTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const handleFlameClick = () => {
     if (running) {
       if (startLockRef.current) return;
+      if (!pendingStop) {
+        // First tap — arm the stop
+        setPendingStop(true);
+        pendingStopTimer.current = setTimeout(() => {
+          setPendingStop(false);
+        }, 2000);
+        return;
+      }
+      // Second tap — confirm stop
+      if (pendingStopTimer.current) clearTimeout(pendingStopTimer.current);
+      setPendingStop(false);
       stop();
       return;
     }
@@ -280,9 +295,16 @@ export default function Home() {
                 )}
               </AnimatePresence>
             </div>
-            <AnimatePresence>
-              {running && !coolingDown && (
-                <motion.span
+            <AnimatePresence mode="wait">
+              {running && !coolingDown && pendingStop && (
+                <motion.span key="confirm-stop"
+                  initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
+                  className="text-[10px] font-semibold text-destructive animate-pulse">
+                  ¿Terminar? Tocá de nuevo
+                </motion.span>
+              )}
+              {running && !coolingDown && !pendingStop && (
+                <motion.span key="hint-stop"
                   initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
                   className="text-[10px] text-muted-foreground/60">{t.tapToStop}
                 </motion.span>
