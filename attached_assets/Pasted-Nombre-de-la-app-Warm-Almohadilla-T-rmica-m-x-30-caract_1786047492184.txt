@@ -1,0 +1,43 @@
+Nombre de la app
+Warm – Almohadilla Térmica
+
+(máx 30 caracteres — esto entra justo)
+
+Descripción corta
+(máx 80 caracteres — aparece en la búsqueda)
+
+Terapia de calor profesional directamente desde tu teléfono.
+
+Descripción completa
+(máx 4000 caracteres)
+
+Warm convierte tu teléfono Android en una almohadilla térmica inteligente para terapias de calor localizadas.
+¿Cómo funciona?
+Warm ejecuta cálculos intensivos que generan calor real en el procesador de tu dispositivo. Ese calor se irradia a través de la carcasa, ideal para aplicar sobre zonas tensas, articulaciones o músculos cansados.
+✦ Tres niveles de intensidad
+• Baja — sesión suave para uso cotidiano
+• Media — calor moderado para alivio muscular
+• Alta (Premium) — máxima intensidad, 15 minutos de terapia continua
+✦ Temperatura en tiempo real
+Monitoreo continuo de la temperatura del dispositivo para que siempre sepas a qué nivel estás trabajando.
+✦ Protección automática
+La sesión se detiene automáticamente cuando la batería llega al 15 % o si la app pasa a segundo plano. Para terminar una sesión manualmente, tocá la llama dos veces.
+✦ Sin suscripción
+Premium se desbloquea con un único pago de $2,99. Sin cobros recurrentes, sin sorpresas.
+AVISO DE SEGURIDAD
+Esta app genera calor real en el dispositivo. No la uses sobre piel irritada o heridas. No la dejes sin supervisión sobre superficies inflamables. Consultá con un profesional de la salud si tenés dudas sobre el uso terapéutico del calor.
+Compatibilidad: Android 8.0 o superior.
+
+Assets que vas a necesitar subir
+Asset	Tamaño requerido	Consejo
+Ícono de la app	512 × 512 px PNG	Ya lo tenés del APK
+Feature graphic	1024 × 500 px PNG/JPG	Banner de presentación — puedo generarlo
+Capturas de pantalla	mín 2, máx 8 por dispositivo	Mínimo teléfono; puedo ayudarte con los textos de cada captura
+Categoría sugerida
+Salud y bienestar → subcategoría: Salud personal
+
+Clasificación de contenido
+Cuando te pida completar el cuestionario de clasificación, respondé:
+
+Sin violencia, sin contenido adulto, sin referencias a drogas
+La app generará calificación "Para todos" o PEGI 3

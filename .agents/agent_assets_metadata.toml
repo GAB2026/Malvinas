@@ -354,3 +354,10 @@ uri = "file://feature-graphic-malvinas.jpg"
 type = "image"
 title = "Feature Graphic — Distancia a Las Malvinas"
 description = "Banner 1024×500 para subir a Play Store"
+
+[[outputs]]
+id = "4Y244JBJEPclnOQl-bKIB"
+uri = "file://feature-graphic-warm.jpg"
+type = "image"
+title = "Feature Graphic — Warm"
+description = "Banner 1024×500 para subir a Play Store"
