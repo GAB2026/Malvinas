@@ -347,3 +347,10 @@ uri = "file://qr-warm-v3.9.png"
 type = "image"
 title = "Warm v3.9 — APK"
 description = "https://github.com/GAB2026/Malvinas/releases/download/warm-v3.9/app-release.apk"
+
+[[outputs]]
+id = "oqApZrD7WppY1LACkOjTc"
+uri = "file://feature-graphic-malvinas.jpg"
+type = "image"
+title = "Feature Graphic — Distancia a Las Malvinas"
+description = "Banner 1024×500 para subir a Play Store"
