@@ -361,3 +361,10 @@ uri = "file://feature-graphic-warm.jpg"
 type = "image"
 title = "Feature Graphic — Warm"
 description = "Banner 1024×500 para subir a Play Store"
+
+[[outputs]]
+id = "vQQawEmy1Dh16AXE_PiY8"
+uri = "file://qr-warm-v3.10.png"
+type = "image"
+title = "Warm v3.10 — APK"
+description = "https://github.com/GAB2026/Malvinas/releases/download/warm-v3.10/app-release.apk"
