@@ -145,7 +145,7 @@ const T: Record<Lang, Translations> = {
     warmingUp: 'Calentamiento',
     safetyTitle: 'Aviso de seguridad',
     safetyBody:
-      'Esta app calienta el dispositivo mediante cálculos intensivos. Consume batería rápidamente. Se detiene automáticamente cuando queda 15 % de batería o la temperatura sea un riesgo para el dispositivo.',
+      'La sesión se interrumpe de forma automática si el nivel de batería desciende al 20 %. Esto garantiza no excederse en el consumo. Asegúrese de contar con carga suficiente antes de iniciar la terapia térmica.',
     autoStop: {
       'time-limit': 'Sesión terapéutica completada',
       'low-battery': 'Batería baja — sesión detenida',

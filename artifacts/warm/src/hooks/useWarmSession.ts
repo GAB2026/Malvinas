@@ -10,7 +10,7 @@ import type { CalibrationResult } from './useCalibration';
 
 export type { Intensity } from '@/lib/heat/heatEngine';
 
-export const LOW_BATTERY_CUTOFF = 0.15;
+export const LOW_BATTERY_CUTOFF = 0.20;
 
 export type StopReason =
   | 'user'
@@ -204,9 +204,10 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
     baselineCountRef.current = 0;
     throttleCountRef.current = 0;
     recoveryCountRef.current = 0;
-    // Start cooldown only for automatic stops (time-limit, battery, background).
-    // Manual user stops (double-tap) return immediately to idle — no cooldown.
-    if (reason !== 'user' && calibration?.usingRealSensor) {
+    // Start cooldown only for battery/background stops on a real sensor.
+    // 'user' (double-tap) and 'time-limit' (countdown reached 0) both return
+    // immediately to idle — no cooldown screen, no loop.
+    if (reason !== 'user' && reason !== 'time-limit' && calibration?.usingRealSensor) {
       coolingRef.current = true;
       setCoolingDown(true);
     }
