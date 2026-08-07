@@ -68,6 +68,13 @@ const MAX_WARMUP_SECS: Record<Intensity, number> = {
   high:    8 * 60,  //  8 min
 };
 
+/**
+ * Guaranteed minimum warming duration (seconds).  No transition to therapeutic
+ * fires before this elapses, regardless of sensor reading.  A visible countdown
+ * from MIN_WARMUP_SECS to 0 is shown during this window.
+ */
+const MIN_WARMUP_SECS = 4 * 60; // 4 minutes
+
 // ── Hook interface ─────────────────────────────────────────────────────────────
 export interface WarmSession {
   running: boolean;
@@ -78,6 +85,8 @@ export interface WarmSession {
   elapsed: number;
   therapeuticElapsed: number;
   therapeuticRemaining: number;
+  /** Seconds remaining in the mandatory 4-minute warming window (0 once elapsed). */
+  warmingRemaining: number;
   /** Displayed temperature in °C — real sensor when available, else simulated. */
   deviceTempC: number;
   /** 0..1 heat ramp for visual effects (simulated model). */
@@ -376,11 +385,12 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
         // the device reaches the target temperature or the timeout fires.
         const SETTLE_SECS = 10;
         const THERAPEUTIC_ABS_C = 85;
-        const timedOut     = secs >= MAX_WARMUP_SECS[intensity];
-        const minTimeDone  = secs > SETTLE_SECS;
-        const currentlyHot = minTimeDone && currentC !== null && currentC >= THERAPEUTIC_ABS_C;
+        const timedOut        = secs >= MAX_WARMUP_SECS[intensity];
+        const minTimeDone     = secs > SETTLE_SECS;
+        const minWarmupDone   = secs >= MIN_WARMUP_SECS;   // must wait 4 min
+        const currentlyHot    = minTimeDone && currentC !== null && currentC >= THERAPEUTIC_ABS_C;
 
-        if (currentlyHot || timedOut) {
+        if ((currentlyHot || timedOut) && minWarmupDone) {
           therapStartRef.current = now;
           phaseRef.current = 'therapeutic';
           setPhase('therapeutic');
@@ -481,12 +491,15 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
   const therapeuticRemaining = phase === 'therapeutic'
     ? Math.max(0, therapLimit - therapeuticElapsed) : 0;
 
+  const warmingRemaining = phase === 'warming'
+    ? Math.max(0, MIN_WARMUP_SECS - elapsed) : 0;
+
   const SETTLE_SECS_CONST = 45;
     elapsed > SETTLE_SECS_CONST && warmingBaseline !== null && warmingBaseline >= 60;
 
   return {
     running, intensity, start, stop,
-    phase, elapsed, therapeuticElapsed, therapeuticRemaining,
+    phase, elapsed, therapeuticElapsed, therapeuticRemaining, warmingRemaining,
     deviceTempC, heatLevel, stopReason, wakeLockActive, batteryLevel,
     workerCount: workerCountFor(intensity),
     coolingDown, burstActive,

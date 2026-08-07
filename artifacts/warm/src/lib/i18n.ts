@@ -139,7 +139,7 @@ const T: Record<Lang, Translations> = {
     screenAwake: 'Pantalla activa',
     screenSleep: 'Pantalla puede dormir',
     tempLabel: 'Temp. dispositivo',
-    phaseWarming: 'Calibrando temperatura máxima…',
+    phaseWarming: 'Calibrando temperatura del dispositivo… aguarde por favor',
     phaseTherapeutic: 'Terapia activa',
     targetReached: 'Temperatura alcanzada',
     warmingUp: 'Calentamiento',
