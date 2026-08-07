@@ -72,7 +72,6 @@ const MAX_WARMUP_SECS: Record<Intensity, number> = {
 export interface WarmSession {
   running: boolean;
   intensity: Intensity;
-  setIntensity: (i: Intensity) => void;
   start: () => void;
   stop: () => void;
   phase: Phase;
@@ -91,6 +90,9 @@ export interface WarmSession {
   coolingDown: boolean;
   /** True when burst scheduling is active to fight CPU throttling. */
   burstActive: boolean;
+  /** Duration of the therapeutic phase in seconds (5/10/15 min). */
+  sessionDurationSecs: number;
+  setSessionDuration: (secs: number) => void;
 }
 
 // ── Implementation ─────────────────────────────────────────────────────────────
@@ -99,7 +101,7 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
   if (!engineRef.current) engineRef.current = new HeatEngine();
 
   const [running, setRunning]               = useState(false);
-  const [intensity, setIntensityState]      = useState<Intensity>('medium');
+  const [intensity, setIntensityState]      = useState<Intensity>('high');
   const [elapsed, setElapsed]               = useState(0);
   const [therapeuticElapsed, setTherapElapsed] = useState(0);
   const [phase, setPhase]                   = useState<Phase>('idle');
@@ -109,12 +111,14 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
   const [thermalC, setThermalC]             = useState<number | null>(null);
   const [coolingDown, setCoolingDown]       = useState(false);
   const [warmingBaseline, setWarmingBaseline] = useState<number | null>(null);
+  const [sessionDurationSecs, setSessionDurationState] = useState<number>(15 * 60);
+  const sessionDurationSecsRef = useRef<number>(15 * 60);
 
   const wakeLockRef     = useRef<{ release: () => Promise<void> } | null>(null);
   const startedAtRef    = useRef(0);
   const therapStartRef  = useRef<number | null>(null);
   const runningRef      = useRef(false);
-  const intensityRef    = useRef<Intensity>('medium');
+  const intensityRef    = useRef<Intensity>('high');
   const phaseRef        = useRef<Phase>('idle');
   const coolingRef      = useRef(false);
   // Mirror of thermalC state as a ref so the interval callback always reads
@@ -158,12 +162,16 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
 
   const ambientC = calibration?.ambientC ?? AMBIENT_C;
 
-  /** Session max in seconds. HIGH is always 15 min; other intensities from calibration. */
-  const sessionMaxSecs = useCallback((i: Intensity): number => {
-    if (i === 'high') return 15 * 60;
-    if (!calibration) return 20 * 60;
-    return i === 'medium' ? calibration.mediumMinutes * 60 : calibration.lowMinutes * 60;
-  }, [calibration]);
+  const setSessionDuration = useCallback((secs: number) => {
+    sessionDurationSecsRef.current = secs;
+    setSessionDurationState(secs);
+  }, []);
+
+  // Session max is always driven by the user-selected duration.
+  // Intensity parameter kept for signature compatibility but ignored.
+  const sessionMaxSecs = useCallback((_i: Intensity): number => {
+    return sessionDurationSecsRef.current;
+  }, []);
 
 
   const releaseWakeLock = useCallback(async () => {
@@ -196,8 +204,9 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
     baselineCountRef.current = 0;
     throttleCountRef.current = 0;
     recoveryCountRef.current = 0;
-    // Start cooldown if we have real thermal data
-    if (calibration?.usingRealSensor) {
+    // Start cooldown only for automatic stops (time-limit, battery, background).
+    // Manual user stops (double-tap) return immediately to idle — no cooldown.
+    if (reason !== 'user' && calibration?.usingRealSensor) {
       coolingRef.current = true;
       setCoolingDown(true);
     }
@@ -475,10 +484,11 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
     elapsed > SETTLE_SECS_CONST && warmingBaseline !== null && warmingBaseline >= 60;
 
   return {
-    running, intensity, setIntensity, start, stop,
+    running, intensity, start, stop,
     phase, elapsed, therapeuticElapsed, therapeuticRemaining,
     deviceTempC, heatLevel, stopReason, wakeLockActive, batteryLevel,
     workerCount: workerCountFor(intensity),
     coolingDown, burstActive,
+    sessionDurationSecs, setSessionDuration,
   };
 }

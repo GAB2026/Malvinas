@@ -143,11 +143,10 @@ describe('useWarmSession', () => {
 
   // ── phase transitions ─────────────────────────────────────────────────────
 
-  it('transitions to "therapeutic" phase once target temp is reached (medium, ~210 s)', () => {
+  it('transitions to "therapeutic" phase once target temp is reached (~210 s)', () => {
     const { result } = renderHook(() => useWarmSession(null));
-    act(() => result.current.setIntensity('medium'));
     act(() => result.current.start());
-    // medium target is 40°C; reached at ~208 s; advance 300 s to be safe
+    // high target ~43°C reached at ~125 s; advance 300 s to be safe
     act(() => vi.advanceTimersByTime(300000));
     expect(result.current.phase).toBe('therapeutic');
     expect(result.current.therapeuticRemaining).toBeGreaterThan(0);
@@ -155,7 +154,6 @@ describe('useWarmSession', () => {
 
   it('transitions to "therapeutic" phase at high intensity', () => {
     const { result } = renderHook(() => useWarmSession(null));
-    act(() => result.current.setIntensity('high'));
     act(() => result.current.start());
     // high target 43°C reached at ~125 s; advance 200 s
     act(() => vi.advanceTimersByTime(200000));
@@ -171,7 +169,6 @@ describe('useWarmSession', () => {
 
   it('auto-stops with stopReason "time-limit" after warming + 15 min therapeutic (high intensity)', () => {
     const { result } = renderHook(() => useWarmSession(null));
-    act(() => result.current.setIntensity('high'));
     act(() => result.current.start());
     // high warm-up ~125 s + 15*60=900 s therapeutic = ~1025 s; advance 1100 s
     act(() => vi.advanceTimersByTime(1100000));
@@ -179,29 +176,19 @@ describe('useWarmSession', () => {
     expect(result.current.stopReason).toBe('time-limit');
   });
 
-  // ── intensity switching ───────────────────────────────────────────────────
+  // ── duration switching ────────────────────────────────────────────────────
 
-  it('setIntensity changes intensity when not running', () => {
+  it('intensity is always "high"', () => {
     const { result } = renderHook(() => useWarmSession(null));
-    act(() => result.current.setIntensity('high'));
     expect(result.current.intensity).toBe('high');
   });
 
-  it('setIntensity changes intensity while running', () => {
+  it('setSessionDuration changes session duration', () => {
     const { result } = renderHook(() => useWarmSession(null));
-    act(() => result.current.start());
-    act(() => result.current.setIntensity('low'));
-    expect(result.current.intensity).toBe('low');
-    expect(result.current.running).toBe(true);
-  });
-
-  it('workerCount changes when intensity changes', () => {
-    const { result } = renderHook(() => useWarmSession(null));
-    act(() => result.current.setIntensity('low'));
-    const lowCount = result.current.workerCount;
-    act(() => result.current.setIntensity('high'));
-    const highCount = result.current.workerCount;
-    expect(highCount).toBeGreaterThanOrEqual(lowCount);
+    act(() => result.current.setSessionDuration(5 * 60));
+    expect(result.current.sessionDurationSecs).toBe(300);
+    act(() => result.current.setSessionDuration(10 * 60));
+    expect(result.current.sessionDurationSecs).toBe(600);
   });
 
   // ── auto-stop: tab hidden ─────────────────────────────────────────────────
@@ -244,7 +231,6 @@ describe('useWarmSession', () => {
 
   it('auto-stops with "time-limit" on visibility restore when therapeutic phase overran', () => {
     const { result } = renderHook(() => useWarmSession(null));
-    act(() => result.current.setIntensity('high'));
     act(() => result.current.start());
 
     // Advance to therapeutic phase

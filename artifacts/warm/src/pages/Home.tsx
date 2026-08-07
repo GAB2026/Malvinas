@@ -1,11 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useWarmSession, StopReason, Intensity } from '@/hooks/useWarmSession';
+import { useWarmSession, StopReason } from '@/hooks/useWarmSession';
 import { useCalibration } from '@/hooks/useCalibration';
 import { usePremium } from '@/hooks/usePremium';
 import { useTranslations } from '@/lib/i18n';
 import { playCompletionChime } from '@/lib/chime';
 import AnimatedFlame from '@/components/AnimatedFlame';
-import { Battery, AlertTriangle, ShieldAlert, Lock, Thermometer, RefreshCw } from 'lucide-react';
+import { Battery, AlertTriangle, ShieldAlert, Thermometer, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const AUTO_DISMISS_MS = 5000;
@@ -103,15 +103,18 @@ function PremiumSheet({
 export default function Home() {
   const t = useTranslations();
   const { result: calibration, calibrating, progress } = useCalibration();
-  const { isPremium, mediumTrialsLeft, canUseMedium, consumeMediumTrial, purchase, restore } = usePremium();
+  const { isPremium, purchase, restore } = usePremium();
 
   const {
-    running, intensity, setIntensity, start, stop,
+    running, intensity, start, stop,
     phase, elapsed, therapeuticRemaining,
     heatLevel, stopReason, wakeLockActive, batteryLevel, coolingDown,
     deviceTempC,
-    workerCount,
+    sessionDurationSecs, setSessionDuration,
   } = useWarmSession(calibration);
+
+  const DURATION_OPTIONS = [5, 10, 15]; // minutes
+  const selectedMins = sessionDurationSecs / 60;
 
   const [toastReason, setToastReason] = useState<StopReason>(null);
   const prevStopReason = useRef<StopReason>(null);
@@ -160,18 +163,16 @@ export default function Home() {
       return;
     }
     if (coolingDown) return;
-    // Block start if selected intensity is locked
-    if (intensity === 'high' && !isPremium) { setShowPremium(true); return; }
+    if (!isPremium) { setShowPremium(true); return; }
     triggerPulse();
     start();
     startLockRef.current = true;
     setTimeout(() => { startLockRef.current = false; }, 2500);
   };
 
-  const handleIntensityClick = (level: Intensity) => {
+  const handleDurationClick = (mins: number) => {
     if (running) return;
-    if (level === 'high' && !isPremium) { setShowPremium(true); return; }
-    setIntensity(level);
+    setSessionDuration(mins * 60);
   };
 
   const handlePurchase = async () => {
@@ -185,28 +186,7 @@ export default function Home() {
 
   if (calibrating || !calibration) return <CalibrationScreen progress={progress} />;
 
-  const minutes = (i: Intensity) =>
-    i === 'high' ? calibration.highMinutes : i === 'medium' ? calibration.mediumMinutes : calibration.lowMinutes;
-
-  // Only two intensities: medium (shown as "Baja") and high ("Alta").
-  // Low was removed — too little heat. Medium settings now fill the "Baja" slot.
-  const intensities: Intensity[] = ['medium', 'high'];
-  const intensityLabels: Record<Intensity, string> = {
-    low: t.low, medium: t.low, high: t.high,
-  };
   const glowIntensity = running ? 0.15 + heatLevel * 0.85 : 0;
-
-  // Per-intensity lock state
-  const isLocked = (level: Intensity) =>
-    level === 'high' && !isPremium;
-
-  // Badge shown inside the card
-  const badge = (level: Intensity): string | null => {
-    if (level === 'high' && !isPremium) return t.premium.lockedHint;
-    if (level === 'medium' && !isPremium && canUseMedium && mediumTrialsLeft < Infinity)
-      return `${mediumTrialsLeft} ${t.trial.left}`;
-    return null;
-  };
 
   return (
     <div className="relative h-[100dvh] w-full flex flex-col items-center overflow-hidden bg-background px-5">
@@ -314,50 +294,27 @@ export default function Home() {
         </div>
       </div>{/* end TOP */}
 
-      {/* ── BOTTOM: intensity cards + footer ── */}
+      {/* ── BOTTOM: duration selector + footer ── */}
       <div className="z-10 w-full max-w-sm flex flex-col gap-2 mt-10 pb-6">
-        <span className="text-xs font-medium text-muted-foreground uppercase tracking-widest px-1">
-          {t.intensity}
-        </span>
         <div className="flex gap-2">
-          {intensities.map((level) => {
-            const active  = intensity === level;
-            const locked  = isLocked(level);
-            const cardBadge = badge(level);
+          {DURATION_OPTIONS.map((mins) => {
+            const active = selectedMins === mins;
             return (
               <button
-                key={level}
-                onClick={() => handleIntensityClick(level)}
+                key={mins}
+                onClick={() => handleDurationClick(mins)}
                 disabled={running}
                 className={`flex-1 flex flex-col items-center gap-1 py-3 px-2 rounded-2xl border transition-all duration-300 disabled:cursor-not-allowed
-                  ${locked
-                    ? 'border-white/8 bg-card opacity-60'
-                    : active
-                      ? 'bg-[#1e1410] border-orange-700 shadow-[0_0_18px_rgba(194,65,12,0.3)]'
-                      : 'border-white/8 bg-card hover:border-white/15 hover:bg-white/5'}`}
+                  ${active
+                    ? 'bg-[#1e1410] border-orange-700 shadow-[0_0_18px_rgba(194,65,12,0.3)]'
+                    : 'border-white/8 bg-card hover:border-white/15 hover:bg-white/5'}`}
               >
-                {locked
-                  ? <span className="flex flex-col items-center gap-0.5">
-                      <Lock size={13} className="text-muted-foreground" />
-                      <span className="text-[11px] font-bold uppercase tracking-widest text-foreground/60">
-                        {intensityLabels[level]}
-                      </span>
-                    </span>
-                  : <span className={`text-[11px] font-bold uppercase tracking-widest ${active ? 'text-orange-400' : 'text-muted-foreground'}`}>
-                      {level === 'high' && active ? '🔥 ' : ''}{intensityLabels[level]}
-                    </span>
-                }
-                <span className={`text-3xl font-bold leading-none tabular-nums ${active && !locked ? 'text-white' : 'text-foreground/25'}`}>
-                  {minutes(level)}
+                <span className={`text-3xl font-bold leading-none tabular-nums ${active ? 'text-white' : 'text-foreground/25'}`}>
+                  {mins}
                 </span>
-                <span className={`text-[10px] font-medium ${active && !locked ? 'text-orange-400/80' : 'text-muted-foreground/40'}`}>
+                <span className={`text-[10px] font-medium ${active ? 'text-orange-400/80' : 'text-muted-foreground/40'}`}>
                   min
                 </span>
-                {cardBadge && (
-                  <span className="text-[9px] font-semibold text-primary/80 mt-0.5 leading-none">
-                    {cardBadge}
-                  </span>
-                )}
               </button>
             );
           })}
