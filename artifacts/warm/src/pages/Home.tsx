@@ -3,7 +3,7 @@ import { useWarmSession, StopReason } from '@/hooks/useWarmSession';
 import { useCalibration } from '@/hooks/useCalibration';
 import { usePremium } from '@/hooks/usePremium';
 import { useTranslations } from '@/lib/i18n';
-import { playCompletionChime } from '@/lib/chime';
+import { playCompletionChime, playTherapeuticStartBeep } from '@/lib/chime';
 import AnimatedFlame from '@/components/AnimatedFlame';
 import { Battery, AlertTriangle, ShieldAlert, Thermometer, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -118,9 +118,18 @@ export default function Home() {
 
   const [toastReason, setToastReason] = useState<StopReason>(null);
   const prevStopReason = useRef<StopReason>(null);
+  const prevPhaseRef   = useRef<string>('idle');
   const [showPremium, setShowPremium] = useState(false);
 
   useEffect(() => { if (running) setToastReason(null); }, [running]);
+
+  // Beep when warming → therapeutic transition fires
+  useEffect(() => {
+    if (phase === 'therapeutic' && prevPhaseRef.current === 'warming') {
+      void playTherapeuticStartBeep();
+    }
+    prevPhaseRef.current = phase;
+  }, [phase]);
   useEffect(() => {
     if (stopReason && stopReason !== 'user' && stopReason !== prevStopReason.current) {
       prevStopReason.current = stopReason;
@@ -289,7 +298,7 @@ export default function Home() {
               {running && !coolingDown && !pendingStop && (
                 <motion.span key="hint-stop"
                   initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                  className="text-[10px] text-muted-foreground/60">{t.tapToStop}
+                  className="text-xs text-muted-foreground/60 mt-2">{t.tapToStop}
                 </motion.span>
               )}
             </AnimatePresence>
