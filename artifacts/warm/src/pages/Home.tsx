@@ -5,7 +5,7 @@ import { usePremium } from '@/hooks/usePremium';
 import { useTranslations } from '@/lib/i18n';
 import { playCompletionChime } from '@/lib/chime';
 import AnimatedFlame from '@/components/AnimatedFlame';
-import { Battery, AlertTriangle, ShieldAlert, Thermometer, RefreshCw, Lock } from 'lucide-react';
+import { Battery, AlertTriangle, ShieldAlert, Thermometer, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const AUTO_DISMISS_MS = 5000;
@@ -104,7 +104,7 @@ export default function Home() {
   const t = useTranslations();
   const { result: calibration, calibrating, progress } = useCalibration();
   const {
-    isPremium, isDurationLocked, allDurationsLocked, consumeDuration, purchase, restore,
+    isPremium, purchase, restore,
   } = usePremium();
 
   const {
@@ -124,16 +124,11 @@ export default function Home() {
 
   useEffect(() => { if (running) setToastReason(null); }, [running]);
 
-  // Reset the two-tap stop state whenever the session ends (auto or manual).
-  // Without this, a stale pendingStop=true causes the red message to reappear
-  // the moment the user taps the flame to start a new session.
+  // Clear pendingStop whenever the session ends.
   useEffect(() => {
     if (!running) {
       setPendingStop(false);
-      if (pendingStopTimer.current) {
-        clearTimeout(pendingStopTimer.current);
-        pendingStopTimer.current = null;
-      }
+      pendingStopElapsed.current = null;
     }
   }, [running]);
   useEffect(() => {
@@ -156,9 +151,18 @@ export default function Home() {
 
   // Prevent accidental double-tap: lock the flame for 2.5 s after starting.
   const startLockRef = useRef(false);
-  // Two-tap-to-stop: first tap arms, second tap within 2 s confirms.
+  // Two-tap-to-stop: first tap arms, second tap within 3 session-ticks confirms.
+  // Using elapsed ticks (not setTimeout) so it clears even when CPU is loaded.
   const [pendingStop, setPendingStop] = useState(false);
-  const pendingStopTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingStopElapsed = useRef<number | null>(null);
+
+  // Auto-dismiss pendingStop after 3 elapsed ticks (immune to CPU throttle).
+  useEffect(() => {
+    if (pendingStop && pendingStopElapsed.current !== null && elapsed - pendingStopElapsed.current >= 3) {
+      setPendingStop(false);
+      pendingStopElapsed.current = null;
+    }
+  }, [elapsed, pendingStop]);
 
   const handleFlameClick = () => {
     if (running) {
@@ -166,25 +170,16 @@ export default function Home() {
       if (!pendingStop) {
         // First tap — arm the stop
         setPendingStop(true);
-        pendingStopTimer.current = setTimeout(() => {
-          setPendingStop(false);
-        }, 2000);
+        pendingStopElapsed.current = elapsed;
         return;
       }
       // Second tap — confirm stop
-      if (pendingStopTimer.current) clearTimeout(pendingStopTimer.current);
       setPendingStop(false);
+      pendingStopElapsed.current = null;
       stop();
       return;
     }
     if (coolingDown) return;
-    // Block if selected duration is already locked or all free uses exhausted
-    if (isDurationLocked(selectedMins) || allDurationsLocked) {
-      setShowPremium(true);
-      return;
-    }
-    // Mark this duration as used immediately (module cache + localStorage + re-render)
-    consumeDuration(selectedMins);
     triggerPulse();
     start();
     startLockRef.current = true;
@@ -193,7 +188,6 @@ export default function Home() {
 
   const handleDurationClick = (mins: number) => {
     if (running) return;
-    if (isDurationLocked(mins)) { setShowPremium(true); return; }
     setSessionDuration(mins * 60);
   };
 
@@ -323,23 +317,17 @@ export default function Home() {
       <div className="z-10 w-full max-w-sm flex flex-col gap-2 mt-10 pb-6">
         <div className="flex gap-2">
           {DURATION_OPTIONS.map((mins) => {
-            const locked = isDurationLocked(mins);
-            const active = selectedMins === mins && !locked;
+            const active = selectedMins === mins;
             return (
               <button
                 key={mins}
                 onClick={() => handleDurationClick(mins)}
                 disabled={running}
-                className={`relative flex-1 flex flex-col items-center gap-1 py-3 px-2 rounded-2xl border transition-all duration-300 disabled:cursor-not-allowed
-                  ${locked
-                    ? 'border-white/8 bg-card opacity-50'
-                    : active
-                      ? 'bg-[#1e1410] border-orange-700 shadow-[0_0_18px_rgba(194,65,12,0.3)]'
-                      : 'border-white/8 bg-card hover:border-white/15 hover:bg-white/5'}`}
+                className={`flex-1 flex flex-col items-center gap-1 py-3 px-2 rounded-2xl border transition-all duration-300 disabled:cursor-not-allowed
+                  ${active
+                    ? 'bg-[#1e1410] border-orange-700 shadow-[0_0_18px_rgba(194,65,12,0.3)]'
+                    : 'border-white/8 bg-card hover:border-white/15 hover:bg-white/5'}`}
               >
-                {locked && (
-                  <Lock size={12} className="absolute top-2 right-2 text-muted-foreground/70" />
-                )}
                 <span className={`text-3xl font-bold leading-none tabular-nums ${active ? 'text-white' : 'text-foreground/25'}`}>
                   {mins}
                 </span>
