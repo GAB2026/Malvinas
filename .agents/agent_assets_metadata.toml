@@ -410,3 +410,10 @@ uri = "file://qr-warm-v3.16.png"
 type = "image"
 title = "Warm v3.16 — APK"
 description = "https://github.com/GAB2026/Malvinas/releases/download/warm-v3.16/app-release.apk"
+
+[[outputs]]
+id = "aK6t9Pa4ys-gDIXx974MR"
+uri = "file://qr-warm-v3.17.png"
+type = "image"
+title = "Warm v3.17 — APK"
+description = "https://github.com/GAB2026/Malvinas/releases/download/warm-v3.17/app-release.apk"
