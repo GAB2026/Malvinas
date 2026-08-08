@@ -165,9 +165,12 @@ export default function Home() {
       return;
     }
     if (coolingDown) return;
-    // Block if selected duration is locked or all durations used (free tier exhausted)
-    if (isDurationLocked(selectedMins) || allDurationsLocked) { setShowPremium(true); return; }
-    // Consume the trial for this duration before starting
+    // Block if selected duration is already locked or all free uses exhausted
+    if (isDurationLocked(selectedMins) || allDurationsLocked) {
+      setShowPremium(true);
+      return;
+    }
+    // Mark this duration as used immediately (module cache + localStorage + re-render)
     consumeDuration(selectedMins);
     triggerPulse();
     start();
@@ -307,8 +310,8 @@ export default function Home() {
       <div className="z-10 w-full max-w-sm flex flex-col gap-2 mt-10 pb-6">
         <div className="flex gap-2">
           {DURATION_OPTIONS.map((mins) => {
-            const active  = selectedMins === mins && !running;
-            const locked  = isDurationLocked(mins);
+            const locked = isDurationLocked(mins);
+            const active = selectedMins === mins && !locked;
             return (
               <button
                 key={mins}
@@ -322,15 +325,12 @@ export default function Home() {
                       : 'border-white/8 bg-card hover:border-white/15 hover:bg-white/5'}`}
               >
                 {locked && (
-                  <Lock
-                    size={13}
-                    className="absolute top-2 right-2 text-muted-foreground/60"
-                  />
+                  <Lock size={12} className="absolute top-2 right-2 text-muted-foreground/70" />
                 )}
-                <span className={`text-3xl font-bold leading-none tabular-nums ${active && !locked ? 'text-white' : 'text-foreground/25'}`}>
+                <span className={`text-3xl font-bold leading-none tabular-nums ${active ? 'text-white' : 'text-foreground/25'}`}>
                   {mins}
                 </span>
-                <span className={`text-[10px] font-medium ${active && !locked ? 'text-orange-400/80' : 'text-muted-foreground/40'}`}>
+                <span className={`text-[10px] font-medium ${active ? 'text-orange-400/80' : 'text-muted-foreground/40'}`}>
                   min
                 </span>
               </button>
