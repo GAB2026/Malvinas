@@ -123,6 +123,19 @@ export default function Home() {
   const [showPremium, setShowPremium] = useState(false);
 
   useEffect(() => { if (running) setToastReason(null); }, [running]);
+
+  // Reset the two-tap stop state whenever the session ends (auto or manual).
+  // Without this, a stale pendingStop=true causes the red message to reappear
+  // the moment the user taps the flame to start a new session.
+  useEffect(() => {
+    if (!running) {
+      setPendingStop(false);
+      if (pendingStopTimer.current) {
+        clearTimeout(pendingStopTimer.current);
+        pendingStopTimer.current = null;
+      }
+    }
+  }, [running]);
   useEffect(() => {
     if (stopReason && stopReason !== 'user' && stopReason !== prevStopReason.current) {
       prevStopReason.current = stopReason;
