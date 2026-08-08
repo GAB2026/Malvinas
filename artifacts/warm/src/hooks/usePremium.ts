@@ -1,12 +1,11 @@
 /**
- * Premium + Medium-intensity trial management.
+ * Premium + per-duration trial management.
  *
  * Free tier:
- *   • Low  — unlimited sessions
- *   • Medium — MEDIUM_TRIAL_LIMIT free sessions, then premium required
- *   • High  — always premium
+ *   • Each duration (5 / 10 / 15 min) may be used ONCE for free.
+ *   • Once all three have been used, premium is required to continue.
  *
- * Premium ($2.99 one-time): all intensities + 30-min sessions, unlimited.
+ * Premium ($2.99 one-time): unlimited sessions, all durations.
  *
  * TODO (Play Store): replace purchase() / restore() bodies with
  * RevenueCat or @capacitor-community/in-app-purchases calls.
@@ -15,49 +14,61 @@
 
 import { useState, useCallback } from 'react';
 
-const PREMIUM_KEY      = 'warm_premium_v1';
-const TRIALS_KEY       = 'warm_medium_trials_v1';
+const PREMIUM_KEY       = 'warm_premium_v1';
+const USED_DURATIONS_KEY = 'warm_duration_used_v1';   // comma-separated mins, e.g. "5,15"
 
-export const MEDIUM_TRIAL_LIMIT = 2;
 export const PREMIUM_PRODUCT_ID = 'warm_premium_lifetime';
+export const TRIAL_DURATIONS    = [5, 10, 15] as const;
 
 // ── Storage helpers ───────────────────────────────────────────────────────────
 function readPremium(): boolean {
   try { return localStorage.getItem(PREMIUM_KEY) === '1'; } catch { return false; }
 }
-function readTrialsUsed(): number {
-  try { return Math.max(0, parseInt(localStorage.getItem(TRIALS_KEY) ?? '0', 10)); }
-  catch { return 0; }
+function readUsedDurations(): number[] {
+  try {
+    const raw = localStorage.getItem(USED_DURATIONS_KEY) ?? '';
+    return raw.split(',').map(Number).filter(n => TRIAL_DURATIONS.includes(n as typeof TRIAL_DURATIONS[number]));
+  } catch { return []; }
+}
+function writeUsedDurations(used: number[]): void {
+  try { localStorage.setItem(USED_DURATIONS_KEY, used.join(',')); } catch { /* ignore */ }
 }
 
 // ── Hook ─────────────────────────────────────────────────────────────────────
 export interface PremiumHook {
   isPremium: boolean;
-  /** Free Medium sessions remaining (Infinity when premium). */
-  mediumTrialsLeft: number;
-  /** True if user may use Medium intensity (trial available or premium). */
-  canUseMedium: boolean;
-  /** Debit one Medium trial. No-op when premium. Call at session start. */
-  consumeMediumTrial: () => void;
+  /** Which duration options (in minutes) have been used and are now locked. */
+  usedDurations: number[];
+  /** True when all three durations have been used and the user is not premium. */
+  allDurationsLocked: boolean;
+  /** Whether a specific duration (minutes) is locked for a free user. */
+  isDurationLocked: (mins: number) => boolean;
+  /** Mark a duration as consumed. No-op when premium. Call at session start. */
+  consumeDuration: (mins: number) => void;
   purchase: () => Promise<boolean>;
   restore:  () => Promise<boolean>;
 }
 
 export function usePremium(): PremiumHook {
-  const [isPremium,   setIsPremium]   = useState<boolean>(readPremium);
-  const [trialsUsed,  setTrialsUsed]  = useState<number>(readTrialsUsed);
+  const [isPremium,      setIsPremium]      = useState<boolean>(readPremium);
+  const [usedDurations,  setUsedDurations]  = useState<number[]>(readUsedDurations);
 
-  const mediumTrialsLeft = isPremium
-    ? Infinity
-    : Math.max(0, MEDIUM_TRIAL_LIMIT - trialsUsed);
+  const isDurationLocked = useCallback((mins: number) => {
+    if (isPremium) return false;
+    return usedDurations.includes(mins);
+  }, [isPremium, usedDurations]);
 
-  const canUseMedium = isPremium || mediumTrialsLeft > 0;
+  const allDurationsLocked = !isPremium &&
+    TRIAL_DURATIONS.every(d => usedDurations.includes(d));
 
-  const consumeMediumTrial = useCallback(() => {
+  const consumeDuration = useCallback((mins: number) => {
     if (isPremium) return;
-    const next = readTrialsUsed() + 1;
-    try { localStorage.setItem(TRIALS_KEY, String(next)); } catch { /* ignore */ }
-    setTrialsUsed(next);
+    setUsedDurations(prev => {
+      if (prev.includes(mins)) return prev;
+      const next = [...prev, mins];
+      writeUsedDurations(next);
+      return next;
+    });
   }, [isPremium]);
 
   const purchase = useCallback(async (): Promise<boolean> => {
@@ -74,5 +85,8 @@ export function usePremium(): PremiumHook {
     return stored;
   }, []);
 
-  return { isPremium, mediumTrialsLeft, canUseMedium, consumeMediumTrial, purchase, restore };
+  return {
+    isPremium, usedDurations, allDurationsLocked,
+    isDurationLocked, consumeDuration, purchase, restore,
+  };
 }
