@@ -3,7 +3,7 @@ import { useWarmSession, StopReason } from '@/hooks/useWarmSession';
 import { useCalibration } from '@/hooks/useCalibration';
 import { usePremium } from '@/hooks/usePremium';
 import { useTranslations } from '@/lib/i18n';
-import { playCompletionChime, playTherapeuticStartBeep } from '@/lib/chime';
+import { playCompletionChime } from '@/lib/chime';
 import AnimatedFlame from '@/components/AnimatedFlame';
 import { Battery, AlertTriangle, ShieldAlert, Thermometer, RefreshCw } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -118,18 +118,9 @@ export default function Home() {
 
   const [toastReason, setToastReason] = useState<StopReason>(null);
   const prevStopReason = useRef<StopReason>(null);
-  const prevPhaseRef   = useRef<string>('idle');
   const [showPremium, setShowPremium] = useState(false);
 
   useEffect(() => { if (running) setToastReason(null); }, [running]);
-
-  // Beep when warming → therapeutic transition fires
-  useEffect(() => {
-    if (phase === 'therapeutic' && prevPhaseRef.current === 'warming') {
-      void playTherapeuticStartBeep();
-    }
-    prevPhaseRef.current = phase;
-  }, [phase]);
   useEffect(() => {
     if (stopReason && stopReason !== 'user' && stopReason !== prevStopReason.current) {
       prevStopReason.current = stopReason;
@@ -287,31 +278,27 @@ export default function Home() {
                 )}
               </AnimatePresence>
             </div>
+            <AnimatePresence mode="wait">
+              {running && !coolingDown && pendingStop && (
+                <motion.span key="confirm-stop"
+                  initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
+                  className="text-[10px] font-semibold text-destructive animate-pulse">
+                  ¿Terminar? Tocá de nuevo
+                </motion.span>
+              )}
+              {running && !coolingDown && !pendingStop && (
+                <motion.span key="hint-stop"
+                  initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                  className="text-[10px] text-muted-foreground/60">{t.tapToStop}
+                </motion.span>
+              )}
+            </AnimatePresence>
           </div>
         </div>
       </div>{/* end TOP */}
 
-      {/* ── MIDDLE: stop hint — flex-1 so it centres itself between TOP and BOTTOM ── */}
-      <div className="z-10 flex-1 flex items-center justify-center w-full">
-        <AnimatePresence mode="wait">
-          {running && !coolingDown && pendingStop && (
-            <motion.span key="confirm-stop"
-              initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
-              className="text-sm font-semibold text-destructive animate-pulse">
-              ¿Terminar? Tocá de nuevo
-            </motion.span>
-          )}
-          {running && !coolingDown && !pendingStop && (
-            <motion.span key="hint-stop"
-              initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-              className="text-sm text-muted-foreground/60">{t.tapToStop}
-            </motion.span>
-          )}
-        </AnimatePresence>
-      </div>
-
       {/* ── BOTTOM: duration selector + footer ── */}
-      <div className="z-10 w-full max-w-sm flex flex-col gap-2 pb-6">
+      <div className="z-10 w-full max-w-sm flex flex-col gap-2 mt-10 pb-6">
         <div className="flex gap-2">
           {DURATION_OPTIONS.map((mins) => {
             const active = selectedMins === mins;
