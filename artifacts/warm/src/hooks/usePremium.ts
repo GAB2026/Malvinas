@@ -18,8 +18,8 @@ export const PREMIUM_PRODUCT_ID = 'warm_premium_lifetime';
 export const TRIAL_DURATIONS    = [5, 10, 15] as const;
 type TrialDuration = typeof TRIAL_DURATIONS[number];
 
-const PREMIUM_KEY  = 'warm_premium_v1';
-const USED_KEY     = 'warm_used_durations_v1';  // e.g. "5,10"
+const PREMIUM_KEY = 'warm_premium_v1';
+const USED_KEY    = 'warm_used_durations_v1';   // e.g. "5,10"
 
 // ── Module-level cache ────────────────────────────────────────────────────────
 // Lives outside React so it is immune to component remounts and stale closures.
