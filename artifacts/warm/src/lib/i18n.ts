@@ -145,7 +145,7 @@ const T: Record<Lang, Translations> = {
     warmingUp: 'Calentamiento',
     safetyTitle: 'Aviso de seguridad',
     safetyBody:
-      'Si pasa la aplicación a un segundo plano o si el nivel de batería desciende al 20% la sesión se interrumpirá de forma automática para cuidar la energía de su batería. Asegúrese de contar con carga suficiente antes de iniciar la terapia térmica.',
+      'Si el nivel de batería desciende al 20% la sesión se interrumpirá de forma automática para cuidar la energía de su batería. Asegúrese de contar con carga suficiente antes de iniciar la terapia térmica.',
     autoStop: {
       'time-limit': 'Sesión terapéutica completada',
       'low-battery': 'Batería baja — sesión detenida',
