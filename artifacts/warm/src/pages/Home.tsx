@@ -5,7 +5,7 @@ import { usePremium } from '@/hooks/usePremium';
 import { useTranslations } from '@/lib/i18n';
 import { playCompletionChime } from '@/lib/chime';
 import AnimatedFlame from '@/components/AnimatedFlame';
-import { Battery, AlertTriangle, ShieldAlert, Thermometer, RefreshCw } from 'lucide-react';
+import { Battery, AlertTriangle, ShieldAlert, Thermometer, RefreshCw, Lock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const AUTO_DISMISS_MS = 5000;
@@ -103,7 +103,7 @@ function PremiumSheet({
 export default function Home() {
   const t = useTranslations();
   const { result: calibration, calibrating, progress } = useCalibration();
-  const { isPremium, purchase, restore } = usePremium();
+  const { isPremium, is5MinLocked, consume5Min, purchase, restore } = usePremium();
 
   const {
     running, intensity, start, stop,
@@ -163,7 +163,10 @@ export default function Home() {
       return;
     }
     if (coolingDown) return;
-    if (!isPremium) { setShowPremium(true); return; }
+    // 5-min button locked after free trial
+    if (selectedMins === 5 && is5MinLocked) { setShowPremium(true); return; }
+    // Consume the 5-min free trial on first use
+    if (selectedMins === 5) consume5Min();
     triggerPulse();
     start();
     startLockRef.current = true;
@@ -172,6 +175,8 @@ export default function Home() {
 
   const handleDurationClick = (mins: number) => {
     if (running) return;
+    // Tapping the locked 5-min button opens the paywall
+    if (mins === 5 && is5MinLocked) { setShowPremium(true); return; }
     setSessionDuration(mins * 60);
   };
 
@@ -305,17 +310,23 @@ export default function Home() {
       <div className="z-10 w-full max-w-sm flex flex-col gap-2 pb-6">
         <div className="flex gap-2">
           {DURATION_OPTIONS.map((mins) => {
-            const active = selectedMins === mins;
+            const locked = mins === 5 && is5MinLocked;
+            const active = selectedMins === mins && !locked;
             return (
               <button
                 key={mins}
                 onClick={() => handleDurationClick(mins)}
                 disabled={running}
-                className={`flex-1 flex flex-col items-center gap-1 py-3 px-2 rounded-2xl border transition-all duration-300 disabled:cursor-not-allowed
-                  ${active
-                    ? 'bg-[#1e1410] border-orange-700 shadow-[0_0_18px_rgba(194,65,12,0.3)]'
-                    : 'border-white/8 bg-card hover:border-white/15 hover:bg-white/5'}`}
+                className={`relative flex-1 flex flex-col items-center gap-1 py-3 px-2 rounded-2xl border transition-all duration-300 disabled:cursor-not-allowed
+                  ${locked
+                    ? 'border-white/8 bg-card opacity-50'
+                    : active
+                      ? 'bg-[#1e1410] border-orange-700 shadow-[0_0_18px_rgba(194,65,12,0.3)]'
+                      : 'border-white/8 bg-card hover:border-white/15 hover:bg-white/5'}`}
               >
+                {locked && (
+                  <Lock size={13} className="absolute top-2 right-2 text-muted-foreground/70" />
+                )}
                 <span className={`text-3xl font-bold leading-none tabular-nums ${active ? 'text-white' : 'text-foreground/25'}`}>
                   {mins}
                 </span>
