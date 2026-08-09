@@ -16,6 +16,7 @@ export type StopReason =
   | 'user'
   | 'time-limit'
   | 'low-battery'
+  | 'tab-hidden'
   | null;
 
 export type Phase = 'idle' | 'warming' | 'therapeutic' | 'cooling';
@@ -441,12 +442,10 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
   }, [coolingDown, ambientC]);
 
   // ── Visibility guard ─────────────────────────────────────────────────────────
-  // We intentionally do NOT stop the session when the app goes to background.
-  // The main tick uses Date.now()-startedAtRef so elapsed catches up on return.
-  // Only check on return: if therapeutic time was exceeded while hidden, stop.
   useEffect(() => {
     const onVis = () => {
-      if (!document.hidden && runningRef.current && phaseRef.current === 'therapeutic' && therapStartRef.current) {
+      if (document.hidden && runningRef.current) stopWith('user');
+      else if (!document.hidden && runningRef.current && phaseRef.current === 'therapeutic' && therapStartRef.current) {
         const tSecs = Math.floor((Date.now() - therapStartRef.current) / 1000);
         if (tSecs >= sessionMaxSecs(intensityRef.current)) stopWith('time-limit');
       }

@@ -103,9 +103,7 @@ function PremiumSheet({
 export default function Home() {
   const t = useTranslations();
   const { result: calibration, calibrating, progress } = useCalibration();
-  const {
-    isPremium, purchase, restore,
-  } = usePremium();
+  const { isPremium, purchase, restore } = usePremium();
 
   const {
     running, intensity, start, stop,
@@ -123,14 +121,6 @@ export default function Home() {
   const [showPremium, setShowPremium] = useState(false);
 
   useEffect(() => { if (running) setToastReason(null); }, [running]);
-
-  // Clear pendingStop whenever the session ends.
-  useEffect(() => {
-    if (!running) {
-      setPendingStop(false);
-      pendingStopElapsed.current = null;
-    }
-  }, [running]);
   useEffect(() => {
     if (stopReason && stopReason !== 'user' && stopReason !== prevStopReason.current) {
       prevStopReason.current = stopReason;
@@ -151,18 +141,9 @@ export default function Home() {
 
   // Prevent accidental double-tap: lock the flame for 2.5 s after starting.
   const startLockRef = useRef(false);
-  // Two-tap-to-stop: first tap arms, second tap within 3 session-ticks confirms.
-  // Using elapsed ticks (not setTimeout) so it clears even when CPU is loaded.
+  // Two-tap-to-stop: first tap arms, second tap within 2 s confirms.
   const [pendingStop, setPendingStop] = useState(false);
-  const pendingStopElapsed = useRef<number | null>(null);
-
-  // Auto-dismiss pendingStop after 3 elapsed ticks (immune to CPU throttle).
-  useEffect(() => {
-    if (pendingStop && pendingStopElapsed.current !== null && elapsed - pendingStopElapsed.current >= 3) {
-      setPendingStop(false);
-      pendingStopElapsed.current = null;
-    }
-  }, [elapsed, pendingStop]);
+  const pendingStopTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleFlameClick = () => {
     if (running) {
@@ -170,16 +151,19 @@ export default function Home() {
       if (!pendingStop) {
         // First tap — arm the stop
         setPendingStop(true);
-        pendingStopElapsed.current = elapsed;
+        pendingStopTimer.current = setTimeout(() => {
+          setPendingStop(false);
+        }, 2000);
         return;
       }
       // Second tap — confirm stop
+      if (pendingStopTimer.current) clearTimeout(pendingStopTimer.current);
       setPendingStop(false);
-      pendingStopElapsed.current = null;
       stop();
       return;
     }
     if (coolingDown) return;
+    if (!isPremium) { setShowPremium(true); return; }
     triggerPulse();
     start();
     startLockRef.current = true;

@@ -154,12 +154,18 @@ describe('Home — auto-stop toast', () => {
     expect(screen.getByText('Battery too low — session stopped')).toBeInTheDocument();
   });
 
+  it('shows "Stopped: app moved to background" for tab-hidden stop', () => {
+    renderWithStopReason('tab-hidden');
+    expect(screen.getByText('Stopped: app moved to background')).toBeInTheDocument();
+  });
+
   // ── No toast on manual stop ───────────────────────────────────────────────
 
   it('does NOT show a toast when the stop reason is "user"', () => {
     renderWithStopReason('user');
     expect(screen.queryByText('Therapeutic session complete')).not.toBeInTheDocument();
     expect(screen.queryByText('Battery too low — session stopped')).not.toBeInTheDocument();
+    expect(screen.queryByText('Stopped: app moved to background')).not.toBeInTheDocument();
   });
 
   it('shows no toast when stopReason is null (initial / idle state)', () => {
@@ -183,11 +189,11 @@ describe('Home — auto-stop toast', () => {
   });
 
   it('toast is still visible just before the dismiss timeout', () => {
-    renderWithStopReason('low-battery');
+    renderWithStopReason('tab-hidden');
     act(() => {
       vi.advanceTimersByTime(AUTO_DISMISS_MS - 500);
     });
-    expect(screen.getByText('Battery too low — session stopped')).toBeInTheDocument();
+    expect(screen.getByText('Stopped: app moved to background')).toBeInTheDocument();
   });
 
   // ── Temperature display (debug overlay) ──────────────────────────────────
