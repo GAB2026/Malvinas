@@ -442,17 +442,37 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
   }, [coolingDown, ambientC]);
 
   // ── Visibility guard ─────────────────────────────────────────────────────────
+  // When the screen turns off or the user presses Home, document.hidden fires.
+  // We can't tell the two apart, so we wait 3 s before stopping:
+  //   • Screen turned off briefly (power-button lock) → user unlocks within 3 s
+  //     → timer cancelled, wake lock re-acquired, session continues.
+  //   • App sent to background (Home / task-switcher) → still hidden after 3 s
+  //     → session stops cleanly (no cooldown).
   useEffect(() => {
+    let hideTimer: ReturnType<typeof setTimeout> | null = null;
     const onVis = () => {
-      if (document.hidden && runningRef.current) stopWith('user');
-      else if (!document.hidden && runningRef.current && phaseRef.current === 'therapeutic' && therapStartRef.current) {
-        const tSecs = Math.floor((Date.now() - therapStartRef.current) / 1000);
-        if (tSecs >= sessionMaxSecs(intensityRef.current)) stopWith('time-limit');
+      if (document.hidden && runningRef.current) {
+        hideTimer = setTimeout(() => {
+          if (document.hidden && runningRef.current) stopWith('user');
+        }, 3000);
+      } else if (!document.hidden) {
+        // User returned — cancel any pending stop
+        if (hideTimer !== null) { clearTimeout(hideTimer); hideTimer = null; }
+        // Re-acquire wake lock (released automatically when page was hidden)
+        if (runningRef.current) void acquireWakeLock();
+        // If therapeutic time was exceeded while hidden, stop now
+        if (runningRef.current && phaseRef.current === 'therapeutic' && therapStartRef.current) {
+          const tSecs = Math.floor((Date.now() - therapStartRef.current) / 1000);
+          if (tSecs >= sessionMaxSecs(intensityRef.current)) stopWith('time-limit');
+        }
       }
     };
     document.addEventListener('visibilitychange', onVis);
-    return () => document.removeEventListener('visibilitychange', onVis);
-  }, [stopWith, sessionMaxSecs]);
+    return () => {
+      document.removeEventListener('visibilitychange', onVis);
+      if (hideTimer !== null) clearTimeout(hideTimer);
+    };
+  }, [stopWith, sessionMaxSecs, acquireWakeLock]);
 
   // ── Battery ──────────────────────────────────────────────────────────────────
   useEffect(() => {
