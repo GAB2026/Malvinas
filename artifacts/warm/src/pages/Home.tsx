@@ -278,27 +278,31 @@ export default function Home() {
                 )}
               </AnimatePresence>
             </div>
-            <AnimatePresence mode="wait">
-              {running && !coolingDown && pendingStop && (
-                <motion.span key="confirm-stop"
-                  initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
-                  className="text-[10px] font-semibold text-destructive animate-pulse">
-                  ¿Terminar? Tocá de nuevo
-                </motion.span>
-              )}
-              {running && !coolingDown && !pendingStop && (
-                <motion.span key="hint-stop"
-                  initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                  className="text-[10px] text-muted-foreground/60">{t.tapToStop}
-                </motion.span>
-              )}
-            </AnimatePresence>
           </div>
         </div>
       </div>{/* end TOP */}
 
+      {/* ── MIDDLE: double-tap hint — centered between flame and buttons ── */}
+      <div className="z-10 flex-1 flex items-center justify-center w-full">
+        <AnimatePresence mode="wait">
+          {running && !coolingDown && pendingStop && (
+            <motion.span key="confirm-stop"
+              initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
+              className="text-sm font-semibold text-destructive animate-pulse tracking-wide">
+              ¿Terminar? Tocá de nuevo
+            </motion.span>
+          )}
+          {running && !coolingDown && !pendingStop && (
+            <motion.span key="hint-stop"
+              initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+              className="text-sm text-muted-foreground/50 tracking-wide">{t.tapToStop}
+            </motion.span>
+          )}
+        </AnimatePresence>
+      </div>
+
       {/* ── BOTTOM: duration selector + footer ── */}
-      <div className="z-10 w-full max-w-sm flex flex-col gap-2 mt-10 pb-6">
+      <div className="z-10 w-full max-w-sm flex flex-col gap-2 pb-6">
         <div className="flex gap-2">
           {DURATION_OPTIONS.map((mins) => {
             const active = selectedMins === mins;
