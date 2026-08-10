@@ -317,22 +317,30 @@ export default function Home() {
                 key={mins}
                 onClick={() => handleDurationClick(mins)}
                 disabled={running}
-                className={`relative flex-1 flex flex-col items-center gap-1 py-3 px-2 rounded-2xl border transition-all duration-300 disabled:cursor-not-allowed
+                className={`relative flex-1 flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-2xl border transition-all duration-300 disabled:cursor-not-allowed
                   ${locked
-                    ? 'border-yellow-600/30 bg-card opacity-70'
+                    ? 'border-yellow-500/60 bg-yellow-950/40'
                     : active
                       ? 'bg-[#1e1410] border-orange-700 shadow-[0_0_18px_rgba(194,65,12,0.3)]'
                       : 'border-white/8 bg-card hover:border-white/15 hover:bg-white/5'}`}
               >
-                {locked && (
-                  <Lock size={13} className="absolute top-2 right-2 text-yellow-400" />
+                {locked ? (
+                  <>
+                    <Lock size={20} className="text-yellow-400" />
+                    <span className="text-[10px] font-semibold text-yellow-400/80 uppercase tracking-wide">
+                      Premium
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span className={`text-3xl font-bold leading-none tabular-nums ${active ? 'text-white' : 'text-foreground/25'}`}>
+                      {mins}
+                    </span>
+                    <span className={`text-[10px] font-medium ${active ? 'text-orange-400/80' : 'text-muted-foreground/40'}`}>
+                      min
+                    </span>
+                  </>
                 )}
-                <span className={`text-3xl font-bold leading-none tabular-nums ${active ? 'text-white' : 'text-foreground/25'}`}>
-                  {mins}
-                </span>
-                <span className={`text-[10px] font-medium ${active ? 'text-orange-400/80' : 'text-muted-foreground/40'}`}>
-                  min
-                </span>
               </button>
             );
           })}

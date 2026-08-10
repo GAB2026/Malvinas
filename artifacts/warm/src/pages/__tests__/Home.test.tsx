@@ -3,9 +3,10 @@ import { render, screen, act, fireEvent } from '@testing-library/react';
 import React from 'react';
 
 // ─── usePremium mock ──────────────────────────────────────────────────────────
-// Mirrors the current PremiumHook interface exactly.
+// Mirrors the current PremiumHook interface. The module-level _usedDurations
+// Set is mutated by consumeDuration (mirroring production behaviour).
 
-let _usedDurations = new Set<number>();
+const _usedDurations = new Set<number>();
 let _isPremium = false;
 
 vi.mock('@/hooks/usePremium', () => ({
@@ -16,7 +17,6 @@ vi.mock('@/hooks/usePremium', () => ({
     isLocked: (mins: number) => !_isPremium && _usedDurations.has(mins),
     consumeDuration: (mins: number) => {
       if (_isPremium || _usedDurations.has(mins)) return;
-      _usedDurations = new Set(_usedDurations);
       _usedDurations.add(mins);
     },
     purchase:  vi.fn().mockResolvedValue(true),
@@ -116,7 +116,7 @@ function renderWithStopReason(stopReason: StopReason) {
 describe('Home — auto-stop toast', () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    _usedDurations = new Set();
+    _usedDurations.clear();
     _isPremium = false;
     setMockSession({});
   });
@@ -178,7 +178,7 @@ describe('Home — auto-stop toast', () => {
 describe('Home — duration button lock', () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    _usedDurations = new Set();
+    _usedDurations.clear();   // const Set — clear, not reassign
     _isPremium = false;
     setMockSession({});
   });
@@ -188,48 +188,54 @@ describe('Home — duration button lock', () => {
     vi.clearAllMocks();
   });
 
-  it('renders 3 duration buttons without any lock icon initially', () => {
+  it('renders 3 duration buttons showing numbers when nothing is locked', () => {
     render(<Home />);
-    // All buttons should be present
-    expect(screen.getByRole('button', { name: /^5/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^10/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^15/ })).toBeInTheDocument();
+    // Unlocked buttons show their minute numbers
+    expect(screen.getByText('5')).toBeInTheDocument();
+    expect(screen.getByText('10')).toBeInTheDocument();
+    expect(screen.getByText('15')).toBeInTheDocument();
+    // No "Premium" badge should be visible
+    expect(screen.queryByText('Premium')).not.toBeInTheDocument();
   });
 
-  it('isLocked(5) returns false before any session', () => {
-    render(<Home />);
-    // The 5-min button should be clickable (not open paywall)
-    const btn5 = screen.getAllByText('5')[0].closest('button')!;
-    expect(btn5).not.toBeDisabled();
-  });
-
-  it('duration button shows as locked after consumeDuration is called', () => {
+  it('locked button shows "Premium" label instead of the minute number', () => {
     // Pre-seed: 5-min was used
-    _usedDurations = new Set([5]);
+    _usedDurations.add(5);
     setMockSession({ running: false, stopReason: null });
     render(<Home />);
-    // The lock icon should be present (data-testid or aria, or we check the SVG count)
-    // We verify that the 5-min button area renders the Lock icon by checking the container
-    // The button still exists but its aria state changes
-    const btn5 = screen.getAllByText('5')[0].closest('button')!;
-    // When locked, clicking should trigger paywall (start mock is NOT called)
-    // We can't easily click here because userEvent + vi.fn interaction is complex.
-    // Instead assert that the mock's isLocked returns true for mins=5:
-    expect(_usedDurations.has(5)).toBe(true);
+
+    // The locked 5-min button replaces its content with a lock icon + "Premium" text
+    expect(screen.getByText('Premium')).toBeInTheDocument();
+    // The other two buttons still show their numbers
+    expect(screen.getByText('10')).toBeInTheDocument();
+    expect(screen.getByText('15')).toBeInTheDocument();
+    // The number "5" should NOT be visible (the button shows "Premium" instead)
+    expect(screen.queryByText('5')).not.toBeInTheDocument();
   });
 
   it('consumeDuration is called when flame is tapped to start a session', () => {
     // baseSession.sessionDurationSecs = 15*60, so selectedMins = 15.
-    // Clicking a duration button calls setSessionDuration (vi.fn), but the
-    // static mock doesn't actually update sessionDurationSecs, so selectedMins
-    // stays 15. Tap flame → consumeDuration(15) is called.
     setMockSession({ running: false, stopReason: null });
     render(<Home />);
 
     const flame = screen.getByTestId('animated-flame');
     act(() => { fireEvent.click(flame); });
 
-    // consumeDuration(15) should have been called.
+    // consumeDuration(15) should have been called — 15-min button is now locked.
     expect(_usedDurations.has(15)).toBe(true);
+  });
+
+  it('tapping a locked button does not start a session', () => {
+    _usedDurations.add(5);
+    setMockSession({ running: false, stopReason: null });
+    render(<Home />);
+
+    // Find the "Premium" badge button and click it
+    const premiumBadge = screen.getByText('Premium');
+    const lockedBtn = premiumBadge.closest('button')!;
+    act(() => { fireEvent.click(lockedBtn); });
+
+    // start() should NOT have been called
+    expect(baseSession.start).not.toHaveBeenCalled();
   });
 });

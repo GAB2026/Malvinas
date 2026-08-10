@@ -1,98 +1,110 @@
 /**
  * Premium management — one free use per duration button (5, 10, 15 min).
  *
- * Free tier:
- *   • Each duration (5 / 10 / 15 min) gets ONE free session.
- *   • After that single use the button shows a yellow lock 🔒.
- *   • Tapping a locked button opens the paywall.
+ * Architecture — module-level variables are the single source of truth:
+ *   _usedDurations  A Set<number> that lives for the full JS page-load lifetime.
+ *   _isPremium      Boolean, same lifetime.
  *
+ *   Both are initialised once from localStorage when this module first loads.
+ *   consumeDuration / purchase / restore mutate them directly, then call
+ *   forceUpdate() so React re-renders the component.
+ *
+ *   isLocked() reads _usedDurations on every call — no stale closure, no
+ *   React batching delay, no re-mount reset.
+ *
+ * Free tier:  each duration (5 / 10 / 15 min) gets ONE free session.
  * Premium ($2.99 one-time): all buttons always unlocked.
  *
- * Implementation note:
- *   usedDurations is stored in React state (the canonical source for rendering)
- *   AND persisted to localStorage (so it survives app restarts).
- *   This avoids every form of stale-closure or module-var reset bug.
- *
- * TODO (Play Store): replace purchase() / restore() bodies with
- * RevenueCat or @capacitor-community/in-app-purchases calls.
- * Product ID: "warm_premium_lifetime"
+ * TODO: replace purchase() / restore() stubs with RevenueCat SDK calls.
+ *       Product ID: "warm_premium_lifetime"
  */
 
 import { useState } from 'react';
 
 const PREMIUM_KEY        = 'warm_premium_v1';
-const USED_DURATIONS_KEY = 'warm_used_durations_v1'; // e.g. "5,10"
+const USED_DURATIONS_KEY = 'warm_used_durations_v1';   // e.g. "5,10,15"
 
 export const PREMIUM_PRODUCT_ID = 'warm_premium_lifetime';
 
-// ── Persistence helpers ────────────────────────────────────────────────────────
+// ── Module-level state ────────────────────────────────────────────────────────
+// These survive all re-renders and re-mounts within the same JS page-load.
+// They are the ONLY source of truth for isLocked().
 
-function readPremium(): boolean {
-  try { return localStorage.getItem(PREMIUM_KEY) === '1'; } catch { return false; }
-}
+let _isPremium = false;
+const _usedDurations = new Set<number>();
 
-function readUsedDurations(): Set<number> {
+(function init() {
+  try { _isPremium = localStorage.getItem(PREMIUM_KEY) === '1'; } catch { /* no storage */ }
   try {
     const raw = localStorage.getItem(USED_DURATIONS_KEY) ?? '';
-    return new Set(raw.split(',').map(Number).filter(n => n > 0));
-  } catch { return new Set(); }
+    raw.split(',').map(Number).filter(n => n > 0 && n < 100)
+       .forEach(n => _usedDurations.add(n));
+  } catch { /* no storage */ }
+})();
+
+// ── Persistence ───────────────────────────────────────────────────────────────
+
+function persistUsed(): void {
+  try {
+    localStorage.setItem(USED_DURATIONS_KEY, [..._usedDurations].join(','));
+  } catch { /* storage quota / unavailable */ }
 }
 
-function writeUsedDurations(set: Set<number>): void {
-  try { localStorage.setItem(USED_DURATIONS_KEY, [...set].join(',')); } catch { /* quota */ }
-}
-
-// ── Hook interface ─────────────────────────────────────────────────────────────
+// ── Hook interface ────────────────────────────────────────────────────────────
 
 export interface PremiumHook {
   isPremium: boolean;
   usedDurations: ReadonlySet<number>;
-  /** True when the free trial for this duration has been consumed and user is not premium. */
+  /** Returns true when the one free trial for this duration is spent and the user is not premium. */
   isLocked: (mins: number) => boolean;
-  /** Mark a duration's free trial as consumed. No-op when premium or already consumed. */
+  /** Consume the free trial for a duration. No-op if premium or already consumed. */
   consumeDuration: (mins: number) => void;
   purchase: () => Promise<boolean>;
   restore:  () => Promise<boolean>;
 }
 
-// ── Hook ──────────────────────────────────────────────────────────────────────
+// ── Hook ─────────────────────────────────────────────────────────────────────
 
 export function usePremium(): PremiumHook {
-  const [isPremium,      setIsPremium]      = useState<boolean>(readPremium);
-  // usedDurations is the canonical source of truth for rendering.
-  // It is initialised from localStorage and updated via setUsedDurations so
-  // React always has the correct value when it re-renders the buttons.
-  const [usedDurations, setUsedDurations]  = useState<Set<number>>(readUsedDurations);
+  // tick drives re-renders only — all data lives in module-level variables.
+  const [, setTick] = useState(0);
+  const forceUpdate = () => setTick(t => t + 1);
 
   const isLocked = (mins: number): boolean =>
-    !isPremium && usedDurations.has(mins);
+    !_isPremium && _usedDurations.has(mins);
 
   const consumeDuration = (mins: number): void => {
-    if (isPremium || usedDurations.has(mins)) return;
-    // Functional update so that concurrent calls in the same batch accumulate
-    // correctly: each updater receives the latest state, not the closed-over snapshot.
-    setUsedDurations(prev => {
-      if (prev.has(mins)) return prev;
-      const next = new Set(prev);
-      next.add(mins);
-      writeUsedDurations(next);   // persist inside updater (idempotent write)
-      return next;
-    });
+    if (_isPremium || _usedDurations.has(mins)) return;
+    _usedDurations.add(mins);
+    persistUsed();
+    forceUpdate();   // re-render so lock icon appears immediately
   };
 
   const purchase = async (): Promise<boolean> => {
-    // TODO: await Purchases.purchaseProduct({ productIdentifier: PREMIUM_PRODUCT_ID })
+    _isPremium = true;
     try { localStorage.setItem(PREMIUM_KEY, '1'); } catch { /* ignore */ }
-    setIsPremium(true);
+    forceUpdate();
     return true;
   };
 
   const restore = async (): Promise<boolean> => {
-    // TODO: await Purchases.restorePurchases()
-    const stored = readPremium();
-    setIsPremium(stored);
-    return stored;
+    try { _isPremium = localStorage.getItem(PREMIUM_KEY) === '1'; } catch { /* ignore */ }
+    forceUpdate();
+    return _isPremium;
   };
 
-  return { isPremium, usedDurations, isLocked, consumeDuration, purchase, restore };
+  return {
+    isPremium:     _isPremium,
+    usedDurations: _usedDurations,
+    isLocked,
+    consumeDuration,
+    purchase,
+    restore,
+  };
+}
+
+/** Exposed only for unit tests — resets module-level state. */
+export function __resetForTests(): void {
+  _isPremium = false;
+  _usedDurations.clear();
 }
