@@ -390,7 +390,10 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
         const minWarmupDone   = secs >= MIN_WARMUP_SECS;   // must wait 4 min
         const currentlyHot    = minTimeDone && currentC !== null && currentC >= THERAPEUTIC_ABS_C;
 
-        if ((currentlyHot || timedOut) && minWarmupDone) {
+        // Always transition to therapeutic once the 4-minute minimum is done.
+        // The old conditions (currentlyHot / timedOut) failed on sessions shorter
+        // than 8 min when the sensor never reached 85 °C — the phase got stuck.
+        if (minWarmupDone) {
           therapStartRef.current = now;
           phaseRef.current = 'therapeutic';
           setPhase('therapeutic');

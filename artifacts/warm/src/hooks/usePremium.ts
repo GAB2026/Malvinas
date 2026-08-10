@@ -8,48 +8,44 @@
  *
  * Premium ($2.99 one-time): all buttons always unlocked.
  *
- * NOTE: _usedDurations lives at module level (outside React) so it is never
- * stale inside closures and is immune to React batching quirks on Android.
+ * Design note — NO useCallback / module-level state:
+ *   isLocked() and consumeDuration() read/write localStorage directly on every
+ *   call.  This is intentional: it eliminates every form of stale-closure bug
+ *   that plagues memoized hooks on Android's React-batching quirks.
+ *   localStorage.getItem is synchronous and O(1) — the overhead is invisible.
  *
  * TODO (Play Store): replace purchase() / restore() bodies with
  * RevenueCat or @capacitor-community/in-app-purchases calls.
  * Product ID: "warm_premium_lifetime"
  */
 
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 
-const PREMIUM_KEY      = 'warm_premium_v1';
-const USED_DURATIONS_KEY = 'warm_used_durations_v1'; // stored as comma-separated list e.g. "5,15"
+const PREMIUM_KEY        = 'warm_premium_v1';
+const USED_DURATIONS_KEY = 'warm_used_durations_v1'; // e.g. "5,10"
 
 export const PREMIUM_PRODUCT_ID = 'warm_premium_lifetime';
 
-// ── Module-level singleton ─────────────────────────────────────────────────────
-// Initialised once from localStorage on app load; mutated in-place on each use.
-// Reading _usedDurations directly avoids stale closure issues on Android.
-
-function loadUsedDurations(): Set<number> {
-  try {
-    const raw = localStorage.getItem(USED_DURATIONS_KEY) ?? '';
-    const nums = raw.split(',').map(Number).filter(n => n > 0);
-    return new Set(nums);
-  } catch {
-    return new Set();
-  }
-}
-
-function persistUsedDurations(set: Set<number>) {
-  try {
-    localStorage.setItem(USED_DURATIONS_KEY, [...set].join(','));
-  } catch { /* ignore */ }
-}
-
-let _usedDurations: Set<number> = loadUsedDurations();
+// ── localStorage helpers ───────────────────────────────────────────────────────
 
 function readPremium(): boolean {
   try { return localStorage.getItem(PREMIUM_KEY) === '1'; } catch { return false; }
 }
 
+/** Always reads the current on-disk value — never stale. */
+function readUsedDurations(): Set<number> {
+  try {
+    const raw = localStorage.getItem(USED_DURATIONS_KEY) ?? '';
+    return new Set(raw.split(',').map(Number).filter(n => n > 0));
+  } catch { return new Set(); }
+}
+
+function writeUsedDurations(set: Set<number>): void {
+  try { localStorage.setItem(USED_DURATIONS_KEY, [...set].join(',')); } catch { /* ignore */ }
+}
+
 // ── Hook ─────────────────────────────────────────────────────────────────────
+
 export interface PremiumHook {
   isPremium: boolean;
   /** True when the free trial for this duration has been consumed and user is not premium. */
@@ -62,35 +58,40 @@ export interface PremiumHook {
 
 export function usePremium(): PremiumHook {
   const [isPremium, setIsPremium] = useState<boolean>(readPremium);
-  // Tick is only for triggering re-renders after consumeDuration mutates the module var.
+  // `tick` is only used to force a re-render after consumeDuration writes to
+  // localStorage, so the lock icon appears on the same frame as session end.
   const [, setTick] = useState(0);
-  const forceUpdate = useCallback(() => setTick(n => n + 1), []);
 
-  const isLocked = useCallback((mins: number): boolean => {
+  // ── NOT memoized on purpose ──────────────────────────────────────────────
+  // Reads localStorage on every call → impossible to return a stale value.
+  const isLocked = (mins: number): boolean => {
     if (isPremium) return false;
-    return _usedDurations.has(mins);
-  }, [isPremium]);
+    return readUsedDurations().has(mins);
+  };
 
-  const consumeDuration = useCallback((mins: number) => {
-    if (isPremium || _usedDurations.has(mins)) return;
-    _usedDurations.add(mins);             // mutate module var immediately
-    persistUsedDurations(_usedDurations);
-    forceUpdate();                        // trigger re-render so lock icon appears
-  }, [isPremium, forceUpdate]);
+  const consumeDuration = (mins: number): void => {
+    if (isPremium) return;
+    const used = readUsedDurations();
+    if (used.has(mins)) return;        // already consumed
+    used.add(mins);
+    writeUsedDurations(used);          // persist immediately
+    setTick(t => t + 1);              // trigger re-render → lock appears
+  };
+  // ────────────────────────────────────────────────────────────────────────
 
-  const purchase = useCallback(async (): Promise<boolean> => {
+  const purchase = async (): Promise<boolean> => {
     // TODO: await Purchases.purchaseProduct({ productIdentifier: PREMIUM_PRODUCT_ID })
     try { localStorage.setItem(PREMIUM_KEY, '1'); } catch { /* ignore */ }
     setIsPremium(true);
     return true;
-  }, []);
+  };
 
-  const restore = useCallback(async (): Promise<boolean> => {
+  const restore = async (): Promise<boolean> => {
     // TODO: await Purchases.restorePurchases()
     const stored = readPremium();
     setIsPremium(stored);
     return stored;
-  }, []);
+  };
 
   return { isPremium, isLocked, consumeDuration, purchase, restore };
 }
