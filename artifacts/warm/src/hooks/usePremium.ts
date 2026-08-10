@@ -8,11 +8,10 @@
  *
  * Premium ($2.99 one-time): all buttons always unlocked.
  *
- * Design note — NO useCallback / module-level state:
- *   isLocked() and consumeDuration() read/write localStorage directly on every
- *   call.  This is intentional: it eliminates every form of stale-closure bug
- *   that plagues memoized hooks on Android's React-batching quirks.
- *   localStorage.getItem is synchronous and O(1) — the overhead is invisible.
+ * Implementation note:
+ *   usedDurations is stored in React state (the canonical source for rendering)
+ *   AND persisted to localStorage (so it survives app restarts).
+ *   This avoids every form of stale-closure or module-var reset bug.
  *
  * TODO (Play Store): replace purchase() / restore() bodies with
  * RevenueCat or @capacitor-community/in-app-purchases calls.
@@ -26,13 +25,12 @@ const USED_DURATIONS_KEY = 'warm_used_durations_v1'; // e.g. "5,10"
 
 export const PREMIUM_PRODUCT_ID = 'warm_premium_lifetime';
 
-// ── localStorage helpers ───────────────────────────────────────────────────────
+// ── Persistence helpers ────────────────────────────────────────────────────────
 
 function readPremium(): boolean {
   try { return localStorage.getItem(PREMIUM_KEY) === '1'; } catch { return false; }
 }
 
-/** Always reads the current on-disk value — never stale. */
 function readUsedDurations(): Set<number> {
   try {
     const raw = localStorage.getItem(USED_DURATIONS_KEY) ?? '';
@@ -41,13 +39,14 @@ function readUsedDurations(): Set<number> {
 }
 
 function writeUsedDurations(set: Set<number>): void {
-  try { localStorage.setItem(USED_DURATIONS_KEY, [...set].join(',')); } catch { /* ignore */ }
+  try { localStorage.setItem(USED_DURATIONS_KEY, [...set].join(',')); } catch { /* quota */ }
 }
 
-// ── Hook ─────────────────────────────────────────────────────────────────────
+// ── Hook interface ─────────────────────────────────────────────────────────────
 
 export interface PremiumHook {
   isPremium: boolean;
+  usedDurations: ReadonlySet<number>;
   /** True when the free trial for this duration has been consumed and user is not premium. */
   isLocked: (mins: number) => boolean;
   /** Mark a duration's free trial as consumed. No-op when premium or already consumed. */
@@ -56,28 +55,30 @@ export interface PremiumHook {
   restore:  () => Promise<boolean>;
 }
 
-export function usePremium(): PremiumHook {
-  const [isPremium, setIsPremium] = useState<boolean>(readPremium);
-  // `tick` is only used to force a re-render after consumeDuration writes to
-  // localStorage, so the lock icon appears on the same frame as session end.
-  const [, setTick] = useState(0);
+// ── Hook ──────────────────────────────────────────────────────────────────────
 
-  // ── NOT memoized on purpose ──────────────────────────────────────────────
-  // Reads localStorage on every call → impossible to return a stale value.
-  const isLocked = (mins: number): boolean => {
-    if (isPremium) return false;
-    return readUsedDurations().has(mins);
-  };
+export function usePremium(): PremiumHook {
+  const [isPremium,      setIsPremium]      = useState<boolean>(readPremium);
+  // usedDurations is the canonical source of truth for rendering.
+  // It is initialised from localStorage and updated via setUsedDurations so
+  // React always has the correct value when it re-renders the buttons.
+  const [usedDurations, setUsedDurations]  = useState<Set<number>>(readUsedDurations);
+
+  const isLocked = (mins: number): boolean =>
+    !isPremium && usedDurations.has(mins);
 
   const consumeDuration = (mins: number): void => {
-    if (isPremium) return;
-    const used = readUsedDurations();
-    if (used.has(mins)) return;        // already consumed
-    used.add(mins);
-    writeUsedDurations(used);          // persist immediately
-    setTick(t => t + 1);              // trigger re-render → lock appears
+    if (isPremium || usedDurations.has(mins)) return;
+    // Functional update so that concurrent calls in the same batch accumulate
+    // correctly: each updater receives the latest state, not the closed-over snapshot.
+    setUsedDurations(prev => {
+      if (prev.has(mins)) return prev;
+      const next = new Set(prev);
+      next.add(mins);
+      writeUsedDurations(next);   // persist inside updater (idempotent write)
+      return next;
+    });
   };
-  // ────────────────────────────────────────────────────────────────────────
 
   const purchase = async (): Promise<boolean> => {
     // TODO: await Purchases.purchaseProduct({ productIdentifier: PREMIUM_PRODUCT_ID })
@@ -93,5 +94,5 @@ export function usePremium(): PremiumHook {
     return stored;
   };
 
-  return { isPremium, isLocked, consumeDuration, purchase, restore };
+  return { isPremium, usedDurations, isLocked, consumeDuration, purchase, restore };
 }

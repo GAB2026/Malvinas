@@ -152,17 +152,15 @@ describe('useWarmSession', () => {
     expect(result.current.therapeuticRemaining).toBeGreaterThan(0);
   });
 
-  it('transitions to "therapeutic" phase at high intensity', () => {
+  it('transitions to "therapeutic" phase after MIN_WARMUP_SECS (4 min)', () => {
     const { result } = renderHook(() => useWarmSession(null));
     act(() => result.current.start());
-    // high target 43°C reached at ~125 s; advance 200 s
-    act(() => vi.advanceTimersByTime(200000));
+    // Warming phase lasts exactly MIN_WARMUP_SECS = 240 s; advance 241 s
+    act(() => vi.advanceTimersByTime(241000));
     expect(result.current.phase).toBe('therapeutic');
-    // Transition fires when simulated temp (settle baseline ~40°C + delta 4°C
-    // = target ~44°C) is reached, typically ~93 s after session start.
-    // After 200 s, ~107 s of therapeutic time has elapsed → ~793 s remaining.
+    // 1 s of therapeutic has elapsed; with 15 min selected: 899 s remaining
     expect(result.current.therapeuticRemaining).toBeLessThanOrEqual(900);
-    expect(result.current.therapeuticRemaining).toBeGreaterThan(700);
+    expect(result.current.therapeuticRemaining).toBeGreaterThan(890);
   });
 
   // ── auto-stop: time limit ─────────────────────────────────────────────────
@@ -170,8 +168,8 @@ describe('useWarmSession', () => {
   it('auto-stops with stopReason "time-limit" after warming + 15 min therapeutic (high intensity)', () => {
     const { result } = renderHook(() => useWarmSession(null));
     act(() => result.current.start());
-    // high warm-up ~125 s + 15*60=900 s therapeutic = ~1025 s; advance 1100 s
-    act(() => vi.advanceTimersByTime(1100000));
+    // MIN_WARMUP_SECS=240 s + 15*60=900 s therapeutic = 1140 s total; advance 1200 s
+    act(() => vi.advanceTimersByTime(1200000));
     expect(result.current.running).toBe(false);
     expect(result.current.stopReason).toBe('time-limit');
   });
@@ -193,7 +191,9 @@ describe('useWarmSession', () => {
 
   // ── auto-stop: tab hidden ─────────────────────────────────────────────────
 
-  it('stops with stopReason "tab-hidden" when the tab is hidden', () => {
+  it('does NOT stop when tab becomes hidden (background sessions supported)', () => {
+    // Sessions intentionally continue in background so rotating the phone or
+    // a notification does not kill the session.
     const { result } = renderHook(() => useWarmSession(null));
     act(() => result.current.start());
 
@@ -205,8 +205,8 @@ describe('useWarmSession', () => {
       document.dispatchEvent(new Event('visibilitychange'));
     });
 
-    expect(result.current.running).toBe(false);
-    expect(result.current.stopReason).toBe('tab-hidden');
+    // Should still be running
+    expect(result.current.running).toBe(true);
 
     Object.defineProperty(document, 'hidden', {
       configurable: true,
@@ -229,39 +229,20 @@ describe('useWarmSession', () => {
     expect(result.current.running).toBe(true);
   });
 
-  it('auto-stops with "time-limit" on visibility restore when therapeutic phase overran', () => {
+  it('auto-stops with "time-limit" when time advances past the therapeutic limit', () => {
+    // MIN_WARMUP_SECS=240, default sessionDurationSecs=900 → total 1140 s
     const { result } = renderHook(() => useWarmSession(null));
     act(() => result.current.start());
 
-    // Advance to therapeutic phase
-    act(() => vi.advanceTimersByTime(200000));
+    // Advance past warmup (241 s) to reach therapeutic phase
+    act(() => vi.advanceTimersByTime(241000));
     expect(result.current.phase).toBe('therapeutic');
 
-    // Silently mark tab hidden without event (throttled browser)
-    Object.defineProperty(document, 'hidden', {
-      configurable: true,
-      get: () => true,
-    });
-
-    // Move wall clock past therapeutic limit
-    vi.setSystemTime(Date.now() + 1000 * 1000);
-
-    // Restore visibility
-    act(() => {
-      Object.defineProperty(document, 'hidden', {
-        configurable: true,
-        get: () => false,
-      });
-      document.dispatchEvent(new Event('visibilitychange'));
-    });
+    // Advance through the full therapeutic duration (900 s) plus a margin
+    act(() => vi.advanceTimersByTime(910000));
 
     expect(result.current.running).toBe(false);
     expect(result.current.stopReason).toBe('time-limit');
-
-    Object.defineProperty(document, 'hidden', {
-      configurable: true,
-      get: () => false,
-    });
   });
 
   // ── auto-stop: low battery ────────────────────────────────────────────────
