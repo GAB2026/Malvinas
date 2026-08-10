@@ -1,2 +1,3 @@
 - [Malvinas release state](malvinas-release-state.md) — versionCode 12 en Prueba Cerrada; regla: incrementar versionCode ANTES de cada push que dispara build.
 - [Warm thermal calibration](warm-thermal-calibration.md) — calibration skips to defaults instantly on web (non-native); full 60-sec run only on real Android.
+- [usePremium lock mechanism](usePremium-lock-mechanism.md) — consumeDuration MUST use functional setState; isLocked reads React state not localStorage.
