@@ -1,30 +1,49 @@
 ---
 name: usePremium lock mechanism
-description: How the duration-button lock works and the critical gotcha with React state batching
+description: How the duration-button lock works and the root cause of previous failures
 ---
 
 ## Rule
-`consumeDuration` must use a **functional setState** (`setUsedDurations(prev => ...)`) — never create the next Set from the closed-over `usedDurations` snapshot.
+`_usedDurations` MUST be a **module-level Set**, not React state. React state has
+stale-closure / batching risks in Capacitor's WebView. Module-level variables survive
+all re-renders and re-mounts within the same JS page-load.
 
-**Why:** If multiple `consumeDuration` calls land in the same React render batch (or if the hook re-mounts and the closure snapshot is stale), each call reads the same `usedDurations` from its closure and the last write wins. With functional updates React chains the updaters so each one receives the result of the previous, accumulating correctly.
+**Why confirmed:** Browser screenshot with hardcoded `new Set([5])` at module level
+showed the lock rendering correctly. Previous React-state approaches showed no
+locks — the Set was being lost between renders/batches.
 
-**How to apply:** Always write `consumeDuration` like this:
+**How to apply:**
 ```ts
-setUsedDurations(prev => {
-  if (prev.has(mins)) return prev;   // idempotent
-  const next = new Set(prev);
-  next.add(mins);
-  writeUsedDurations(next);          // persist inside updater (idempotent write)
-  return next;
-});
+// module level — single source of truth
+let _isPremium = false;
+const _usedDurations = new Set<number>();
+
+// init once from localStorage at module load
+(function init() {
+  try { /* read PREMIUM_KEY */ } catch {}
+  try { /* read USED_DURATIONS_KEY and populate _usedDurations */ } catch {}
+})();
+
+// in usePremium():
+const isLocked = (mins: number) => !_isPremium && _usedDurations.has(mins);
+const consumeDuration = (mins: number) => {
+  if (_isPremium || _usedDurations.has(mins)) return;
+  _usedDurations.add(mins);
+  persistUsed();          // localStorage for cross-restart persistence
+  setTick(t => t + 1);   // force re-render only
+};
 ```
-`isLocked(mins)` reads `usedDurations` from React state (not localStorage), so after `setUsedDurations` triggers a re-render, `isLocked` returns the correct value automatically.
 
-## Source of truth
-`usedDurations` is React state (via `useState`). localStorage is secondary persistence for app-restart recovery only. Never call `localStorage.getItem` inside `isLocked` — read from state.
+## UI
+Locked buttons show: amber/yellow border (`border-yellow-500/60 bg-yellow-950/40`),
+large Lock icon (size=20), "Premium" text. The number is hidden. This is unmissable.
+Previous design (13px icon at top-right corner) was too subtle.
 
-## Tests
-`src/hooks/__tests__/usePremium.test.ts` — 8 tests covering single use, multi-use, re-mount persistence, premium bypass. When testing multiple `consumeDuration` calls, wrap each in its own `act()` so the functional updater runs between calls.
+## Testing
+Export `__resetForTests()` to clear `_usedDurations` and `_isPremium` between unit
+tests. Call `localStorage.clear()` AND `__resetForTests()` in `beforeEach`.
+The mock in `Home.test.tsx` uses its own `const _usedDurations = new Set<number>()`
+— reset with `.clear()` (not reassignment).
 
-## Root cause history
-Pre-v3.30: `consumeDuration` wrote `setUsedDurations(next)` where `next` was built from the closed-over snapshot. In the real app (single call per session start) this worked fine. In tests calling it 3× in one act(), the last call won and the other two locks were lost. The functional-update form fixes both cases.
+## Version shipped
+v3.31 (versionCode 41) — module-level approach + new lock UI.
