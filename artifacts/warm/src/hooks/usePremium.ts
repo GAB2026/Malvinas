@@ -7,6 +7,9 @@
  *
  * Premium ($2.99 one-time): unlocks the 5-min button permanently.
  *
+ * NOTE: _5minUsed lives at module level (outside React) so it is never
+ * stale inside closures and is immune to React batching quirks on Android.
+ *
  * TODO (Play Store): replace purchase() / restore() bodies with
  * RevenueCat or @capacitor-community/in-app-purchases calls.
  * Product ID: "warm_premium_lifetime"
@@ -19,11 +22,15 @@ const USED_5MIN_KEY = 'warm_5min_used_v1';
 
 export const PREMIUM_PRODUCT_ID = 'warm_premium_lifetime';
 
+// ── Module-level singleton ─────────────────────────────────────────────────────
+// Initialised once from localStorage on app load; never reset by React renders.
+// Reading _5minUsed directly in the hook avoids stale closure issues entirely.
+let _5minUsed: boolean = (() => {
+  try { return localStorage.getItem(USED_5MIN_KEY) === '1'; } catch { return false; }
+})();
+
 function readPremium(): boolean {
   try { return localStorage.getItem(PREMIUM_KEY) === '1'; } catch { return false; }
-}
-function read5MinUsed(): boolean {
-  try { return localStorage.getItem(USED_5MIN_KEY) === '1'; } catch { return false; }
 }
 
 // ── Hook ─────────────────────────────────────────────────────────────────────
@@ -38,16 +45,20 @@ export interface PremiumHook {
 }
 
 export function usePremium(): PremiumHook {
-  const [isPremium,  setIsPremium]  = useState<boolean>(readPremium);
-  const [used5Min,   setUsed5Min]   = useState<boolean>(read5MinUsed);
+  const [isPremium, setIsPremium] = useState<boolean>(readPremium);
+  // Tick is only for triggering re-renders after consume5Min mutates the module var.
+  const [, setTick] = useState(0);
+  const forceUpdate = useCallback(() => setTick(n => n + 1), []);
 
-  const is5MinLocked = !isPremium && used5Min;
+  // Read the module-level var directly — never stale, never batched incorrectly.
+  const is5MinLocked = !isPremium && _5minUsed;
 
   const consume5Min = useCallback(() => {
-    if (isPremium || used5Min) return;
+    if (isPremium || _5minUsed) return;
+    _5minUsed = true;                                    // mutate module var immediately
     try { localStorage.setItem(USED_5MIN_KEY, '1'); } catch { /* ignore */ }
-    setUsed5Min(true);
-  }, [isPremium, used5Min]);
+    forceUpdate();                                       // trigger re-render so lock icon appears
+  }, [isPremium, forceUpdate]);
 
   const purchase = useCallback(async (): Promise<boolean> => {
     // TODO: await Purchases.purchaseProduct({ productIdentifier: PREMIUM_PRODUCT_ID })
