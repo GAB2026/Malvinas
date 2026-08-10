@@ -508,3 +508,10 @@ uri = "file://warm-v3.31-qr.png"
 type = "image"
 title = "Warm v3.31 — APK"
 description = "Escaneá para descargar e instalar el APK de warm-v3.31"
+
+[[outputs]]
+id = "dglBYyC_Q0KKf7zHHC8aj"
+uri = "file://warm-v3.32-qr.png"
+type = "image"
+title = "Warm v3.32 — APK"
+description = "Escaneá para descargar warm-v3.32"
