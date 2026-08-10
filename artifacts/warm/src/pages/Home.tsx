@@ -103,7 +103,7 @@ function PremiumSheet({
 export default function Home() {
   const t = useTranslations();
   const { result: calibration, calibrating, progress } = useCalibration();
-  const { isPremium, isLocked, purchase, restore } = usePremium();
+  const { isPremium, isLocked, consumeDuration, purchase, restore } = usePremium();
 
   const {
     running, intensity, start, stop,
@@ -165,6 +165,8 @@ export default function Home() {
     if (coolingDown) return;
     // Duration requires premium — open paywall
     if (isLocked(selectedMins)) { setShowPremium(true); return; }
+    // Consume the one free use for 5-min (no-op for already-consumed or premium)
+    consumeDuration(selectedMins);
     triggerPulse();
     start();
     startLockRef.current = true;

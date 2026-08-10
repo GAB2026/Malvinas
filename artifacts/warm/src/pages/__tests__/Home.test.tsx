@@ -3,10 +3,12 @@ import { render, screen, act, fireEvent } from '@testing-library/react';
 import React from 'react';
 
 // ─── usePremium mock ──────────────────────────────────────────────────────────
-// Mirrors the new PremiumHook interface:
-//   isLocked(mins) = !_isPremium && mins > FREE_MINS (5)
-// No consumeDuration — the lock is permanent from first launch.
+// Combined model:
+//   - 5 min: free until consumeDuration(5) is called, then locked
+//   - 10, 15 min: always locked for non-premium users
+//   isLocked(mins) = !_isPremium && (mins > 5 || _usedDurations.has(mins))
 
+const _usedDurations = new Set<number>();
 let _isPremium = false;
 
 vi.mock('@/hooks/usePremium', () => ({
@@ -14,7 +16,12 @@ vi.mock('@/hooks/usePremium', () => ({
   FREE_MINS: 5,
   usePremium: () => ({
     isPremium: _isPremium,
-    isLocked: (mins: number) => !_isPremium && mins > 5,
+    usedDurations: _usedDurations,
+    isLocked: (mins: number) => !_isPremium && (mins > 5 || _usedDurations.has(mins)),
+    consumeDuration: (mins: number) => {
+      if (_isPremium || _usedDurations.has(mins) || mins > 5) return;
+      _usedDurations.add(mins);
+    },
     purchase:  vi.fn().mockResolvedValue(true),
     restore:   vi.fn().mockResolvedValue(false),
   }),
@@ -112,6 +119,7 @@ function renderWithStopReason(stopReason: StopReason) {
 describe('Home — auto-stop toast', () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    _usedDurations.clear();
     _isPremium = false;
     setMockSession({});
   });
@@ -171,6 +179,7 @@ describe('Home — auto-stop toast', () => {
 describe('Home — duration button lock', () => {
   beforeEach(() => {
     vi.useFakeTimers();
+    _usedDurations.clear();
     _isPremium = false;
     setMockSession({});
   });
@@ -180,22 +189,29 @@ describe('Home — duration button lock', () => {
     vi.clearAllMocks();
   });
 
-  it('renders 5-min button unlocked (free tier)', () => {
+  it('5-min button renders its number (unlocked on first launch)', () => {
     render(<Home />);
     expect(screen.getByText('5')).toBeInTheDocument();
   });
 
-  it('10-min and 15-min buttons show "Premium" lock for non-premium users', () => {
+  it('10-min and 15-min buttons show "Premium" lock from first launch', () => {
     render(<Home />);
-    // Two locked buttons → two "Premium" labels
     const premiumLabels = screen.getAllByText('Premium');
     expect(premiumLabels).toHaveLength(2);
-    // Numbers for locked buttons are hidden
     expect(screen.queryByText('10')).not.toBeInTheDocument();
     expect(screen.queryByText('15')).not.toBeInTheDocument();
   });
 
-  it('premium user sees all three buttons unlocked with numbers', () => {
+  it('5-min button shows "Premium" after its free use is consumed', () => {
+    _usedDurations.add(5);
+    render(<Home />);
+    // All three locked → three "Premium" labels
+    const premiumLabels = screen.getAllByText('Premium');
+    expect(premiumLabels).toHaveLength(3);
+    expect(screen.queryByText('5')).not.toBeInTheDocument();
+  });
+
+  it('premium user sees all three buttons with numbers', () => {
     _isPremium = true;
     render(<Home />);
     expect(screen.getByText('5')).toBeInTheDocument();
@@ -204,33 +220,36 @@ describe('Home — duration button lock', () => {
     expect(screen.queryByText('Premium')).not.toBeInTheDocument();
   });
 
-  it('tapping a locked duration button does not start a session', () => {
-    // Default session: 15 min (locked for non-premium)
-    setMockSession({ running: false, stopReason: null });
-    render(<Home />);
-
-    // Click the flame — should open paywall, NOT start
-    const flame = screen.getByTestId('animated-flame');
-    act(() => { fireEvent.click(flame); });
-
-    expect(baseSession.start).not.toHaveBeenCalled();
-  });
-
-  it('tapping flame with 5-min selected (free) starts the session', () => {
-    // Set session to 5 min (free)
+  it('tapping flame with 5-min selected starts the session (first free use)', () => {
     setMockSession({ running: false, stopReason: null, sessionDurationSecs: 5 * 60 });
     render(<Home />);
-
     const flame = screen.getByTestId('animated-flame');
     act(() => { fireEvent.click(flame); });
-
     expect(baseSession.start).toHaveBeenCalled();
   });
 
-  it('lock is visible from the very first render — no free use required', () => {
-    // Non-premium, first ever render — 10 and 15 should already be locked
+  it('tapping flame with 5-min already used does NOT start (shows paywall)', () => {
+    _usedDurations.add(5);
+    setMockSession({ running: false, stopReason: null, sessionDurationSecs: 5 * 60 });
     render(<Home />);
-    const premiumLabels = screen.getAllByText('Premium');
-    expect(premiumLabels.length).toBeGreaterThanOrEqual(1);
+    const flame = screen.getByTestId('animated-flame');
+    act(() => { fireEvent.click(flame); });
+    expect(baseSession.start).not.toHaveBeenCalled();
+  });
+
+  it('tapping flame with 15-min selected (always locked) does NOT start', () => {
+    setMockSession({ running: false, stopReason: null, sessionDurationSecs: 15 * 60 });
+    render(<Home />);
+    const flame = screen.getByTestId('animated-flame');
+    act(() => { fireEvent.click(flame); });
+    expect(baseSession.start).not.toHaveBeenCalled();
+  });
+
+  it('tapping a "Premium" button directly does not start the session', () => {
+    render(<Home />);
+    const premiumLabel = screen.getAllByText('Premium')[0];
+    const lockedBtn = premiumLabel.closest('button')!;
+    act(() => { fireEvent.click(lockedBtn); });
+    expect(baseSession.start).not.toHaveBeenCalled();
   });
 });
