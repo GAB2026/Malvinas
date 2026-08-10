@@ -3,22 +3,18 @@ import { render, screen, act, fireEvent } from '@testing-library/react';
 import React from 'react';
 
 // ─── usePremium mock ──────────────────────────────────────────────────────────
-// Mirrors the current PremiumHook interface. The module-level _usedDurations
-// Set is mutated by consumeDuration (mirroring production behaviour).
+// Mirrors the new PremiumHook interface:
+//   isLocked(mins) = !_isPremium && mins > FREE_MINS (5)
+// No consumeDuration — the lock is permanent from first launch.
 
-const _usedDurations = new Set<number>();
 let _isPremium = false;
 
 vi.mock('@/hooks/usePremium', () => ({
   PREMIUM_PRODUCT_ID: 'warm_premium_lifetime',
+  FREE_MINS: 5,
   usePremium: () => ({
     isPremium: _isPremium,
-    usedDurations: _usedDurations,
-    isLocked: (mins: number) => !_isPremium && _usedDurations.has(mins),
-    consumeDuration: (mins: number) => {
-      if (_isPremium || _usedDurations.has(mins)) return;
-      _usedDurations.add(mins);
-    },
+    isLocked: (mins: number) => !_isPremium && mins > 5,
     purchase:  vi.fn().mockResolvedValue(true),
     restore:   vi.fn().mockResolvedValue(false),
   }),
@@ -116,7 +112,6 @@ function renderWithStopReason(stopReason: StopReason) {
 describe('Home — auto-stop toast', () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    _usedDurations.clear();
     _isPremium = false;
     setMockSession({});
   });
@@ -163,14 +158,12 @@ describe('Home — auto-stop toast', () => {
   it('shows warming phase indicator when phase is warming', () => {
     setMockSession({ running: true, phase: 'warming', deviceTempC: 36, heatLevel: 0.1, warmingRemaining: 200 });
     render(<Home />);
-    // English phaseWarming = 'Calibrating peak temperature…'
     expect(screen.getByText(/Calibrating/i)).toBeInTheDocument();
   });
 
   it('shows therapeutic phase indicator when phase is therapeutic', () => {
     setMockSession({ running: true, phase: 'therapeutic', deviceTempC: 40, heatLevel: 0.6, therapeuticRemaining: 600 });
     render(<Home />);
-    // English phaseTherapeutic = 'Therapy active'
     expect(screen.getByText(/Therapy active/i)).toBeInTheDocument();
   });
 });
@@ -178,7 +171,6 @@ describe('Home — auto-stop toast', () => {
 describe('Home — duration button lock', () => {
   beforeEach(() => {
     vi.useFakeTimers();
-    _usedDurations.clear();   // const Set — clear, not reassign
     _isPremium = false;
     setMockSession({});
   });
@@ -188,54 +180,57 @@ describe('Home — duration button lock', () => {
     vi.clearAllMocks();
   });
 
-  it('renders 3 duration buttons showing numbers when nothing is locked', () => {
+  it('renders 5-min button unlocked (free tier)', () => {
     render(<Home />);
-    // Unlocked buttons show their minute numbers
+    expect(screen.getByText('5')).toBeInTheDocument();
+  });
+
+  it('10-min and 15-min buttons show "Premium" lock for non-premium users', () => {
+    render(<Home />);
+    // Two locked buttons → two "Premium" labels
+    const premiumLabels = screen.getAllByText('Premium');
+    expect(premiumLabels).toHaveLength(2);
+    // Numbers for locked buttons are hidden
+    expect(screen.queryByText('10')).not.toBeInTheDocument();
+    expect(screen.queryByText('15')).not.toBeInTheDocument();
+  });
+
+  it('premium user sees all three buttons unlocked with numbers', () => {
+    _isPremium = true;
+    render(<Home />);
     expect(screen.getByText('5')).toBeInTheDocument();
     expect(screen.getByText('10')).toBeInTheDocument();
     expect(screen.getByText('15')).toBeInTheDocument();
-    // No "Premium" badge should be visible
     expect(screen.queryByText('Premium')).not.toBeInTheDocument();
   });
 
-  it('locked button shows "Premium" label instead of the minute number', () => {
-    // Pre-seed: 5-min was used
-    _usedDurations.add(5);
+  it('tapping a locked duration button does not start a session', () => {
+    // Default session: 15 min (locked for non-premium)
     setMockSession({ running: false, stopReason: null });
     render(<Home />);
 
-    // The locked 5-min button replaces its content with a lock icon + "Premium" text
-    expect(screen.getByText('Premium')).toBeInTheDocument();
-    // The other two buttons still show their numbers
-    expect(screen.getByText('10')).toBeInTheDocument();
-    expect(screen.getByText('15')).toBeInTheDocument();
-    // The number "5" should NOT be visible (the button shows "Premium" instead)
-    expect(screen.queryByText('5')).not.toBeInTheDocument();
+    // Click the flame — should open paywall, NOT start
+    const flame = screen.getByTestId('animated-flame');
+    act(() => { fireEvent.click(flame); });
+
+    expect(baseSession.start).not.toHaveBeenCalled();
   });
 
-  it('consumeDuration is called when flame is tapped to start a session', () => {
-    // baseSession.sessionDurationSecs = 15*60, so selectedMins = 15.
-    setMockSession({ running: false, stopReason: null });
+  it('tapping flame with 5-min selected (free) starts the session', () => {
+    // Set session to 5 min (free)
+    setMockSession({ running: false, stopReason: null, sessionDurationSecs: 5 * 60 });
     render(<Home />);
 
     const flame = screen.getByTestId('animated-flame');
     act(() => { fireEvent.click(flame); });
 
-    // consumeDuration(15) should have been called — 15-min button is now locked.
-    expect(_usedDurations.has(15)).toBe(true);
+    expect(baseSession.start).toHaveBeenCalled();
   });
 
-  it('tapping a locked button does not start a session', () => {
-    _usedDurations.add(5);
-    setMockSession({ running: false, stopReason: null });
+  it('lock is visible from the very first render — no free use required', () => {
+    // Non-premium, first ever render — 10 and 15 should already be locked
     render(<Home />);
-
-    // Find the "Premium" badge button and click it
-    const premiumBadge = screen.getByText('Premium');
-    const lockedBtn = premiumBadge.closest('button')!;
-    act(() => { fireEvent.click(lockedBtn); });
-
-    // start() should NOT have been called
-    expect(baseSession.start).not.toHaveBeenCalled();
+    const premiumLabels = screen.getAllByText('Premium');
+    expect(premiumLabels.length).toBeGreaterThanOrEqual(1);
   });
 });

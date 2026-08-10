@@ -1,19 +1,16 @@
 /**
- * Premium management — one free use per duration button (5, 10, 15 min).
+ * Premium management — intensity-style locking applied to durations.
  *
- * Architecture — module-level variables are the single source of truth:
- *   _usedDurations  A Set<number> that lives for the full JS page-load lifetime.
- *   _isPremium      Boolean, same lifetime.
+ * Free tier  : 5-minute sessions (unlimited).
+ * Premium    : 10-min and 15-min sessions (always locked for non-premium users).
  *
- *   Both are initialised once from localStorage when this module first loads.
- *   consumeDuration / purchase / restore mutate them directly, then call
- *   forceUpdate() so React re-renders the component.
+ * This intentionally mirrors the v3.7 model where "Alta" was always locked:
+ *   isLocked(mins) = !isPremium && mins > FREE_MINS
  *
- *   isLocked() reads _usedDurations on every call — no stale closure, no
- *   React batching delay, no re-mount reset.
- *
- * Free tier:  each duration (5 / 10 / 15 min) gets ONE free session.
- * Premium ($2.99 one-time): all buttons always unlocked.
+ * There is NO "one free use" concept — the lock is permanent from first launch.
+ * isPremium is read from localStorage once at module load and never mutates
+ * during a session (until purchase/restore). This guarantees zero stale-closure
+ * or React-batching issues.
  *
  * TODO: replace purchase() / restore() stubs with RevenueCat SDK calls.
  *       Product ID: "warm_premium_lifetime"
@@ -21,44 +18,28 @@
 
 import { useState } from 'react';
 
-const PREMIUM_KEY        = 'warm_premium_v1';
-const USED_DURATIONS_KEY = 'warm_used_durations_v1';   // e.g. "5,10,15"
-
+const PREMIUM_KEY    = 'warm_premium_v1';
 export const PREMIUM_PRODUCT_ID = 'warm_premium_lifetime';
 
+/** Sessions of this duration or shorter are always free. */
+export const FREE_MINS = 5;
+
 // ── Module-level state ────────────────────────────────────────────────────────
-// These survive all re-renders and re-mounts within the same JS page-load.
-// They are the ONLY source of truth for isLocked().
+// Single source of truth. Lives for the full JS page-load lifetime.
+// isPremium never changes mid-session — no stale-closure risk.
 
 let _isPremium = false;
-const _usedDurations = new Set<number>();
 
 (function init() {
   try { _isPremium = localStorage.getItem(PREMIUM_KEY) === '1'; } catch { /* no storage */ }
-  try {
-    const raw = localStorage.getItem(USED_DURATIONS_KEY) ?? '';
-    raw.split(',').map(Number).filter(n => n > 0 && n < 100)
-       .forEach(n => _usedDurations.add(n));
-  } catch { /* no storage */ }
 })();
-
-// ── Persistence ───────────────────────────────────────────────────────────────
-
-function persistUsed(): void {
-  try {
-    localStorage.setItem(USED_DURATIONS_KEY, [..._usedDurations].join(','));
-  } catch { /* storage quota / unavailable */ }
-}
 
 // ── Hook interface ────────────────────────────────────────────────────────────
 
 export interface PremiumHook {
   isPremium: boolean;
-  usedDurations: ReadonlySet<number>;
-  /** Returns true when the one free trial for this duration is spent and the user is not premium. */
+  /** True when this duration requires premium and the user has not purchased. */
   isLocked: (mins: number) => boolean;
-  /** Consume the free trial for a duration. No-op if premium or already consumed. */
-  consumeDuration: (mins: number) => void;
   purchase: () => Promise<boolean>;
   restore:  () => Promise<boolean>;
 }
@@ -66,19 +47,12 @@ export interface PremiumHook {
 // ── Hook ─────────────────────────────────────────────────────────────────────
 
 export function usePremium(): PremiumHook {
-  // tick drives re-renders only — all data lives in module-level variables.
+  // tick is only for forcing re-renders — all data lives in _isPremium.
   const [, setTick] = useState(0);
   const forceUpdate = () => setTick(t => t + 1);
 
-  const isLocked = (mins: number): boolean =>
-    !_isPremium && _usedDurations.has(mins);
-
-  const consumeDuration = (mins: number): void => {
-    if (_isPremium || _usedDurations.has(mins)) return;
-    _usedDurations.add(mins);
-    persistUsed();
-    forceUpdate();   // re-render so lock icon appears immediately
-  };
+  /** Returns true when the button should show a lock icon. */
+  const isLocked = (mins: number): boolean => !_isPremium && mins > FREE_MINS;
 
   const purchase = async (): Promise<boolean> => {
     _isPremium = true;
@@ -93,18 +67,10 @@ export function usePremium(): PremiumHook {
     return _isPremium;
   };
 
-  return {
-    isPremium:     _isPremium,
-    usedDurations: _usedDurations,
-    isLocked,
-    consumeDuration,
-    purchase,
-    restore,
-  };
+  return { isPremium: _isPremium, isLocked, purchase, restore };
 }
 
 /** Exposed only for unit tests — resets module-level state. */
 export function __resetForTests(): void {
   _isPremium = false;
-  _usedDurations.clear();
 }
