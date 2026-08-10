@@ -1,13 +1,14 @@
 /**
- * Premium management — 5-min button trial.
+ * Premium management — one free use per duration button (5, 10, 15 min).
  *
  * Free tier:
- *   • 5-min session — ONE free use; locked afterwards.
- *   • 10-min and 15-min — always free (for now).
+ *   • Each duration (5 / 10 / 15 min) gets ONE free session.
+ *   • After that single use the button shows a yellow lock 🔒.
+ *   • Tapping a locked button opens the paywall.
  *
- * Premium ($2.99 one-time): unlocks the 5-min button permanently.
+ * Premium ($2.99 one-time): all buttons always unlocked.
  *
- * NOTE: _5minUsed lives at module level (outside React) so it is never
+ * NOTE: _usedDurations lives at module level (outside React) so it is never
  * stale inside closures and is immune to React batching quirks on Android.
  *
  * TODO (Play Store): replace purchase() / restore() bodies with
@@ -17,17 +18,32 @@
 
 import { useState, useCallback } from 'react';
 
-const PREMIUM_KEY   = 'warm_premium_v1';
-const USED_5MIN_KEY = 'warm_5min_used_v1';
+const PREMIUM_KEY      = 'warm_premium_v1';
+const USED_DURATIONS_KEY = 'warm_used_durations_v1'; // stored as comma-separated list e.g. "5,15"
 
 export const PREMIUM_PRODUCT_ID = 'warm_premium_lifetime';
 
 // ── Module-level singleton ─────────────────────────────────────────────────────
-// Initialised once from localStorage on app load; never reset by React renders.
-// Reading _5minUsed directly in the hook avoids stale closure issues entirely.
-let _5minUsed: boolean = (() => {
-  try { return localStorage.getItem(USED_5MIN_KEY) === '1'; } catch { return false; }
-})();
+// Initialised once from localStorage on app load; mutated in-place on each use.
+// Reading _usedDurations directly avoids stale closure issues on Android.
+
+function loadUsedDurations(): Set<number> {
+  try {
+    const raw = localStorage.getItem(USED_DURATIONS_KEY) ?? '';
+    const nums = raw.split(',').map(Number).filter(n => n > 0);
+    return new Set(nums);
+  } catch {
+    return new Set();
+  }
+}
+
+function persistUsedDurations(set: Set<number>) {
+  try {
+    localStorage.setItem(USED_DURATIONS_KEY, [...set].join(','));
+  } catch { /* ignore */ }
+}
+
+let _usedDurations: Set<number> = loadUsedDurations();
 
 function readPremium(): boolean {
   try { return localStorage.getItem(PREMIUM_KEY) === '1'; } catch { return false; }
@@ -36,28 +52,30 @@ function readPremium(): boolean {
 // ── Hook ─────────────────────────────────────────────────────────────────────
 export interface PremiumHook {
   isPremium: boolean;
-  /** True when the 5-min free trial has been consumed and user is not premium. */
-  is5MinLocked: boolean;
-  /** Mark the 5-min trial as consumed. No-op when premium or already consumed. */
-  consume5Min: () => void;
+  /** True when the free trial for this duration has been consumed and user is not premium. */
+  isLocked: (mins: number) => boolean;
+  /** Mark a duration's free trial as consumed. No-op when premium or already consumed. */
+  consumeDuration: (mins: number) => void;
   purchase: () => Promise<boolean>;
   restore:  () => Promise<boolean>;
 }
 
 export function usePremium(): PremiumHook {
   const [isPremium, setIsPremium] = useState<boolean>(readPremium);
-  // Tick is only for triggering re-renders after consume5Min mutates the module var.
+  // Tick is only for triggering re-renders after consumeDuration mutates the module var.
   const [, setTick] = useState(0);
   const forceUpdate = useCallback(() => setTick(n => n + 1), []);
 
-  // Read the module-level var directly — never stale, never batched incorrectly.
-  const is5MinLocked = !isPremium && _5minUsed;
+  const isLocked = useCallback((mins: number): boolean => {
+    if (isPremium) return false;
+    return _usedDurations.has(mins);
+  }, [isPremium]);
 
-  const consume5Min = useCallback(() => {
-    if (isPremium || _5minUsed) return;
-    _5minUsed = true;                                    // mutate module var immediately
-    try { localStorage.setItem(USED_5MIN_KEY, '1'); } catch { /* ignore */ }
-    forceUpdate();                                       // trigger re-render so lock icon appears
+  const consumeDuration = useCallback((mins: number) => {
+    if (isPremium || _usedDurations.has(mins)) return;
+    _usedDurations.add(mins);             // mutate module var immediately
+    persistUsedDurations(_usedDurations);
+    forceUpdate();                        // trigger re-render so lock icon appears
   }, [isPremium, forceUpdate]);
 
   const purchase = useCallback(async (): Promise<boolean> => {
@@ -74,5 +92,5 @@ export function usePremium(): PremiumHook {
     return stored;
   }, []);
 
-  return { isPremium, is5MinLocked, consume5Min, purchase, restore };
+  return { isPremium, isLocked, consumeDuration, purchase, restore };
 }
