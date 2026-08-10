@@ -501,3 +501,10 @@ uri = "file://qr-warm-v3.29.png"
 type = "image"
 title = "Warm v3.29 — APK"
 description = "https://github.com/GAB2026/Malvinas/releases/download/warm-v3.29/app-release.apk"
+
+[[outputs]]
+id = "MIHkfRdWfr4KMLNUHcNke"
+uri = "file://warm-v3.31-qr.png"
+type = "image"
+title = "Warm v3.31 — APK"
+description = "Escaneá para descargar e instalar el APK de warm-v3.31"
