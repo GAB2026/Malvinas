@@ -49,6 +49,7 @@ export interface Translations {
     'time-limit': string;
     'low-battery': string;
     'tab-hidden': string;
+    'background-expired': string;
   };
   cores: string;
   core: string;
@@ -97,6 +98,7 @@ const T: Record<Lang, Translations> = {
       'time-limit': 'Therapeutic session complete',
       'low-battery': 'Battery too low — session stopped',
       'tab-hidden': 'Stopped: app moved to background',
+      'background-expired': 'Your session finished while the app was in the background',
     },
     cores: 'cores',
     core: 'core',
@@ -150,6 +152,7 @@ const T: Record<Lang, Translations> = {
       'time-limit': 'Sesión terapéutica completada',
       'low-battery': 'Batería baja — sesión detenida',
       'tab-hidden': 'Detenido: la app pasó a segundo plano',
+      'background-expired': 'Tu sesión terminó mientras la app estaba en segundo plano',
     },
     cores: 'núcleos',
     core: 'núcleo',
@@ -203,6 +206,7 @@ const T: Record<Lang, Translations> = {
       'time-limit': 'Sessão terapêutica concluída',
       'low-battery': 'Bateria baixa — sessão encerrada',
       'tab-hidden': 'Parado: app foi para segundo plano',
+      'background-expired': 'Sua sessão terminou enquanto o app estava em segundo plano',
     },
     cores: 'núcleos',
     core: 'núcleo',
@@ -256,6 +260,7 @@ const T: Record<Lang, Translations> = {
       'time-limit': 'Séance thérapeutique terminée',
       'low-battery': 'Batterie trop faible — séance arrêtée',
       'tab-hidden': "Arrêté : l'app est passée en arrière-plan",
+      'background-expired': "Votre séance s'est terminée pendant que l'app était en arrière-plan",
     },
     cores: 'cœurs',
     core: 'cœur',
@@ -309,6 +314,7 @@ const T: Record<Lang, Translations> = {
       'time-limit': 'Therapeutische Sitzung abgeschlossen',
       'low-battery': 'Akku zu niedrig — Sitzung gestoppt',
       'tab-hidden': 'Gestoppt: App im Hintergrund',
+      'background-expired': 'Deine Sitzung endete, während die App im Hintergrund war',
     },
     cores: 'Kerne',
     core: 'Kern',
@@ -362,6 +368,7 @@ const T: Record<Lang, Translations> = {
       'time-limit': 'Sessione terapeutica completata',
       'low-battery': 'Batteria troppo bassa — sessione fermata',
       'tab-hidden': "Fermato: l'app è andata in background",
+      'background-expired': "La sessione è terminata mentre l'app era in background",
     },
     cores: 'core',
     core: 'core',
@@ -415,6 +422,7 @@ const T: Record<Lang, Translations> = {
       'time-limit': 'Терапевтический сеанс завершён',
       'low-battery': 'Мало заряда — сеанс остановлен',
       'tab-hidden': 'Остановлено: приложение ушло в фон',
+      'background-expired': 'Сеанс завершился, пока приложение было в фоне',
     },
     cores: 'ядер',
     core: 'ядро',
@@ -468,6 +476,7 @@ const T: Record<Lang, Translations> = {
       'time-limit': 'Hoitoistunto valmis',
       'low-battery': 'Akku liian heikko — istunto pysäytetty',
       'tab-hidden': 'Pysäytetty: sovellus siirtyi taustalle',
+      'background-expired': 'Istuntosi päättyi sovelluksen ollessa taustalla',
     },
     cores: 'ydintä',
     core: 'ydin',
@@ -521,6 +530,7 @@ const T: Record<Lang, Translations> = {
       'time-limit': 'Terapisession slutförd',
       'low-battery': 'Batteri för lågt — session stoppad',
       'tab-hidden': 'Stoppad: appen gick till bakgrunden',
+      'background-expired': 'Din session avslutades medan appen var i bakgrunden',
     },
     cores: 'kärnor',
     core: 'kärna',
@@ -574,6 +584,7 @@ const T: Record<Lang, Translations> = {
       'time-limit': 'Эмчилгээний сесс дууссан',
       'low-battery': 'Батарей бага — сесс зогссон',
       'tab-hidden': 'Зогссон: апп дэвсгэрт орсон',
+      'background-expired': 'Таны сесс апп дэвсгэрт байх үед дуусчээ',
     },
     cores: 'цөм',
     core: 'цөм',
@@ -627,6 +638,7 @@ const T: Record<Lang, Translations> = {
       'time-limit': 'Peqqissaarneq naaperpoq',
       'low-battery': 'Isikkoq minnerpaamik — nalinngissumik',
       'tab-hidden': 'Nalinngissumik: nalunaarusiorfigineqarpoq',
+      'background-expired': 'Nalunaarsorneq naaperpoq app-immi silaannassinnaasoqataanngikkaluarluni',
     },
     cores: 'isikkorfigineqarsinnaasumit',
     core: 'isikkorfigineqarsinnaasumik',

@@ -12,11 +12,50 @@ export type { Intensity } from '@/lib/heat/heatEngine';
 
 export const LOW_BATTERY_CUTOFF = 0.20;
 
+// ── Session persistence (background-kill recovery) ────────────────────────────
+const SESSION_KEY = 'warm_session_v1';
+
+interface PersistedSession {
+  startedAt: number;            // Date.now() ms when start() was called
+  sessionDurationSecs: number;  // user-chosen duration (5/10/15 × 60)
+  intensity: Intensity;
+  therapStartAt: number | null; // Date.now() ms when therapeutic phase began; null = still warming
+}
+
+function saveSession(data: PersistedSession): void {
+  try { localStorage.setItem(SESSION_KEY, JSON.stringify(data)); } catch { /* storage unavailable */ }
+}
+
+function updateTherapStartAt(therapStartAt: number): void {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (!raw) return;
+    const s = JSON.parse(raw) as PersistedSession;
+    s.therapStartAt = therapStartAt;
+    localStorage.setItem(SESSION_KEY, JSON.stringify(s));
+  } catch { /* ignore */ }
+}
+
+function clearSession(): void {
+  try { localStorage.removeItem(SESSION_KEY); } catch { /* ignore */ }
+}
+
+function loadSession(): PersistedSession | null {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw) as PersistedSession;
+    if (typeof data.startedAt !== 'number' || typeof data.sessionDurationSecs !== 'number') return null;
+    return data;
+  } catch { return null; }
+}
+
 export type StopReason =
   | 'user'
   | 'time-limit'
   | 'low-battery'
   | 'tab-hidden'
+  | 'background-expired'
   | null;
 
 export type Phase = 'idle' | 'warming' | 'therapeutic' | 'cooling';
@@ -190,6 +229,7 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
   }, []);
 
   const stopWith = useCallback((reason: StopReason) => {
+    clearSession();
     engineRef.current?.stop();
     runningRef.current = false;
     phaseRef.current = 'idle';
@@ -266,6 +306,12 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
     setPhase('warming');
     setStopReason(null);
     setRunning(true);
+    saveSession({
+      startedAt: now,
+      sessionDurationSecs: sessionDurationSecsRef.current,
+      intensity: intensityRef.current,
+      therapStartAt: null,
+    });
     void acquireWakeLock();
     // Defer worker creation to after React renders the warming state.
     // Double rAF ensures the browser has painted at least one frame first.
@@ -283,6 +329,70 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
     setIntensityState(i);
     if (runningRef.current) engineRef.current!.setIntensity(i);
   }, []);
+
+  // ── Background-kill recovery ──────────────────────────────────────────────
+  // On mount, check if a session was persisted (from a previous page load that
+  // was killed by the OS while the app was in the background).  Reconstruct
+  // state from absolute timestamps so elapsed time is always correct.
+  const recoveredRef = useRef(false);
+  useEffect(() => {
+    if (recoveredRef.current) return;
+    recoveredRef.current = true;
+
+    const saved = loadSession();
+    if (!saved) return;
+
+    const now = Date.now();
+    const totalElapsedSecs = (now - saved.startedAt) / 1000;
+
+    // Reconstruct therapStartAt: use persisted value, or infer from warmup timing.
+    const therapStartAt = saved.therapStartAt ??
+      (totalElapsedSecs >= MIN_WARMUP_SECS ? saved.startedAt + MIN_WARMUP_SECS * 1000 : null);
+
+    const therapElapsedSecs = therapStartAt ? (now - therapStartAt) / 1000 : 0;
+
+    if (therapElapsedSecs >= saved.sessionDurationSecs) {
+      // Session expired while in background — show informational toast, don't resume.
+      clearSession();
+      setStopReason('background-expired');
+      return;
+    }
+
+    // Session still has time remaining — restore all refs and resume.
+    startedAtRef.current = saved.startedAt;
+    therapStartRef.current = therapStartAt;
+    sessionDurationSecsRef.current = saved.sessionDurationSecs;
+    intensityRef.current = saved.intensity;
+    warmingBaselineRef.current = null;
+    tempReadInFlightRef.current = false;
+    hbIterAccRef.current = 0;
+    lastTickMsRef.current = null;
+    hbEverReceivedRef.current = false;
+
+    runningRef.current = true;
+    phaseRef.current = therapStartAt ? 'therapeutic' : 'warming';
+
+    setSessionDurationState(saved.sessionDurationSecs);
+    setIntensityState(saved.intensity);
+    setElapsed(Math.floor(totalElapsedSecs));
+    setTherapElapsed(Math.floor(therapElapsedSecs));
+    setPhase(therapStartAt ? 'therapeutic' : 'warming');
+    setStopReason(null);
+    setRunning(true);
+
+    // Re-persist with the now-known therapStartAt.
+    saveSession({
+      startedAt: saved.startedAt,
+      sessionDurationSecs: saved.sessionDurationSecs,
+      intensity: saved.intensity,
+      therapStartAt,
+    });
+
+    void acquireWakeLock();
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      if (runningRef.current) engineRef.current!.start(intensityRef.current);
+    }));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Worker heartbeat subscription ─────────────────────────────────────────
   // Subscribe once on mount; the callback ref stays stable across sessions.
@@ -397,6 +507,7 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
           therapStartRef.current = now;
           phaseRef.current = 'therapeutic';
           setPhase('therapeutic');
+          updateTherapStartAt(now);
         }
       }
 

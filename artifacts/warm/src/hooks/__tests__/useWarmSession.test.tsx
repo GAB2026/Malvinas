@@ -79,9 +79,12 @@ describe('useWarmSession', () => {
   beforeEach(() => {
     vi.useFakeTimers();
     installWakeLockMock();
+    // Clear persisted session so recovery effect never finds stale data from a prior test.
+    localStorage.removeItem('warm_session_v1');
   });
 
   afterEach(() => {
+    localStorage.removeItem('warm_session_v1');
     vi.useRealTimers();
     removeWakeLockMock();
   });
