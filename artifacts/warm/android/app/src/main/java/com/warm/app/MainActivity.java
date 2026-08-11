@@ -19,7 +19,7 @@ public class MainActivity extends BridgeActivity {
      * the Capacitor local URL so the app recovers automatically.
      */
     @Override
-    protected void onResume() {
+    public void onResume() {
         super.onResume();
         if (this.bridge == null) return;
         WebView webView = this.bridge.getWebView();
