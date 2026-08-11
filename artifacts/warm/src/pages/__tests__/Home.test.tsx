@@ -3,23 +3,20 @@ import { render, screen, act, fireEvent } from '@testing-library/react';
 import React from 'react';
 
 // ─── usePremium mock ──────────────────────────────────────────────────────────
-// Combined model:
-//   - 5 min: free until consumeDuration(5) is called, then locked
-//   - 10, 15 min: always locked for non-premium users
-//   isLocked(mins) = !_isPremium && (mins > 5 || _usedDurations.has(mins))
+// All three buttons: one free use each, then locked.
+// isLocked(mins) = !_isPremium && _usedDurations.has(mins)
 
 const _usedDurations = new Set<number>();
 let _isPremium = false;
 
 vi.mock('@/hooks/usePremium', () => ({
   PREMIUM_PRODUCT_ID: 'warm_premium_lifetime',
-  FREE_MINS: 5,
   usePremium: () => ({
     isPremium: _isPremium,
     usedDurations: _usedDurations,
-    isLocked: (mins: number) => !_isPremium && (mins > 5 || _usedDurations.has(mins)),
+    isLocked: (mins: number) => !_isPremium && _usedDurations.has(mins),
     consumeDuration: (mins: number) => {
-      if (_isPremium || _usedDurations.has(mins) || mins > 5) return;
+      if (_isPremium || _usedDurations.has(mins)) return;
       _usedDurations.add(mins);
     },
     purchase:  vi.fn().mockResolvedValue(true),
@@ -189,30 +186,7 @@ describe('Home — duration button lock', () => {
     vi.clearAllMocks();
   });
 
-  it('5-min button renders its number (unlocked on first launch)', () => {
-    render(<Home />);
-    expect(screen.getByText('5')).toBeInTheDocument();
-  });
-
-  it('10-min and 15-min buttons show "Premium" lock from first launch', () => {
-    render(<Home />);
-    const premiumLabels = screen.getAllByText('Premium');
-    expect(premiumLabels).toHaveLength(2);
-    expect(screen.queryByText('10')).not.toBeInTheDocument();
-    expect(screen.queryByText('15')).not.toBeInTheDocument();
-  });
-
-  it('5-min button shows "Premium" after its free use is consumed', () => {
-    _usedDurations.add(5);
-    render(<Home />);
-    // All three locked → three "Premium" labels
-    const premiumLabels = screen.getAllByText('Premium');
-    expect(premiumLabels).toHaveLength(3);
-    expect(screen.queryByText('5')).not.toBeInTheDocument();
-  });
-
-  it('premium user sees all three buttons with numbers', () => {
-    _isPremium = true;
+  it('all three buttons show their numbers on first launch (nothing locked)', () => {
     render(<Home />);
     expect(screen.getByText('5')).toBeInTheDocument();
     expect(screen.getByText('10')).toBeInTheDocument();
@@ -220,35 +194,58 @@ describe('Home — duration button lock', () => {
     expect(screen.queryByText('Premium')).not.toBeInTheDocument();
   });
 
-  it('tapping flame with 5-min selected starts the session (first free use)', () => {
+  it('a button shows "Premium" after its free use is consumed', () => {
+    _usedDurations.add(10);
+    render(<Home />);
+    expect(screen.getByText('Premium')).toBeInTheDocument();
+    expect(screen.queryByText('10')).not.toBeInTheDocument();
+    // Others still show numbers
+    expect(screen.getByText('5')).toBeInTheDocument();
+    expect(screen.getByText('15')).toBeInTheDocument();
+  });
+
+  it('all three show "Premium" when all are consumed', () => {
+    _usedDurations.add(5);
+    _usedDurations.add(10);
+    _usedDurations.add(15);
+    render(<Home />);
+    expect(screen.getAllByText('Premium')).toHaveLength(3);
+    expect(screen.queryByText('5')).not.toBeInTheDocument();
+    expect(screen.queryByText('10')).not.toBeInTheDocument();
+    expect(screen.queryByText('15')).not.toBeInTheDocument();
+  });
+
+  it('premium user sees all three buttons with numbers', () => {
+    _isPremium = true;
+    _usedDurations.add(5);
+    _usedDurations.add(10);
+    _usedDurations.add(15);
+    render(<Home />);
+    expect(screen.getByText('5')).toBeInTheDocument();
+    expect(screen.getByText('10')).toBeInTheDocument();
+    expect(screen.getByText('15')).toBeInTheDocument();
+    expect(screen.queryByText('Premium')).not.toBeInTheDocument();
+  });
+
+  it('tapping flame starts the session when button is unlocked', () => {
     setMockSession({ running: false, stopReason: null, sessionDurationSecs: 5 * 60 });
     render(<Home />);
-    const flame = screen.getByTestId('animated-flame');
-    act(() => { fireEvent.click(flame); });
+    act(() => { fireEvent.click(screen.getByTestId('animated-flame')); });
     expect(baseSession.start).toHaveBeenCalled();
   });
 
-  it('tapping flame with 5-min already used does NOT start (shows paywall)', () => {
-    _usedDurations.add(5);
-    setMockSession({ running: false, stopReason: null, sessionDurationSecs: 5 * 60 });
-    render(<Home />);
-    const flame = screen.getByTestId('animated-flame');
-    act(() => { fireEvent.click(flame); });
-    expect(baseSession.start).not.toHaveBeenCalled();
-  });
-
-  it('tapping flame with 15-min selected (always locked) does NOT start', () => {
+  it('tapping flame does NOT start when button is locked', () => {
+    _usedDurations.add(15);
     setMockSession({ running: false, stopReason: null, sessionDurationSecs: 15 * 60 });
     render(<Home />);
-    const flame = screen.getByTestId('animated-flame');
-    act(() => { fireEvent.click(flame); });
+    act(() => { fireEvent.click(screen.getByTestId('animated-flame')); });
     expect(baseSession.start).not.toHaveBeenCalled();
   });
 
   it('tapping a "Premium" button directly does not start the session', () => {
+    _usedDurations.add(5);
     render(<Home />);
-    const premiumLabel = screen.getAllByText('Premium')[0];
-    const lockedBtn = premiumLabel.closest('button')!;
+    const lockedBtn = screen.getByText('Premium').closest('button')!;
     act(() => { fireEvent.click(lockedBtn); });
     expect(baseSession.start).not.toHaveBeenCalled();
   });
