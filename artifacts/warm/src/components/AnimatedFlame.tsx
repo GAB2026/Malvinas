@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import type { Intensity } from '@/lib/heat/heatEngine';
+import './AnimatedFlame.css';
 
 interface Props {
   intensity: Intensity;
@@ -12,20 +13,17 @@ interface Props {
 const BASE_SIZE: Record<Intensity, number> = { low: 0.55, medium: 0.75, high: 1.0 };
 
 export default function AnimatedFlame({ intensity, heatLevel, running, onClick, disabled }: Props) {
-  const idleScale  = BASE_SIZE[intensity];
-  const liveScale  = idleScale * (0.75 + heatLevel * 0.25);
-  const scale      = running ? liveScale : idleScale * 0.65;
+  const idleScale   = BASE_SIZE[intensity];
+  const liveScale   = idleScale * (0.75 + heatLevel * 0.25);
+  const scale       = running ? liveScale : idleScale * 0.65;
   const glowOpacity = running ? 0.3 + heatLevel * 0.7 : 0.1 + idleScale * 0.15;
-  const glowColor  = running
+  const glowColor   = running
     ? `rgba(249,115,22,${glowOpacity})`
     : `rgba(180,70,10,${glowOpacity})`;
 
-  const flickerTransition = (dur: number, delay = 0) => ({
-    duration: dur,
-    repeat: Infinity,
-    ease: 'easeInOut' as const,
-    delay,
-  });
+  // CSS animation shorthand — runs entirely on the compositor (GPU), off the JS thread.
+  const anim = (name: string, dur: number, delay = 0) =>
+    `${name} ${dur}s ease-in-out ${delay}s infinite`;
 
   return (
     <motion.button
@@ -47,26 +45,27 @@ export default function AnimatedFlame({ intensity, heatLevel, running, onClick, 
       }}
       whileTap={disabled ? {} : { scale: 0.94 }}
     >
-      {/* Ground glow */}
-      <motion.div
+      {/* Ground glow — centered via marginLeft instead of translateX so CSS
+          animation only needs to handle scaleX/opacity (no transform conflict). */}
+      <div
         style={{
           position: 'absolute',
           bottom: -12,
           left: '50%',
-          x: '-50%',
+          marginLeft: -50,
           width: 100,
           height: 28,
           borderRadius: '50%',
           background: glowColor,
           filter: 'blur(10px)',
           pointerEvents: 'none',
+          transformOrigin: 'center',
+          animation: anim('flame-glow', 1.6),
         }}
-        animate={{ scaleX: [0.85, 1.15, 0.9, 1.1, 0.85], opacity: [0.7, 1, 0.75, 1, 0.7] }}
-        transition={flickerTransition(1.6)}
       />
 
       {/* Outer flame — deep orange/red */}
-      <motion.div
+      <div
         style={{
           position: 'absolute',
           bottom: 0,
@@ -78,17 +77,12 @@ export default function AnimatedFlame({ intensity, heatLevel, running, onClick, 
             : 'radial-gradient(ellipse at 50% 82%, #b45309 0%, #78350f 60%, #451a03 100%)',
           transformOrigin: 'bottom center',
           opacity: disabled ? 0.4 : 1,
+          animation: anim('flame-outer', 1.3),
         }}
-        animate={{
-          scaleX: [1, 0.96, 1.03, 0.97, 1.01, 1],
-          scaleY: [1, 1.02, 0.98, 1.03, 0.99, 1],
-          rotate: [-1, 1.5, -0.8, 1.2, -1.5, -1],
-        }}
-        transition={flickerTransition(1.3)}
       />
 
       {/* Mid flame — orange/amber */}
-      <motion.div
+      <div
         style={{
           position: 'absolute',
           bottom: 0,
@@ -100,17 +94,12 @@ export default function AnimatedFlame({ intensity, heatLevel, running, onClick, 
             : 'radial-gradient(ellipse at 50% 82%, #d97706 0%, #b45309 55%, #78350f 100%)',
           transformOrigin: 'bottom center',
           opacity: disabled ? 0.4 : 1,
+          animation: anim('flame-mid', 1.05, 0.12),
         }}
-        animate={{
-          scaleX: [1, 0.94, 1.04, 0.96, 1.02, 1],
-          scaleY: [1, 1.04, 0.97, 1.05, 0.98, 1],
-          rotate: [1, -1.8, 0.6, -1.2, 1.8, 1],
-        }}
-        transition={flickerTransition(1.05, 0.12)}
       />
 
       {/* Inner hot core — white/pale yellow */}
-      <motion.div
+      <div
         style={{
           position: 'absolute',
           bottom: 0,
@@ -122,17 +111,12 @@ export default function AnimatedFlame({ intensity, heatLevel, running, onClick, 
             : 'radial-gradient(ellipse at 50% 78%, #fef3c7 0%, #fde68a 40%, #f59e0b 100%)',
           transformOrigin: 'bottom center',
           opacity: disabled ? 0.3 : 1,
+          animation: anim('flame-inner', 0.85, 0.22),
         }}
-        animate={{
-          scaleX: [1, 0.93, 1.05, 0.94, 1.03, 1],
-          scaleY: [1, 1.05, 0.96, 1.06, 0.97, 1],
-          rotate: [-0.5, 1.2, -1.2, 0.8, -0.8, -0.5],
-        }}
-        transition={flickerTransition(0.85, 0.22)}
       />
 
       {/* Tiny tip flicker */}
-      <motion.div
+      <div
         style={{
           position: 'absolute',
           bottom: 0,
@@ -142,13 +126,8 @@ export default function AnimatedFlame({ intensity, heatLevel, running, onClick, 
           background: 'radial-gradient(ellipse at 50% 70%, #ffffff 0%, #fef9c3 60%, transparent 100%)',
           transformOrigin: 'bottom center',
           opacity: running ? 0.85 : 0.3,
+          animation: anim('flame-tip', 0.65, 0.3),
         }}
-        animate={{
-          scaleX: [1, 0.7, 1.3, 0.8, 1.1, 1],
-          scaleY: [1, 1.15, 0.9, 1.2, 0.85, 1],
-          rotate: [0, 3, -3, 2, -2, 0],
-        }}
-        transition={flickerTransition(0.65, 0.3)}
       />
     </motion.button>
   );
