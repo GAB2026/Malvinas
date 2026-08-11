@@ -550,3 +550,10 @@ uri = "file://warm-v3.37-qr.png"
 type = "image"
 title = "Warm v3.37 — APK"
 description = "Escaneá para descargar warm-v3.37"
+
+[[outputs]]
+id = "IBb1Nz_SagkPKbcoXOasp"
+uri = "file://warm-v3.38-qr.png"
+type = "image"
+title = "Warm v3.38 — QR de instalación"
+description = "Escanear para descargar app-release.apk (versionCode 48)"
