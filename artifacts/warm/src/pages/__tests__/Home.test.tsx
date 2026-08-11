@@ -131,9 +131,12 @@ describe('Home — auto-stop toast', () => {
     expect(screen.getByText('Therapeutic session complete')).toBeInTheDocument();
   });
 
-  it('shows "Battery too low — session stopped" for low-battery stop', () => {
+  it('shows the safety warning modal (not a toast) for low-battery stop', () => {
+    // Low-battery now opens a persistent modal sheet with the safety notice,
+    // not the auto-dismissing toast used for other stop reasons.
     renderWithStopReason('low-battery');
-    expect(screen.getByText('Battery too low — session stopped')).toBeInTheDocument();
+    expect(screen.queryByText('Battery too low — session stopped')).not.toBeInTheDocument();
+    expect(screen.getByText('Safety Notice')).toBeInTheDocument();
   });
 
   it('does NOT show a toast when the stop reason is "user"', () => {
@@ -154,10 +157,11 @@ describe('Home — auto-stop toast', () => {
     expect(screen.queryByText('Therapeutic session complete')).not.toBeInTheDocument();
   });
 
-  it('toast is still visible just before the dismiss timeout', () => {
+  it('safety modal stays visible until dismissed (no auto-timeout for low-battery)', () => {
     renderWithStopReason('low-battery');
-    act(() => { vi.advanceTimersByTime(AUTO_DISMISS_MS - 500); });
-    expect(screen.getByText('Battery too low — session stopped')).toBeInTheDocument();
+    // Advance well past AUTO_DISMISS_MS — modal must still be present
+    act(() => { vi.advanceTimersByTime(AUTO_DISMISS_MS + 5000); });
+    expect(screen.getByText('Safety Notice')).toBeInTheDocument();
   });
 
   it('shows warming phase indicator when phase is warming', () => {

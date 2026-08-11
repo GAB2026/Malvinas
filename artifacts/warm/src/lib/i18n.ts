@@ -71,6 +71,10 @@ export interface Translations {
   calibratedDevice: string;
   soundOn: string;
   soundOff: string;
+  /** Static suggestion shown at the bottom of the main screen */
+  suggestion: string;
+  /** Button label to dismiss the low-battery warning card */
+  understood: string;
 }
 
 const T: Record<Lang, Translations> = {
@@ -97,7 +101,7 @@ const T: Record<Lang, Translations> = {
     autoStop: {
       'time-limit': 'Therapeutic session complete',
       'low-battery': 'Battery too low — session stopped',
-      'tab-hidden': 'The session was stopped when the app moved to the background to allow other apps to run. For the best experience, avoid leaving the app until the session ends. You may start a new session whenever you like. Make sure you have enough battery charge.',
+      'tab-hidden': 'Stopped: app moved to background',
       'background-expired': 'Your session finished while the app was in the background',
     },
     cores: 'cores',
@@ -126,6 +130,8 @@ const T: Record<Lang, Translations> = {
     calibratedDevice: 'Calibrated for your device',
     soundOn: 'Sound on',
     soundOff: 'Sound off',
+    suggestion: "Tip: avoid leaving the app while in use. This could interrupt your session and you would need to restart it. You may also remove your device's protective case for a better temperature experience.",
+    understood: 'Got it',
   },
 
   es: {
@@ -151,7 +157,7 @@ const T: Record<Lang, Translations> = {
     autoStop: {
       'time-limit': 'Sesión terapéutica completada',
       'low-battery': 'Batería baja — sesión detenida',
-      'tab-hidden': 'Necesariamente la sesión se detuvo cuando pasó a segundo plano para poder ejecutar otra aplicación. Para una mejor experiencia evite salir de la app hasta que finalice el tiempo. Si lo desea puede volver a iniciar una nueva. Asegúrese de contar con carga suficiente.',
+      'tab-hidden': 'Detenido: la app pasó a segundo plano',
       'background-expired': 'Tu sesión terminó mientras la app estaba en segundo plano',
     },
     cores: 'núcleos',
@@ -180,6 +186,8 @@ const T: Record<Lang, Translations> = {
     calibratedDevice: 'Calibrado para tu dispositivo',
     soundOn: 'Sonido activado',
     soundOff: 'Sin sonido',
+    suggestion: 'Sugerencia: evite salir de la app mientras esté en uso. La misma podría interrumpir la sesión y debería recomenzarla. Si lo desea puede quitar la funda protectora del dispositivo para una mayor experiencia de temperatura.',
+    understood: 'Entendido',
   },
 
   pt: {
@@ -205,7 +213,7 @@ const T: Record<Lang, Translations> = {
     autoStop: {
       'time-limit': 'Sessão terapêutica concluída',
       'low-battery': 'Bateria baixa — sessão encerrada',
-      'tab-hidden': 'A sessão foi interrompida quando o app foi para segundo plano para permitir a execução de outros aplicativos. Para uma melhor experiência, evite sair do app até que o tempo termine. Se desejar, pode iniciar uma nova sessão. Certifique-se de ter carga suficiente.',
+      'tab-hidden': 'Parado: app foi para segundo plano',
       'background-expired': 'Sua sessão terminou enquanto o app estava em segundo plano',
     },
     cores: 'núcleos',
@@ -234,6 +242,8 @@ const T: Record<Lang, Translations> = {
     calibratedDevice: 'Calibrado para o seu dispositivo',
     soundOn: 'Som ativado',
     soundOff: 'Sem som',
+    suggestion: 'Dica: evite sair do app enquanto estiver em uso. Isso pode interromper a sessão e você precisará reiniciá-la. Se desejar, retire a capa protetora do dispositivo para uma melhor experiência de temperatura.',
+    understood: 'Entendido',
   },
 
   fr: {
@@ -259,7 +269,7 @@ const T: Record<Lang, Translations> = {
     autoStop: {
       'time-limit': 'Séance thérapeutique terminée',
       'low-battery': 'Batterie trop faible — séance arrêtée',
-      'tab-hidden': "La séance a été arrêtée lorsque l'app est passée en arrière-plan pour permettre l'exécution d'autres applications. Pour une meilleure expérience, évitez de quitter l'app avant la fin du temps imparti. Vous pouvez relancer une nouvelle séance si vous le souhaitez. Assurez-vous d'avoir suffisamment de batterie.",
+      'tab-hidden': "Arrêté : l'app est passée en arrière-plan",
       'background-expired': "Votre séance s'est terminée pendant que l'app était en arrière-plan",
     },
     cores: 'cœurs',
@@ -288,6 +298,8 @@ const T: Record<Lang, Translations> = {
     calibratedDevice: 'Calibré pour votre appareil',
     soundOn: 'Son activé',
     soundOff: 'Son désactivé',
+    suggestion: "Conseil : évitez de quitter l'app pendant son utilisation. Cela pourrait interrompre la séance. Si vous le souhaitez, retirez la coque de votre appareil pour une meilleure expérience de température.",
+    understood: 'Compris',
   },
 
   de: {
@@ -313,7 +325,7 @@ const T: Record<Lang, Translations> = {
     autoStop: {
       'time-limit': 'Therapeutische Sitzung abgeschlossen',
       'low-battery': 'Akku zu niedrig — Sitzung gestoppt',
-      'tab-hidden': 'Die Sitzung wurde gestoppt, als die App in den Hintergrund wechselte, um andere Apps ausführen zu können. Verlassen Sie die App nicht, bis die Zeit abgelaufen ist – so erhalten Sie das beste Ergebnis. Bei Bedarf können Sie eine neue Sitzung starten. Achten Sie auf ausreichend Akkuladung.',
+      'tab-hidden': 'Gestoppt: App im Hintergrund',
       'background-expired': 'Deine Sitzung endete, während die App im Hintergrund war',
     },
     cores: 'Kerne',
@@ -342,6 +354,8 @@ const T: Record<Lang, Translations> = {
     calibratedDevice: 'Kalibriert für dein Gerät',
     soundOn: 'Ton an',
     soundOff: 'Ton aus',
+    suggestion: 'Tipp: Verlassen Sie die App nicht während der Nutzung. Dies könnte die Sitzung unterbrechen. Sie können auch die Schutzhülle des Geräts entfernen, um ein besseres Temperaturerlebnis zu erzielen.',
+    understood: 'Verstanden',
   },
 
   it: {
@@ -367,7 +381,7 @@ const T: Record<Lang, Translations> = {
     autoStop: {
       'time-limit': 'Sessione terapeutica completata',
       'low-battery': 'Batteria troppo bassa — sessione fermata',
-      'tab-hidden': "La sessione è stata interrotta quando l'app è andata in background per consentire l'esecuzione di altre applicazioni. Per una migliore esperienza, evita di uscire dall'app finché il tempo non è scaduto. Puoi avviare una nuova sessione quando vuoi. Assicurati di avere carica sufficiente.",
+      'tab-hidden': "Fermato: l'app è andata in background",
       'background-expired': "La sessione è terminata mentre l'app era in background",
     },
     cores: 'core',
@@ -396,6 +410,8 @@ const T: Record<Lang, Translations> = {
     calibratedDevice: 'Calibrato per il tuo dispositivo',
     soundOn: 'Audio attivo',
     soundOff: 'Audio disattivo',
+    suggestion: "Suggerimento: evita di uscire dall'app mentre è in uso. Potrebbe interrompere la sessione. Puoi rimuovere la custodia del dispositivo per una migliore esperienza di temperatura.",
+    understood: 'Capito',
   },
 
   ru: {
@@ -421,7 +437,7 @@ const T: Record<Lang, Translations> = {
     autoStop: {
       'time-limit': 'Терапевтический сеанс завершён',
       'low-battery': 'Мало заряда — сеанс остановлен',
-      'tab-hidden': 'Сеанс был остановлен, когда приложение ушло в фон для работы других приложений. Для лучшего результата не покидайте приложение до окончания времени. При желании вы можете начать новый сеанс. Убедитесь, что заряда батареи достаточно.',
+      'tab-hidden': 'Остановлено: приложение ушло в фон',
       'background-expired': 'Сеанс завершился, пока приложение было в фоне',
     },
     cores: 'ядер',
@@ -450,6 +466,8 @@ const T: Record<Lang, Translations> = {
     calibratedDevice: 'Калибровка выполнена',
     soundOn: 'Звук вкл.',
     soundOff: 'Звук выкл.',
+    suggestion: 'Совет: не покидайте приложение во время использования. Это может прервать сеанс. При желании снимите чехол с устройства для лучшего ощущения тепла.',
+    understood: 'Понятно',
   },
 
   fi: {
@@ -475,7 +493,7 @@ const T: Record<Lang, Translations> = {
     autoStop: {
       'time-limit': 'Hoitoistunto valmis',
       'low-battery': 'Akku liian heikko — istunto pysäytetty',
-      'tab-hidden': 'Istunto pysäytettiin, kun sovellus siirtyi taustalle muiden sovellusten suorittamiseksi. Parhaan tuloksen saamiseksi älä poistu sovelluksesta ennen ajan päättymistä. Voit halutessasi aloittaa uuden istunnon. Varmista, että akussa on riittävästi latausta.',
+      'tab-hidden': 'Pysäytetty: sovellus siirtyi taustalle',
       'background-expired': 'Istuntosi päättyi sovelluksen ollessa taustalla',
     },
     cores: 'ydintä',
@@ -504,6 +522,8 @@ const T: Record<Lang, Translations> = {
     calibratedDevice: 'Kalibroitu laitteellesi',
     soundOn: 'Ääni päällä',
     soundOff: 'Ääni pois',
+    suggestion: 'Vinkki: älä poistu sovelluksesta sen käytön aikana. Tämä voi keskeyttää istunnon. Voit myös poistaa laitteen suojakuoren parempaa lämpökokemusta varten.',
+    understood: 'Selvä',
   },
 
   sv: {
@@ -529,7 +549,7 @@ const T: Record<Lang, Translations> = {
     autoStop: {
       'time-limit': 'Terapisession slutförd',
       'low-battery': 'Batteri för lågt — session stoppad',
-      'tab-hidden': 'Sessionen stoppades när appen gick till bakgrunden för att möjliggöra körning av andra appar. För bästa resultat, lämna inte appen förrän tiden är slut. Du kan starta en ny session om du vill. Se till att du har tillräckligt med batteriladdning.',
+      'tab-hidden': 'Stoppad: appen gick till bakgrunden',
       'background-expired': 'Din session avslutades medan appen var i bakgrunden',
     },
     cores: 'kärnor',
@@ -558,6 +578,8 @@ const T: Record<Lang, Translations> = {
     calibratedDevice: 'Kalibrerad för din enhet',
     soundOn: 'Ljud på',
     soundOff: 'Ljud av',
+    suggestion: 'Tips: undvik att lämna appen medan den används. Det kan avbryta sessionen. Du kan ta bort skyddsfodral från enheten för en bättre temperaturupplevelse.',
+    understood: 'Förstått',
   },
 
   mn: {
@@ -583,7 +605,7 @@ const T: Record<Lang, Translations> = {
     autoStop: {
       'time-limit': 'Эмчилгээний сесс дууссан',
       'low-battery': 'Батарей бага — сесс зогссон',
-      'tab-hidden': 'Бусад программ ажиллуулах боломж олгохын тулд апп арын горимд орсон тул сесс зогссон. Хамгийн сайн үр дүнд хүрэхийн тулд цаг дуустал аппаас гарахаас зайлсхийгээрэй. Хүсвэл шинэ сесс эхлүүлж болно. Батарей хүрэлцэхүйц байгаа эсэхийг шалгаарай.',
+      'tab-hidden': 'Зогссон: апп дэвсгэрт орсон',
       'background-expired': 'Таны сесс апп дэвсгэрт байх үед дуусчээ',
     },
     cores: 'цөм',
@@ -612,6 +634,8 @@ const T: Record<Lang, Translations> = {
     calibratedDevice: 'Таны төхөөрөмжид тохируулагдсан',
     soundOn: 'Дуу асаалттай',
     soundOff: 'Дуугүй',
+    suggestion: 'Зөвлөмж: ашиглаж байх үед аппаас гарахаас зайлсхийгээрэй. Энэ нь сессийг тасалдуулж болно. Илүү сайн температурын туршлагын тулд хамгаалалтын бүрхэвчийг тайлж болно.',
+    understood: 'Ойлголоо',
   },
 
   kl: {
@@ -637,7 +661,7 @@ const T: Record<Lang, Translations> = {
     autoStop: {
       'time-limit': 'Peqqissaarneq naaperpoq',
       'low-battery': 'Isikkoq minnerpaamik — nalinngissumik',
-      'tab-hidden': 'Nalunaarsorneq nalinngissumik nalunaarusiorfigineqarpoq app-immi silaannassinnaasoqataanngikkaluarluni allat app-inik atugarissaarsinnaasumillu. Piumasaqarnermi nalunaarsorneq naalersinnaanngikkaluarluni app-ikkut anissavanngilaq. Piumasareerumik nalunaarsorneq nutaaq atuissinnaavat. Isikkoq nalinginnaasumik nalunaarusiorfigineqarpoq.',
+      'tab-hidden': 'Nalinngissumik: nalunaarusiorfigineqarpoq',
       'background-expired': 'Nalunaarsorneq naaperpoq app-immi silaannassinnaasoqataanngikkaluarluni',
     },
     cores: 'isikkorfigineqarsinnaasumit',
@@ -666,6 +690,8 @@ const T: Record<Lang, Translations> = {
     calibratedDevice: 'Nalunaarusiorfigineqarpoq',
     soundOn: 'Nipaat',
     soundOff: 'Nipaat nalinginnaasumik',
+    suggestion: 'Nalunaarusiorfigineq: app-immi atugarissaarsinnaanngikkaluarluni anissavanngilaq. Nalunaarsorneq naalersinnaanngitsoq nalunaarusiorfigineqarpoq. Isikkoq nalinginnaasumik nalunaarusiorfigineqarpoq telefoni allisinnaanermi.',
+    understood: 'Nalunngissumik',
   },
 };
 

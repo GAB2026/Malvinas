@@ -19,32 +19,6 @@ public class MainActivity extends BridgeActivity {
     }
 
     /**
-     * Fires a 'native-pause' event in the WebView JavaScript context.
-     *
-     * document.visibilitychange is unreliable on Android WebView — many OEMs
-     * and Android versions never dispatch it when the user presses Home or
-     * switches apps.  Bridging onPause() directly via evaluateJavascript is
-     * the only guaranteed signal that the app moved to the background.
-     *
-     * The JS hook in useWarmSession listens for window 'native-pause' and
-     * stops the session immediately.
-     */
-    @Override
-    public void onPause() {
-        super.onPause();
-        if (this.bridge == null) return;
-        WebView webView = this.bridge.getWebView();
-        if (webView == null) return;
-        // post() ensures this runs on the WebView's own thread
-        webView.post(() ->
-            webView.evaluateJavascript(
-                "window.dispatchEvent(new CustomEvent('native-pause'));",
-                null
-            )
-        );
-    }
-
-    /**
      * Dark overlay placed on top of the WebView.
      *
      * When Android 12/13 kills the WebView renderer process in the background
@@ -81,7 +55,7 @@ public class MainActivity extends BridgeActivity {
             return;
         }
 
-        // Case 2: renderer was killed but URL is still set (phone power-off/on).
+        // Case 2: renderer was killed but URL is still set (e.g. phone power-off/on).
         // Probe JS — evaluateJavascript callback never fires if the renderer is
         // dead, so we arm a 1.5 s timeout that triggers a reload if not cancelled.
         final boolean[] probeAnswered = {false};

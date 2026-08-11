@@ -5,7 +5,7 @@ import { usePremium } from '@/hooks/usePremium';
 import { useTranslations } from '@/lib/i18n';
 import { playCompletionChime } from '@/lib/chime';
 import AnimatedFlame from '@/components/AnimatedFlame';
-import { Battery, AlertTriangle, ShieldAlert, Thermometer, RefreshCw, Lock } from 'lucide-react';
+import { Battery, AlertTriangle, ShieldAlert, Thermometer, RefreshCw, Lock, Lightbulb } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const AUTO_DISMISS_MS = 5000;
@@ -99,6 +99,39 @@ function PremiumSheet({
   );
 }
 
+// ── Low-battery warning sheet ─────────────────────────────────────────────────
+function LowBatteryWarningSheet({ onDismiss }: { onDismiss: () => void }) {
+  const t = useTranslations();
+  return (
+    <motion.div
+      className="fixed inset-0 z-50 flex flex-col items-center justify-end"
+      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+    >
+      <div className="absolute inset-0 bg-black/70" onClick={onDismiss} />
+      <motion.div
+        className="relative z-10 w-full max-w-sm bg-[#120e08] border border-white/10 rounded-t-3xl px-6 pt-5 pb-10 flex flex-col gap-5"
+        initial={{ y: 80 }} animate={{ y: 0 }} exit={{ y: 80 }}
+        transition={{ type: 'spring', damping: 26, stiffness: 260 }}
+      >
+        <div className="w-10 h-1 rounded-full bg-white/20 mx-auto -mt-1 mb-1" />
+        <div className="flex items-start gap-3">
+          <ShieldAlert size={22} className="text-destructive shrink-0 mt-0.5" />
+          <div className="flex flex-col gap-2">
+            <h2 className="text-base font-semibold text-foreground">{t.safetyTitle}</h2>
+            <p className="text-sm text-muted-foreground leading-relaxed">{t.safetyBody}</p>
+          </div>
+        </div>
+        <button
+          onClick={onDismiss}
+          className="w-full py-3 rounded-2xl bg-white/5 border border-white/10 text-foreground/70 text-sm font-medium active:scale-95 transition-transform"
+        >
+          {t.understood}
+        </button>
+      </motion.div>
+    </motion.div>
+  );
+}
+
 // ── Main app ──────────────────────────────────────────────────────────────────
 export default function Home() {
   const t = useTranslations();
@@ -119,15 +152,21 @@ export default function Home() {
   const [toastReason, setToastReason] = useState<StopReason>(null);
   const prevStopReason = useRef<StopReason>(null);
   const [showPremium, setShowPremium] = useState(false);
+  const [showBatteryWarning, setShowBatteryWarning] = useState(false);
 
   useEffect(() => { if (running) setToastReason(null); }, [running]);
   useEffect(() => {
     if (stopReason && stopReason !== 'user' && stopReason !== prevStopReason.current) {
       prevStopReason.current = stopReason;
-      setToastReason(stopReason);
-      if (stopReason === 'time-limit') void playCompletionChime();
-      const id = setTimeout(() => setToastReason(null), AUTO_DISMISS_MS);
-      return () => clearTimeout(id);
+      if (stopReason === 'low-battery') {
+        // Low-battery gets a prominent modal card instead of the dismissing toast
+        setShowBatteryWarning(true);
+      } else {
+        setToastReason(stopReason);
+        if (stopReason === 'time-limit') void playCompletionChime();
+        const id = setTimeout(() => setToastReason(null), AUTO_DISMISS_MS);
+        return () => clearTimeout(id);
+      }
     }
     return undefined;
   }, [stopReason]);
@@ -364,14 +403,20 @@ export default function Home() {
           {running && <span className="font-mono">{formatTime(elapsed)}</span>}
         </div>
 
-        <div className="flex gap-3 bg-black/20 p-3 rounded-2xl border border-white/5 items-start">
-          <ShieldAlert size={14} className="text-muted-foreground shrink-0 mt-0.5" />
-          <p className="text-[10px] text-muted-foreground leading-relaxed">
-            <strong className="text-foreground/70 font-medium">{t.safetyTitle}:</strong>{' '}
-            {t.safetyBody}
+        <div className="flex items-start gap-2 px-1">
+          <Lightbulb size={12} className="text-muted-foreground/40 shrink-0 mt-0.5" />
+          <p className="text-[10px] text-muted-foreground/50 leading-relaxed">
+            {t.suggestion}
           </p>
         </div>
       </div>{/* end BOTTOM */}
+
+      {/* ── Low-battery warning sheet ── */}
+      <AnimatePresence>
+        {showBatteryWarning && (
+          <LowBatteryWarningSheet onDismiss={() => setShowBatteryWarning(false)} />
+        )}
+      </AnimatePresence>
 
       {/* ── Premium sheet ── */}
       <AnimatePresence>
