@@ -97,7 +97,7 @@ const T: Record<Lang, Translations> = {
     autoStop: {
       'time-limit': 'Therapeutic session complete',
       'low-battery': 'Battery too low — session stopped',
-      'tab-hidden': 'Stopped: app moved to background',
+      'tab-hidden': 'The session was stopped when the app moved to the background to allow other apps to run. For the best experience, avoid leaving the app until the session ends. You may start a new session whenever you like. Make sure you have enough battery charge.',
       'background-expired': 'Your session finished while the app was in the background',
     },
     cores: 'cores',
@@ -151,7 +151,7 @@ const T: Record<Lang, Translations> = {
     autoStop: {
       'time-limit': 'Sesión terapéutica completada',
       'low-battery': 'Batería baja — sesión detenida',
-      'tab-hidden': 'Detenido: la app pasó a segundo plano',
+      'tab-hidden': 'Necesariamente la sesión se detuvo cuando pasó a segundo plano para poder ejecutar otra aplicación. Para una mejor experiencia evite salir de la app hasta que finalice el tiempo. Si lo desea puede volver a iniciar una nueva. Asegúrese de contar con carga suficiente.',
       'background-expired': 'Tu sesión terminó mientras la app estaba en segundo plano',
     },
     cores: 'núcleos',
@@ -205,7 +205,7 @@ const T: Record<Lang, Translations> = {
     autoStop: {
       'time-limit': 'Sessão terapêutica concluída',
       'low-battery': 'Bateria baixa — sessão encerrada',
-      'tab-hidden': 'Parado: app foi para segundo plano',
+      'tab-hidden': 'A sessão foi interrompida quando o app foi para segundo plano para permitir a execução de outros aplicativos. Para uma melhor experiência, evite sair do app até que o tempo termine. Se desejar, pode iniciar uma nova sessão. Certifique-se de ter carga suficiente.',
       'background-expired': 'Sua sessão terminou enquanto o app estava em segundo plano',
     },
     cores: 'núcleos',
@@ -259,7 +259,7 @@ const T: Record<Lang, Translations> = {
     autoStop: {
       'time-limit': 'Séance thérapeutique terminée',
       'low-battery': 'Batterie trop faible — séance arrêtée',
-      'tab-hidden': "Arrêté : l'app est passée en arrière-plan",
+      'tab-hidden': "La séance a été arrêtée lorsque l'app est passée en arrière-plan pour permettre l'exécution d'autres applications. Pour une meilleure expérience, évitez de quitter l'app avant la fin du temps imparti. Vous pouvez relancer une nouvelle séance si vous le souhaitez. Assurez-vous d'avoir suffisamment de batterie.",
       'background-expired': "Votre séance s'est terminée pendant que l'app était en arrière-plan",
     },
     cores: 'cœurs',
@@ -313,7 +313,7 @@ const T: Record<Lang, Translations> = {
     autoStop: {
       'time-limit': 'Therapeutische Sitzung abgeschlossen',
       'low-battery': 'Akku zu niedrig — Sitzung gestoppt',
-      'tab-hidden': 'Gestoppt: App im Hintergrund',
+      'tab-hidden': 'Die Sitzung wurde gestoppt, als die App in den Hintergrund wechselte, um andere Apps ausführen zu können. Verlassen Sie die App nicht, bis die Zeit abgelaufen ist – so erhalten Sie das beste Ergebnis. Bei Bedarf können Sie eine neue Sitzung starten. Achten Sie auf ausreichend Akkuladung.',
       'background-expired': 'Deine Sitzung endete, während die App im Hintergrund war',
     },
     cores: 'Kerne',
@@ -367,7 +367,7 @@ const T: Record<Lang, Translations> = {
     autoStop: {
       'time-limit': 'Sessione terapeutica completata',
       'low-battery': 'Batteria troppo bassa — sessione fermata',
-      'tab-hidden': "Fermato: l'app è andata in background",
+      'tab-hidden': "La sessione è stata interrotta quando l'app è andata in background per consentire l'esecuzione di altre applicazioni. Per una migliore esperienza, evita di uscire dall'app finché il tempo non è scaduto. Puoi avviare una nuova sessione quando vuoi. Assicurati di avere carica sufficiente.",
       'background-expired': "La sessione è terminata mentre l'app era in background",
     },
     cores: 'core',
@@ -421,7 +421,7 @@ const T: Record<Lang, Translations> = {
     autoStop: {
       'time-limit': 'Терапевтический сеанс завершён',
       'low-battery': 'Мало заряда — сеанс остановлен',
-      'tab-hidden': 'Остановлено: приложение ушло в фон',
+      'tab-hidden': 'Сеанс был остановлен, когда приложение ушло в фон для работы других приложений. Для лучшего результата не покидайте приложение до окончания времени. При желании вы можете начать новый сеанс. Убедитесь, что заряда батареи достаточно.',
       'background-expired': 'Сеанс завершился, пока приложение было в фоне',
     },
     cores: 'ядер',
@@ -475,7 +475,7 @@ const T: Record<Lang, Translations> = {
     autoStop: {
       'time-limit': 'Hoitoistunto valmis',
       'low-battery': 'Akku liian heikko — istunto pysäytetty',
-      'tab-hidden': 'Pysäytetty: sovellus siirtyi taustalle',
+      'tab-hidden': 'Istunto pysäytettiin, kun sovellus siirtyi taustalle muiden sovellusten suorittamiseksi. Parhaan tuloksen saamiseksi älä poistu sovelluksesta ennen ajan päättymistä. Voit halutessasi aloittaa uuden istunnon. Varmista, että akussa on riittävästi latausta.',
       'background-expired': 'Istuntosi päättyi sovelluksen ollessa taustalla',
     },
     cores: 'ydintä',
@@ -529,7 +529,7 @@ const T: Record<Lang, Translations> = {
     autoStop: {
       'time-limit': 'Terapisession slutförd',
       'low-battery': 'Batteri för lågt — session stoppad',
-      'tab-hidden': 'Stoppad: appen gick till bakgrunden',
+      'tab-hidden': 'Sessionen stoppades när appen gick till bakgrunden för att möjliggöra körning av andra appar. För bästa resultat, lämna inte appen förrän tiden är slut. Du kan starta en ny session om du vill. Se till att du har tillräckligt med batteriladdning.',
       'background-expired': 'Din session avslutades medan appen var i bakgrunden',
     },
     cores: 'kärnor',
@@ -583,7 +583,7 @@ const T: Record<Lang, Translations> = {
     autoStop: {
       'time-limit': 'Эмчилгээний сесс дууссан',
       'low-battery': 'Батарей бага — сесс зогссон',
-      'tab-hidden': 'Зогссон: апп дэвсгэрт орсон',
+      'tab-hidden': 'Бусад программ ажиллуулах боломж олгохын тулд апп арын горимд орсон тул сесс зогссон. Хамгийн сайн үр дүнд хүрэхийн тулд цаг дуустал аппаас гарахаас зайлсхийгээрэй. Хүсвэл шинэ сесс эхлүүлж болно. Батарей хүрэлцэхүйц байгаа эсэхийг шалгаарай.',
       'background-expired': 'Таны сесс апп дэвсгэрт байх үед дуусчээ',
     },
     cores: 'цөм',
@@ -637,7 +637,7 @@ const T: Record<Lang, Translations> = {
     autoStop: {
       'time-limit': 'Peqqissaarneq naaperpoq',
       'low-battery': 'Isikkoq minnerpaamik — nalinngissumik',
-      'tab-hidden': 'Nalinngissumik: nalunaarusiorfigineqarpoq',
+      'tab-hidden': 'Nalunaarsorneq nalinngissumik nalunaarusiorfigineqarpoq app-immi silaannassinnaasoqataanngikkaluarluni allat app-inik atugarissaarsinnaasumillu. Piumasaqarnermi nalunaarsorneq naalersinnaanngikkaluarluni app-ikkut anissavanngilaq. Piumasareerumik nalunaarsorneq nutaaq atuissinnaavat. Isikkoq nalinginnaasumik nalunaarusiorfigineqarpoq.',
       'background-expired': 'Nalunaarsorneq naaperpoq app-immi silaannassinnaasoqataanngikkaluarluni',
     },
     cores: 'isikkorfigineqarsinnaasumit',

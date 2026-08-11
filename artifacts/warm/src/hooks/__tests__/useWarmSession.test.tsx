@@ -194,9 +194,9 @@ describe('useWarmSession', () => {
 
   // ── auto-stop: tab hidden ─────────────────────────────────────────────────
 
-  it('does NOT stop when tab becomes hidden (background sessions supported)', () => {
-    // Sessions intentionally continue in background so rotating the phone or
-    // a notification does not kill the session.
+  it('stops with "tab-hidden" when app moves to background during an active session', () => {
+    // Sessions must stop immediately when the app goes to background so the
+    // user is informed and must restart intentionally.
     const { result } = renderHook(() => useWarmSession(null));
     act(() => result.current.start());
 
@@ -208,8 +208,8 @@ describe('useWarmSession', () => {
       document.dispatchEvent(new Event('visibilitychange'));
     });
 
-    // Should still be running
-    expect(result.current.running).toBe(true);
+    expect(result.current.running).toBe(false);
+    expect(result.current.stopReason).toBe('tab-hidden');
 
     Object.defineProperty(document, 'hidden', {
       configurable: true,
