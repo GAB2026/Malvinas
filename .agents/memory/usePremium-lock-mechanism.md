@@ -1,47 +1,49 @@
 ---
 name: usePremium lock mechanism
-description: How the duration-button lock works and the root cause of previous failures
+description: How the duration-button lock works — final confirmed model
 ---
 
-## Rule — v3.33+ (combined model, confirmed correct intent)
-`isLocked(mins)` = `!_isPremium && (mins > FREE_MINS || _usedDurations.has(mins))`
-where `FREE_MINS = 5`.
+## Rule — v3.34+ (confirmed working)
+`isLocked(mins)` = `!_isPremium && _usedDurations.has(mins)`
 
-| Button | Behavior |
-|--------|----------|
-| 5 min  | One free use → `consumeDuration(5)` → locks permanently |
-| 10 min | Always locked from first launch (no free use) |
-| 15 min | Always locked from first launch (no free use) |
+All three buttons (5, 10, 15 min) follow the same model:
+- Start unlocked (free to use once)
+- After one session: `consumeDuration(mins)` → `_usedDurations.add(mins)` → button locks
+- Locks permanently until purchase
 
-**Why:** Combines v3.7's "always-locked high intensity" with v3.31's "one free use" for the 5-min button. The 10/15 lock is permanent (like v3.7's Alta), so it can't break due to stale state. The 5-min lock uses the module-level Set — no React batching risk.
+**Why:** Module-level Set survives all React re-renders and re-mounts.
+`isLocked()` reads it directly — zero stale-closure or batching risk.
+v3.33 confirmed working on real device.
 
-**Premium key:** `warm_premium_v2` (NOT v1). The v1 key had stale `'1'` written during test builds on device, causing all locks to disappear. Never revert to v1.
+**Premium key:** `warm_premium_v2` (NOT v1). The v1 key had stale `'1'` from
+test builds on device, causing all locks to disappear. Never revert to v1.
 
 **How to apply:**
 ```ts
-const FREE_MINS = 5;
+const PREMIUM_KEY        = 'warm_premium_v2';
+const USED_DURATIONS_KEY = 'warm_used_durations_v1';
+
 let _isPremium = false;
 const _usedDurations = new Set<number>();
-// init from localStorage warm_premium_v2 + warm_used_durations_v1
+// init both from localStorage in IIFE at module load
 
-const isLocked = (mins: number) =>
-  !_isPremium && (mins > FREE_MINS || _usedDurations.has(mins));
+const isLocked = (mins: number) => !_isPremium && _usedDurations.has(mins);
 
 const consumeDuration = (mins: number) => {
-  if (_isPremium || _usedDurations.has(mins) || mins > FREE_MINS) return;
+  if (_isPremium || _usedDurations.has(mins)) return;
   _usedDurations.add(mins);
-  persistUsed();
-  forceUpdate();
+  persistUsed();   // writes to USED_DURATIONS_KEY
+  forceUpdate();   // setTick(t => t+1)
 };
 ```
 
 ## Testing
-`__resetForTests()` clears both `_isPremium` and `_usedDurations`.
+`__resetForTests()` clears `_isPremium` and `_usedDurations`.
 Call with `localStorage.clear()` in `beforeEach`.
-Mock's `isLocked`: `!_isPremium && (mins > 5 || _usedDurations.has(mins))`.
 
 ## Version history
-- v3.7: lock on HIGH intensity (Alta). Worked.
-- v3.28–v3.31: "one free use per duration" — broke on device.
-- v3.32: permanent lock for 10/15, 5 always free — wrong (changed too much).
-- v3.33: combined model as intended. 66 tests pass.
+- v3.7: lock on HIGH intensity (Alta). Worked. Used isPremium from localStorage.
+- v3.28–v3.31: "one free use per duration" — broke on device (stale premium key).
+- v3.32: permanent lock for 10/15 — wrong model.
+- v3.33: combined (10/15 always locked, 5 one free) — confirmed working on device.
+- v3.34: all three buttons equal (one free use each). Same mechanism as v3.33.
