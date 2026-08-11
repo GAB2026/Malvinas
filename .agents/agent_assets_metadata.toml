@@ -536,3 +536,10 @@ uri = "file://warm-v3.35-qr.png"
 type = "image"
 title = "Warm v3.35 — APK"
 description = "Escaneá para descargar warm-v3.35"
+
+[[outputs]]
+id = "jMBhQkpbLJDnfshzpjQCG"
+uri = "file://warm-v3.36-qr.png"
+type = "image"
+title = "Warm v3.36 — APK"
+description = "Escaneá para descargar warm-v3.36"
