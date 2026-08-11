@@ -555,33 +555,47 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
     return () => clearInterval(id);
   }, [coolingDown, ambientC]);
 
-  // ── Visibility guard ─────────────────────────────────────────────────────────
-  // We never stop the session when the app goes to background: rotating the
-  // phone, a skin touch, or a notification can all trigger document.hidden
-  // momentarily. The elapsed counter uses Date.now()-startedAtRef so it
-  // catches up correctly when the app returns to foreground.
-  // On return we re-acquire the wake lock and check if the time limit was
-  // reached while hidden.
+  // ── Background detection ──────────────────────────────────────────────────
+  //
+  // PRIMARY: 'native-pause' (window event)
+  //   Fired by MainActivity.onPause() via evaluateJavascript.  This is the
+  //   only guaranteed signal on Android WebView — document.visibilitychange is
+  //   NOT reliably dispatched when the user presses Home or switches apps on
+  //   many OEM builds (Samsung, Xiaomi, etc.) and Android versions.
+  //
+  // SECONDARY: 'visibilitychange' (document event)
+  //   Kept as a fallback for web/PWA usage where the native bridge is absent.
+  //   On desktop and some Android builds this fires correctly; on others it
+  //   never arrives.  Both handlers call the same stopWith() so duplicates are
+  //   harmless (runningRef guard prevents double-stop).
   useEffect(() => {
+    const handleBackground = () => {
+      if (runningRef.current) stopWith('tab-hidden');
+    };
+
     const onVis = () => {
       if (document.hidden) {
-        // User navigated away while a session was active.  Stop immediately so
-        // the device stops computing (other apps stay responsive) and so the
-        // user is forced to restart the session consciously when they return.
-        if (runningRef.current) stopWith('tab-hidden');
+        handleBackground();
         return;
       }
-      // Returned to foreground
-      // Re-acquire wake lock (browser releases it automatically when hidden)
+      // Returned to foreground — re-acquire wake lock
       if (runningRef.current) void acquireWakeLock();
-      // If therapeutic time expired while in background, stop now
+      // Check if therapeutic time expired while hidden
       if (runningRef.current && phaseRef.current === 'therapeutic' && therapStartRef.current) {
         const tSecs = Math.floor((Date.now() - therapStartRef.current) / 1000);
         if (tSecs >= sessionMaxSecs(intensityRef.current)) stopWith('time-limit');
       }
     };
+
+    // Primary: native Android lifecycle bridge
+    window.addEventListener('native-pause', handleBackground);
+    // Secondary: standard web visibility API (fallback)
     document.addEventListener('visibilitychange', onVis);
-    return () => document.removeEventListener('visibilitychange', onVis);
+
+    return () => {
+      window.removeEventListener('native-pause', handleBackground);
+      document.removeEventListener('visibilitychange', onVis);
+    };
   }, [stopWith, sessionMaxSecs, acquireWakeLock]);
 
   // ── Battery ──────────────────────────────────────────────────────────────────

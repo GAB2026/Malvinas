@@ -217,6 +217,19 @@ describe('useWarmSession', () => {
     });
   });
 
+  it('stops with "tab-hidden" when native-pause event fires (Android bridge)', () => {
+    // Primary background signal: MainActivity.onPause() fires this via evaluateJavascript
+    const { result } = renderHook(() => useWarmSession(null));
+    act(() => result.current.start());
+
+    act(() => {
+      window.dispatchEvent(new CustomEvent('native-pause'));
+    });
+
+    expect(result.current.running).toBe(false);
+    expect(result.current.stopReason).toBe('tab-hidden');
+  });
+
   it('does NOT stop when tab becomes visible (not hidden)', () => {
     const { result } = renderHook(() => useWarmSession(null));
     act(() => result.current.start());

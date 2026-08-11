@@ -19,6 +19,32 @@ public class MainActivity extends BridgeActivity {
     }
 
     /**
+     * Fires a 'native-pause' event in the WebView JavaScript context.
+     *
+     * document.visibilitychange is unreliable on Android WebView — many OEMs
+     * and Android versions never dispatch it when the user presses Home or
+     * switches apps.  Bridging onPause() directly via evaluateJavascript is
+     * the only guaranteed signal that the app moved to the background.
+     *
+     * The JS hook in useWarmSession listens for window 'native-pause' and
+     * stops the session immediately.
+     */
+    @Override
+    public void onPause() {
+        super.onPause();
+        if (this.bridge == null) return;
+        WebView webView = this.bridge.getWebView();
+        if (webView == null) return;
+        // post() ensures this runs on the WebView's own thread
+        webView.post(() ->
+            webView.evaluateJavascript(
+                "window.dispatchEvent(new CustomEvent('native-pause'));",
+                null
+            )
+        );
+    }
+
+    /**
      * Dark overlay placed on top of the WebView.
      *
      * When Android 12/13 kills the WebView renderer process in the background
@@ -46,10 +72,33 @@ public class MainActivity extends BridgeActivity {
         if (this.bridge == null) return;
         WebView webView = this.bridge.getWebView();
         if (webView == null) return;
+
         String url = webView.getUrl();
-        if (url == null || url.equals("about:blank")) {
+
+        // Case 1: renderer was killed and URL is blank
+        if (url == null || url.equals("about:blank") || url.isEmpty()) {
             showOverlayAndReload(webView);
+            return;
         }
+
+        // Case 2: renderer was killed but URL is still set (phone power-off/on).
+        // Probe JS — evaluateJavascript callback never fires if the renderer is
+        // dead, so we arm a 1.5 s timeout that triggers a reload if not cancelled.
+        final boolean[] probeAnswered = {false};
+        Runnable timeoutReload = () -> {
+            if (!probeAnswered[0]) {
+                showOverlayAndReload(webView);
+            }
+        };
+        webView.postDelayed(timeoutReload, 1500);
+        webView.evaluateJavascript("document.readyState", value -> {
+            probeAnswered[0] = true;
+            webView.removeCallbacks(timeoutReload);
+            // "null" (string) means renderer couldn't execute JS
+            if (value == null || value.equals("null")) {
+                showOverlayAndReload(webView);
+            }
+        });
     }
 
     private void showOverlayAndReload(WebView webView) {
