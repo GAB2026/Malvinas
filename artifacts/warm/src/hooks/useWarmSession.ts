@@ -564,14 +564,20 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
   // reached while hidden.
   useEffect(() => {
     const onVis = () => {
-      if (!document.hidden) {
-        // Re-acquire wake lock (browser releases it automatically when hidden)
-        if (runningRef.current) void acquireWakeLock();
-        // If therapeutic time expired while in background, stop now
-        if (runningRef.current && phaseRef.current === 'therapeutic' && therapStartRef.current) {
-          const tSecs = Math.floor((Date.now() - therapStartRef.current) / 1000);
-          if (tSecs >= sessionMaxSecs(intensityRef.current)) stopWith('time-limit');
-        }
+      if (document.hidden) {
+        // User navigated away while a session was active.  Stop immediately so
+        // the device stops computing (other apps stay responsive) and so the
+        // user is forced to restart the session consciously when they return.
+        if (runningRef.current) stopWith('tab-hidden');
+        return;
+      }
+      // Returned to foreground
+      // Re-acquire wake lock (browser releases it automatically when hidden)
+      if (runningRef.current) void acquireWakeLock();
+      // If therapeutic time expired while in background, stop now
+      if (runningRef.current && phaseRef.current === 'therapeutic' && therapStartRef.current) {
+        const tSecs = Math.floor((Date.now() - therapStartRef.current) / 1000);
+        if (tSecs >= sessionMaxSecs(intensityRef.current)) stopWith('time-limit');
       }
     };
     document.addEventListener('visibilitychange', onVis);
