@@ -194,27 +194,24 @@ describe('useWarmSession', () => {
 
   // ── auto-stop: tab hidden ─────────────────────────────────────────────────
 
-  it('does NOT stop when tab becomes hidden (background sessions supported)', () => {
-    // Sessions intentionally continue in background so rotating the phone or
-    // a notification does not kill the session.
+  it('stops with "tab-hidden" when app moves to background (visibilitychange)', () => {
     const { result } = renderHook(() => useWarmSession(null));
     act(() => result.current.start());
-
     act(() => {
-      Object.defineProperty(document, 'hidden', {
-        configurable: true,
-        get: () => true,
-      });
+      Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
       document.dispatchEvent(new Event('visibilitychange'));
     });
+    expect(result.current.running).toBe(false);
+    expect(result.current.stopReason).toBe('tab-hidden');
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => false });
+  });
 
-    // Should still be running
-    expect(result.current.running).toBe(true);
-
-    Object.defineProperty(document, 'hidden', {
-      configurable: true,
-      get: () => false,
-    });
+  it('stops with "tab-hidden" when native-pause fires (Android bridge)', () => {
+    const { result } = renderHook(() => useWarmSession(null));
+    act(() => result.current.start());
+    act(() => { window.dispatchEvent(new CustomEvent('native-pause')); });
+    expect(result.current.running).toBe(false);
+    expect(result.current.stopReason).toBe('tab-hidden');
   });
 
   it('does NOT stop when tab becomes visible (not hidden)', () => {

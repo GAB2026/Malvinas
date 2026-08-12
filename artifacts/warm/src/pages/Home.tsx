@@ -1,11 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useWarmSession, StopReason } from '@/hooks/useWarmSession';
+import { useWarmSession, StopReason, LOW_BATTERY_CUTOFF } from '@/hooks/useWarmSession';
 import { useCalibration } from '@/hooks/useCalibration';
 import { usePremium } from '@/hooks/usePremium';
 import { useTranslations } from '@/lib/i18n';
 import { playCompletionChime } from '@/lib/chime';
 import AnimatedFlame from '@/components/AnimatedFlame';
-import { Battery, AlertTriangle, ShieldAlert, Thermometer, RefreshCw, Lock, Lightbulb } from 'lucide-react';
+import { Battery, AlertTriangle, ShieldAlert, Thermometer, Lock, Lightbulb } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const AUTO_DISMISS_MS = 5000;
@@ -141,7 +141,7 @@ export default function Home() {
   const {
     running, intensity, start, stop,
     phase, elapsed, therapeuticRemaining, warmingRemaining,
-    heatLevel, stopReason, wakeLockActive, batteryLevel, coolingDown,
+    heatLevel, stopReason, wakeLockActive, batteryLevel,
     deviceTempC,
     sessionDurationSecs, setSessionDuration,
   } = useWarmSession(calibration);
@@ -153,6 +153,14 @@ export default function Home() {
   const prevStopReason = useRef<StopReason>(null);
   const [showPremium, setShowPremium] = useState(false);
   const [showBatteryWarning, setShowBatteryWarning] = useState(false);
+
+  // Check battery on first read — warn immediately if ≤20% at startup
+  const startupBatteryChecked = useRef(false);
+  useEffect(() => {
+    if (batteryLevel === null || startupBatteryChecked.current) return;
+    startupBatteryChecked.current = true;
+    if (batteryLevel <= LOW_BATTERY_CUTOFF) setShowBatteryWarning(true);
+  }, [batteryLevel]);
 
   useEffect(() => { if (running) setToastReason(null); }, [running]);
   useEffect(() => {
@@ -201,7 +209,6 @@ export default function Home() {
       stop();
       return;
     }
-    if (coolingDown) return;
     // Duration requires premium — open paywall
     if (isLocked(selectedMins)) { setShowPremium(true); return; }
     // Consume the one free use for 5-min (no-op for already-consumed or premium)
@@ -282,20 +289,13 @@ export default function Home() {
               heatLevel={heatLevel}
               running={running}
               onClick={handleFlameClick}
-              disabled={coolingDown && !running}
+              disabled={false}
             />
           </div>
           <div className="flex flex-col items-center gap-0.5">
             <div className="h-5 flex items-center">
               <AnimatePresence>
-                {coolingDown && (
-                  <motion.span key="cooling"
-                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                    className="text-xs text-sky-400 font-medium flex items-center gap-1.5">
-                    <RefreshCw size={11} className="animate-spin" />{t.cooling}
-                  </motion.span>
-                )}
-                {!coolingDown && phase === 'warming' && (
+                {phase === 'warming' && (
                   <motion.span key="warming"
                     initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                     className="text-xs text-amber-400 font-medium flex items-center gap-1.5">
@@ -306,7 +306,7 @@ export default function Home() {
                     )}
                   </motion.span>
                 )}
-                {!coolingDown && phase === 'therapeutic' && (
+                {phase === 'therapeutic' && (
                   <motion.span key="therapeutic"
                     initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                     className="text-xs text-primary font-medium flex items-center gap-1.5">
@@ -314,7 +314,7 @@ export default function Home() {
                     {t.phaseTherapeutic} · {formatTime(therapeuticRemaining)}
                   </motion.span>
                 )}
-                {!coolingDown && !running && (
+                {!running && (
                   <motion.span key="idle"
                     initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                     className="text-xs text-muted-foreground">{t.tapToStart}
@@ -329,14 +329,14 @@ export default function Home() {
       {/* ── MIDDLE: double-tap hint — centered between flame and buttons ── */}
       <div className="z-10 flex-1 flex items-center justify-center w-full">
         <AnimatePresence mode="wait">
-          {running && !coolingDown && pendingStop && (
+          {running && pendingStop && (
             <motion.span key="confirm-stop"
               initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
               className="text-sm font-semibold text-destructive animate-pulse tracking-wide">
               ¿Terminar? Tocá de nuevo
             </motion.span>
           )}
-          {running && !coolingDown && !pendingStop && (
+          {running && !pendingStop && (
             <motion.span key="hint-stop"
               initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
               className="text-sm text-muted-foreground/50 tracking-wide">{t.tapToStop}

@@ -134,8 +134,6 @@ export interface WarmSession {
   wakeLockActive: boolean;
   batteryLevel: number | null;
   workerCount: number;
-  /** Whether button is locked while device cools back to ambient. */
-  coolingDown: boolean;
   /** True when burst scheduling is active to fight CPU throttling. */
   burstActive: boolean;
   /** Duration of the therapeutic phase in seconds (5/10/15 min). */
@@ -157,7 +155,6 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
   const [wakeLockActive, setWakeLockActive] = useState(false);
   const [batteryLevel, setBatteryLevel]     = useState<number | null>(null);
   const [thermalC, setThermalC]             = useState<number | null>(null);
-  const [coolingDown, setCoolingDown]       = useState(false);
   const [warmingBaseline, setWarmingBaseline] = useState<number | null>(null);
   const [sessionDurationSecs, setSessionDurationState] = useState<number>(15 * 60);
   const sessionDurationSecsRef = useRef<number>(15 * 60);
@@ -168,7 +165,6 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
   const runningRef      = useRef(false);
   const intensityRef    = useRef<Intensity>('high');
   const phaseRef        = useRef<Phase>('idle');
-  const coolingRef      = useRef(false);
   // Mirror of thermalC state as a ref so the interval callback always reads
   // the latest value without a stale closure.
   const thermalCRef        = useRef<number | null>(null);
@@ -253,14 +249,7 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
     baselineCountRef.current = 0;
     throttleCountRef.current = 0;
     recoveryCountRef.current = 0;
-    // Start cooldown only for battery/background stops on a real sensor.
-    // 'user' (double-tap) and 'time-limit' (countdown reached 0) both return
-    // immediately to idle — no cooldown screen, no loop.
-    if (reason !== 'user' && reason !== 'time-limit' && calibration?.usingRealSensor) {
-      coolingRef.current = true;
-      setCoolingDown(true);
-    }
-  }, [releaseWakeLock, calibration]);
+  }, [releaseWakeLock]);
 
   const acquireWakeLock = useCallback(async () => {
     try {
@@ -275,7 +264,7 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
   }, []);
 
   const start = useCallback(() => {
-    if (runningRef.current || coolingRef.current) return;
+    if (runningRef.current) return;
     // Update all state BEFORE touching the engine so React renders
     // "Calentando" on the very next frame. Creating N Web Workers is
     // synchronous and blocks the JS thread for several hundred ms on Android,
@@ -331,67 +320,19 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
   }, []);
 
   // ── Background-kill recovery ──────────────────────────────────────────────
-  // On mount, check if a session was persisted (from a previous page load that
-  // was killed by the OS while the app was in the background).  Reconstruct
-  // state from absolute timestamps so elapsed time is always correct.
+  // Sessions always stop when the app goes to background (native-pause bridge
+  // calls stopWith → clearSession synchronously before the renderer is killed).
+  // If a persisted session IS found here, it means the renderer was killed
+  // before JS could clear it — a rare race.  Never resume: always clear and
+  // tell the user the session was interrupted.
   const recoveredRef = useRef(false);
   useEffect(() => {
     if (recoveredRef.current) return;
     recoveredRef.current = true;
-
     const saved = loadSession();
     if (!saved) return;
-
-    const now = Date.now();
-    const totalElapsedSecs = (now - saved.startedAt) / 1000;
-
-    // Reconstruct therapStartAt: use persisted value, or infer from warmup timing.
-    const therapStartAt = saved.therapStartAt ??
-      (totalElapsedSecs >= MIN_WARMUP_SECS ? saved.startedAt + MIN_WARMUP_SECS * 1000 : null);
-
-    const therapElapsedSecs = therapStartAt ? (now - therapStartAt) / 1000 : 0;
-
-    if (therapElapsedSecs >= saved.sessionDurationSecs) {
-      // Session expired while in background — show informational toast, don't resume.
-      clearSession();
-      setStopReason('background-expired');
-      return;
-    }
-
-    // Session still has time remaining — restore all refs and resume.
-    startedAtRef.current = saved.startedAt;
-    therapStartRef.current = therapStartAt;
-    sessionDurationSecsRef.current = saved.sessionDurationSecs;
-    intensityRef.current = saved.intensity;
-    warmingBaselineRef.current = null;
-    tempReadInFlightRef.current = false;
-    hbIterAccRef.current = 0;
-    lastTickMsRef.current = null;
-    hbEverReceivedRef.current = false;
-
-    runningRef.current = true;
-    phaseRef.current = therapStartAt ? 'therapeutic' : 'warming';
-
-    setSessionDurationState(saved.sessionDurationSecs);
-    setIntensityState(saved.intensity);
-    setElapsed(Math.floor(totalElapsedSecs));
-    setTherapElapsed(Math.floor(therapElapsedSecs));
-    setPhase(therapStartAt ? 'therapeutic' : 'warming');
-    setStopReason(null);
-    setRunning(true);
-
-    // Re-persist with the now-known therapStartAt.
-    saveSession({
-      startedAt: saved.startedAt,
-      sessionDurationSecs: saved.sessionDurationSecs,
-      intensity: saved.intensity,
-      therapStartAt,
-    });
-
-    void acquireWakeLock();
-    requestAnimationFrame(() => requestAnimationFrame(() => {
-      if (runningRef.current) engineRef.current!.start(intensityRef.current);
-    }));
+    clearSession();
+    setStopReason('tab-hidden');
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Worker heartbeat subscription ─────────────────────────────────────────
@@ -541,38 +482,34 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
     return () => clearInterval(id);
   }, [running, stopWith, sessionMaxSecs]);
 
-  // ── Cooldown poll — unlock button when device returns to ambient ────────────
+  // ── Background detection ──────────────────────────────────────────────────
+  //
+  // PRIMARY: window 'native-pause'
+  //   Bridged from MainActivity.onPause() via evaluateJavascript.
+  //   Guaranteed to fire before the renderer can enter a degraded state.
+  //
+  // SECONDARY: document 'visibilitychange'
+  //   Fallback for web/PWA where the native bridge is absent.
+  //   Unreliable on many Android OEM builds but kept as a safety net.
   useEffect(() => {
-    if (!coolingDown) return;
-    const id = setInterval(async () => {
-      const temp = await readDeviceTemp();
-      if (temp === null || temp <= ambientC + 3) {
-        coolingRef.current = false;
-        setCoolingDown(false);
-        clearInterval(id);
-      }
-    }, 10_000);
-    return () => clearInterval(id);
-  }, [coolingDown, ambientC]);
-
-  // ── Visibility guard ─────────────────────────────────────────────────────────
-  // Sessions continue in the background: rotating the phone, a notification,
-  // or switching apps briefly should not kill an active session.
-  // The elapsed counter uses Date.now()-startedAtRef so it catches up correctly
-  // when the app returns to foreground.  On return we re-acquire the wake lock
-  // and check if the time limit was reached while hidden.
-  useEffect(() => {
+    const handleBackground = () => {
+      if (runningRef.current) stopWith('tab-hidden');
+    };
     const onVis = () => {
-      if (document.hidden) return;
-      // Returned to foreground
+      if (document.hidden) { handleBackground(); return; }
+      // Returned to foreground — re-acquire wake lock
       if (runningRef.current) void acquireWakeLock();
       if (runningRef.current && phaseRef.current === 'therapeutic' && therapStartRef.current) {
         const tSecs = Math.floor((Date.now() - therapStartRef.current) / 1000);
         if (tSecs >= sessionMaxSecs(intensityRef.current)) stopWith('time-limit');
       }
     };
+    window.addEventListener('native-pause', handleBackground);
     document.addEventListener('visibilitychange', onVis);
-    return () => document.removeEventListener('visibilitychange', onVis);
+    return () => {
+      window.removeEventListener('native-pause', handleBackground);
+      document.removeEventListener('visibilitychange', onVis);
+    };
   }, [stopWith, sessionMaxSecs, acquireWakeLock]);
 
   // ── Battery ──────────────────────────────────────────────────────────────────
@@ -623,7 +560,7 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
     phase, elapsed, therapeuticElapsed, therapeuticRemaining, warmingRemaining,
     deviceTempC, heatLevel, stopReason, wakeLockActive, batteryLevel,
     workerCount: workerCountFor(intensity),
-    coolingDown, burstActive,
+    burstActive,
     sessionDurationSecs, setSessionDuration,
   };
 }
