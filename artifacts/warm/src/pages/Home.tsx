@@ -404,10 +404,15 @@ export default function Home() {
         </div>
 
         <div className="flex items-start gap-2 px-1">
-          <Lightbulb size={12} className="text-muted-foreground/70 shrink-0 mt-0.5" />
-          <p className="text-[11px] text-muted-foreground/80 leading-relaxed">
-            {t.suggestion}
-          </p>
+          <Lightbulb size={12} className="text-muted-foreground/70 shrink-0 mt-1" />
+          <div className="flex flex-col gap-2">
+            <p className="text-[11px] text-muted-foreground/80 leading-relaxed">
+              {t.suggestion}
+            </p>
+            <p className="text-[11px] text-muted-foreground/80 leading-relaxed">
+              {t.suggestionNote}
+            </p>
+          </div>
         </div>
       </div>{/* end BOTTOM */}
 

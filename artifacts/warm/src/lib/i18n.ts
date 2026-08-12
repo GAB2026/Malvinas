@@ -71,8 +71,10 @@ export interface Translations {
   calibratedDevice: string;
   soundOn: string;
   soundOff: string;
-  /** Static suggestion shown at the bottom of the main screen */
+  /** Warning shown at the bottom of the main screen — first sentence */
   suggestion: string;
+  /** Second line of the warning — device case removal tip */
+  suggestionNote: string;
   /** Button label to dismiss the low-battery warning card */
   understood: string;
 }
@@ -126,11 +128,12 @@ const T: Record<Lang, Translations> = {
     calibratingNote: 'Please don\'t turn off your phone',
     cooling: 'Cooling down…',
     tapToStart: 'Tap the flame to start',
-    tapToStop: 'Tap twice to stop',
+    tapToStop: 'Tap the flame twice to stop',
     calibratedDevice: 'Calibrated for your device',
     soundOn: 'Sound on',
     soundOff: 'Sound off',
-    suggestion: "Tip: if you leave the app during a session, it will end and you will need to start a new one. You may also remove your device's protective case for a better temperature experience.",
+    suggestion: "Warning: if you leave the app during a session, it will end and you will need to start a new one.",
+    suggestionNote: "You may also remove your device's protective case for a better temperature experience.",
     understood: 'Got it',
   },
 
@@ -182,11 +185,12 @@ const T: Record<Lang, Translations> = {
     calibratingNote: 'No apagues el teléfono por favor',
     cooling: 'Enfriando…',
     tapToStart: 'Tocá la llama para iniciar',
-    tapToStop: 'Tocá 2 veces para terminar',
+    tapToStop: 'Toca 2 veces la llama para terminar',
     calibratedDevice: 'Calibrado para tu dispositivo',
     soundOn: 'Sonido activado',
     soundOff: 'Sin sonido',
-    suggestion: 'Sugerencia: si sale de la app mientras esté en uso, la sesión finalizará y deberá comenzar nuevamente. Si lo desea puede quitar la funda protectora del dispositivo para una mayor experiencia de temperatura.',
+    suggestion: 'Advertencia: si sale de la app durante una sesión, la sesión finalizará y deberá comenzar nuevamente.',
+    suggestionNote: 'Si lo desea puede quitar la funda protectora del dispositivo para una mayor experiencia de temperatura.',
     understood: 'Entendido',
   },
 
@@ -242,7 +246,8 @@ const T: Record<Lang, Translations> = {
     calibratedDevice: 'Calibrado para o seu dispositivo',
     soundOn: 'Som ativado',
     soundOff: 'Sem som',
-    suggestion: 'Dica: se você sair do app durante uma sessão, ela será encerrada e você precisará iniciar uma nova. Se desejar, retire a capa protetora do dispositivo para uma melhor experiência de temperatura.',
+    suggestion: 'Aviso: se você sair do app durante uma sessão, ela será encerrada e você precisará iniciar uma nova.',
+    suggestionNote: 'Se desejar, retire a capa protetora do dispositivo para uma melhor experiência de temperatura.',
     understood: 'Entendido',
   },
 
@@ -298,7 +303,8 @@ const T: Record<Lang, Translations> = {
     calibratedDevice: 'Calibré pour votre appareil',
     soundOn: 'Son activé',
     soundOff: 'Son désactivé',
-    suggestion: "Conseil : si vous quittez l'app pendant une séance, celle-ci sera terminée et vous devrez en commencer une nouvelle. Si vous le souhaitez, retirez la coque de votre appareil pour une meilleure expérience de température.",
+    suggestion: "Avertissement : si vous quittez l'app pendant une séance, celle-ci sera terminée et vous devrez en commencer une nouvelle.",
+    suggestionNote: "Si vous le souhaitez, retirez la coque de votre appareil pour une meilleure expérience de température.",
     understood: 'Compris',
   },
 
@@ -354,7 +360,8 @@ const T: Record<Lang, Translations> = {
     calibratedDevice: 'Kalibriert für dein Gerät',
     soundOn: 'Ton an',
     soundOff: 'Ton aus',
-    suggestion: 'Tipp: wenn Sie die App während einer Sitzung verlassen, wird diese beendet und Sie müssen eine neue starten. Sie können auch die Schutzhülle des Geräts entfernen, um ein besseres Temperaturerlebnis zu erzielen.',
+    suggestion: 'Warnung: wenn Sie die App während einer Sitzung verlassen, wird diese beendet und Sie müssen eine neue starten.',
+    suggestionNote: 'Sie können auch die Schutzhülle des Geräts entfernen, um ein besseres Temperaturerlebnis zu erzielen.',
     understood: 'Verstanden',
   },
 
@@ -410,7 +417,8 @@ const T: Record<Lang, Translations> = {
     calibratedDevice: 'Calibrato per il tuo dispositivo',
     soundOn: 'Audio attivo',
     soundOff: 'Audio disattivo',
-    suggestion: "Suggerimento: se esci dall'app durante una sessione, questa terminerà e dovrai iniziarne una nuova. Puoi rimuovere la custodia del dispositivo per una migliore esperienza di temperatura.",
+    suggestion: "Avvertenza: se esci dall'app durante una sessione, questa terminerà e dovrai iniziarne una nuova.",
+    suggestionNote: "Puoi rimuovere la custodia del dispositivo per una migliore esperienza di temperatura.",
     understood: 'Capito',
   },
 
@@ -466,7 +474,8 @@ const T: Record<Lang, Translations> = {
     calibratedDevice: 'Калибровка выполнена',
     soundOn: 'Звук вкл.',
     soundOff: 'Звук выкл.',
-    suggestion: 'Совет: если вы покинете приложение во время сеанса, он завершится и вам нужно будет начать новый. При желании снимите чехол с устройства для лучшего ощущения тепла.',
+    suggestion: 'Внимание: если вы покинете приложение во время сеанса, он завершится и вам нужно будет начать новый.',
+    suggestionNote: 'При желании снимите чехол с устройства для лучшего ощущения тепла.',
     understood: 'Понятно',
   },
 
@@ -522,7 +531,8 @@ const T: Record<Lang, Translations> = {
     calibratedDevice: 'Kalibroitu laitteellesi',
     soundOn: 'Ääni päällä',
     soundOff: 'Ääni pois',
-    suggestion: 'Vinkki: jos poistut sovelluksesta istunnon aikana, se päättyy ja sinun on aloitettava uusi. Voit myös poistaa laitteen suojakuoren parempaa lämpökokemusta varten.',
+    suggestion: 'Varoitus: jos poistut sovelluksesta istunnon aikana, se päättyy ja sinun on aloitettava uusi.',
+    suggestionNote: 'Voit myös poistaa laitteen suojakuoren parempaa lämpökokemusta varten.',
     understood: 'Selvä',
   },
 
@@ -578,7 +588,8 @@ const T: Record<Lang, Translations> = {
     calibratedDevice: 'Kalibrerad för din enhet',
     soundOn: 'Ljud på',
     soundOff: 'Ljud av',
-    suggestion: 'Tips: om du lämnar appen under en session avslutas den och du måste starta en ny. Du kan ta bort skyddsfodral från enheten för en bättre temperaturupplevelse.',
+    suggestion: 'Varning: om du lämnar appen under en session avslutas den och du måste starta en ny.',
+    suggestionNote: 'Du kan ta bort skyddsfodral från enheten för en bättre temperaturupplevelse.',
     understood: 'Förstått',
   },
 
@@ -634,7 +645,8 @@ const T: Record<Lang, Translations> = {
     calibratedDevice: 'Таны төхөөрөмжид тохируулагдсан',
     soundOn: 'Дуу асаалттай',
     soundOff: 'Дуугүй',
-    suggestion: 'Зөвлөмж: сессийн үед аппаас гарвал сесс дуусах бөгөөд шинэ сесс эхлүүлэх шаардлагатай болно. Илүү сайн температурын туршлагын тулд хамгаалалтын бүрхэвчийг тайлж болно.',
+    suggestion: 'Анхааруулга: сессийн үед аппаас гарвал сесс дуусах бөгөөд шинэ сесс эхлүүлэх шаардлагатай болно.',
+    suggestionNote: 'Илүү сайн температурын туршлагын тулд хамгаалалтын бүрхэвчийг тайлж болно.',
     understood: 'Ойлголоо',
   },
 
@@ -690,7 +702,8 @@ const T: Record<Lang, Translations> = {
     calibratedDevice: 'Nalunaarusiorfigineqarpoq',
     soundOn: 'Nipaat',
     soundOff: 'Nipaat nalinginnaasumik',
-    suggestion: 'Nalunaarusiorfigineq: nalunaarsorneq silaannassinnaappoq app-ikkut anissanermi. Nutaaq nalunaarsorneq atuissavarput. Isikkoq nalinginnaasumik nalunaarusiorfigineqarpoq telefoni allisinnaanermi.',
+    suggestion: 'Nalunaarusiorfissarineqarpoq: nalunaarsorneq silaannassinnaappoq app-ikkut anissanermi. Nutaaq nalunaarsorneq atuissavarput.',
+    suggestionNote: 'Isikkoq nalinginnaasumik nalunaarusiorfigineqarpoq telefoni allisinnaanermi.',
     understood: 'Nalunngissumik',
   },
 };
