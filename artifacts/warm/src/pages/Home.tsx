@@ -339,7 +339,7 @@ export default function Home() {
           {running && !pendingStop && (
             <motion.span key="hint-stop"
               initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-              className="text-sm text-muted-foreground/50 tracking-wide">{t.tapToStop}
+              className="text-sm text-muted-foreground/75 tracking-wide">{t.tapToStop}
             </motion.span>
           )}
         </AnimatePresence>
@@ -404,8 +404,8 @@ export default function Home() {
         </div>
 
         <div className="flex items-start gap-2 px-1">
-          <Lightbulb size={12} className="text-muted-foreground/40 shrink-0 mt-0.5" />
-          <p className="text-[10px] text-muted-foreground/50 leading-relaxed">
+          <Lightbulb size={12} className="text-muted-foreground/70 shrink-0 mt-0.5" />
+          <p className="text-[11px] text-muted-foreground/80 leading-relaxed">
             {t.suggestion}
           </p>
         </div>
