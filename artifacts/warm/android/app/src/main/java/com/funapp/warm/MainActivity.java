@@ -1,4 +1,4 @@
-package com.warm.app;
+package com.funapp.warm;
 
 import android.os.Bundle;
 import android.view.View;

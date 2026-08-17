@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.warm.app',
+  appId: 'com.funapp.warm',
   appName: 'Warm',
   webDir: 'dist/public',
   server: {

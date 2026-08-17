@@ -1,4 +1,4 @@
-package com.warm.app;
+package com.funapp.warm;
 
 import com.getcapacitor.JSArray;
 import com.getcapacitor.JSObject;
