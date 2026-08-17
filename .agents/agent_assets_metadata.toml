@@ -662,3 +662,10 @@ uri = "file://attached_assets/warmie-feature-graphic-1024x500.png"
 type = "image"
 title = "Warmie — Feature Graphic 1024×500"
 description = "Listo para subir en Play Store → Gráfico de funciones"
+
+[[outputs]]
+id = "lEAf1vqGB_OG6YddTHDBD"
+uri = "file://warm-v3.51-qr.png"
+type = "image"
+title = "Warm v3.51 — QR de instalación"
+description = "Escanear para descargar app-release.apk (versionCode 61)"
