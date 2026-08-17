@@ -634,3 +634,17 @@ uri = "file://warm-v3.49-qr.png"
 type = "image"
 title = "Warm v3.49 — QR de instalación"
 description = "Escanear para descargar app-release.apk (versionCode 59)"
+
+[[outputs]]
+id = "4i5DlxcF8jKoqTxUbF9va"
+uri = "file://attached_assets/warmie-icon-512.png"
+type = "image"
+title = "Warmie — Icono 512×512"
+description = "Para subir en Ficha de Play Store → Icono de la app"
+
+[[outputs]]
+id = "VhAEn3g36-TvTENfQBD4w"
+uri = "file://attached_assets/warmie-feature-graphic.png"
+type = "image"
+title = "Warmie — Feature Graphic 1024×500"
+description = "Para subir en Ficha de Play Store → Elemento gráfico destacado"
