@@ -28,6 +28,14 @@ public class MainActivity extends BridgeActivity {
     private BillingClient billingClient;
     private static final String PRODUCT_ID = "warm_premium_lifetime";
 
+    /**
+     * True only when onStop() has fired — meaning the app truly went to the
+     * background (process may be killed).  A plain screen-off via the power
+     * button only calls onPause()/onResume() without touching onStop(), so we
+     * skip the renderer-reload probe in that case to avoid the blank-screen flicker.
+     */
+    private boolean appWasStopped = false;
+
     // ── Lifecycle ─────────────────────────────────────────────────────────────
 
     @Override
@@ -70,9 +78,28 @@ public class MainActivity extends BridgeActivity {
     }
 
     /**
-     * On resume: probe the WebView renderer (crash/blank detection) and
-     * re-query Play billing to catch purchases that completed while the app
-     * was in the background or while the Play Store dialog was open.
+     * onStop fires when the app truly moves to the background (process may be
+     * killed by the OS). A plain screen-off only calls onPause — no onStop.
+     */
+    @Override
+    public void onStop() {
+        super.onStop();
+        appWasStopped = true;
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+        // Reset here rather than in onResume so the flag is still readable
+        // during the onResume call that follows onStart.
+    }
+
+    /**
+     * On resume: probe the WebView renderer (crash/blank detection) ONLY when
+     * the app was truly backgrounded (onStop fired).  A simple screen-off via
+     * the power button skips the probe entirely — the WebView is still alive
+     * and reloading it causes the blank-screen flicker the user reported.
+     * Always re-query Play billing regardless.
      */
     @Override
     public void onResume() {
@@ -84,9 +111,13 @@ public class MainActivity extends BridgeActivity {
         // Re-query billing — catches purchases finalised in Play Store dialog.
         queryPurchasesInternal();
 
+        // Screen-off/on: skip renderer probe — WebView is still healthy.
+        if (!appWasStopped) return;
+        appWasStopped = false;
+
         String url = webView.getUrl();
 
-        // Case 1: renderer was killed and URL is blank/null
+        // Case 1: renderer was killed and URL is blank/null.
         if (url == null || url.equals("about:blank") || url.isEmpty()) {
             showOverlayAndReload(webView);
             return;
@@ -94,12 +125,12 @@ public class MainActivity extends BridgeActivity {
 
         // Case 2: renderer may have been killed but URL is still set.
         // Probe via evaluateJavascript — if the renderer is dead the callback
-        // never fires, so a 1.5 s timeout triggers a forced reload instead.
+        // never fires, so a 3 s timeout triggers a forced reload instead.
         final boolean[] probeAnswered = {false};
         Runnable timeoutReload = () -> {
             if (!probeAnswered[0]) showOverlayAndReload(webView);
         };
-        webView.postDelayed(timeoutReload, 1500);
+        webView.postDelayed(timeoutReload, 3000);
         webView.evaluateJavascript("document.readyState", value -> {
             probeAnswered[0] = true;
             webView.removeCallbacks(timeoutReload);
