@@ -186,26 +186,12 @@ export default function Home() {
     setTimeout(() => setFlamePulse(false), 600);
   };
 
-  // Prevent accidental double-tap: lock the flame for 2.5 s after starting.
+  // Prevent accidental tap: lock the flame for 2.5 s after starting.
   const startLockRef = useRef(false);
-  // Two-tap-to-stop: first tap arms, second tap within 2 s confirms.
-  const [pendingStop, setPendingStop] = useState(false);
-  const pendingStopTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleFlameClick = () => {
     if (running) {
       if (startLockRef.current) return;
-      if (!pendingStop) {
-        // First tap — arm the stop
-        setPendingStop(true);
-        pendingStopTimer.current = setTimeout(() => {
-          setPendingStop(false);
-        }, 2000);
-        return;
-      }
-      // Second tap — confirm stop
-      if (pendingStopTimer.current) clearTimeout(pendingStopTimer.current);
-      setPendingStop(false);
       stop();
       return;
     }
@@ -326,24 +312,8 @@ export default function Home() {
         </div>
       </div>{/* end TOP */}
 
-      {/* ── MIDDLE: double-tap hint — centered between flame and buttons ── */}
-      <div className="z-10 flex-1 flex items-center justify-center w-full">
-        <AnimatePresence mode="wait">
-          {running && pendingStop && (
-            <motion.span key="confirm-stop"
-              initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0 }}
-              className="text-sm font-semibold text-destructive animate-pulse tracking-wide">
-              ¿Terminar? Tocá de nuevo
-            </motion.span>
-          )}
-          {running && !pendingStop && (
-            <motion.span key="hint-stop"
-              initial={{ opacity: 0, y: 4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-              className="text-sm text-muted-foreground/75 tracking-wide">{t.tapToStop}
-            </motion.span>
-          )}
-        </AnimatePresence>
-      </div>
+      {/* ── MIDDLE: spacer ── */}
+      <div className="z-10 flex-1" />
 
       {/* ── BOTTOM: duration selector + footer ── */}
       <div className="z-10 w-full max-w-sm flex flex-col gap-2 pb-6">

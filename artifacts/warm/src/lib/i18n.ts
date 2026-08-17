@@ -66,7 +66,6 @@ export interface Translations {
   /** Idle hint under temperature */
   tapToStart: string;
   /** Running hint — tap to stop */
-  tapToStop: string;
   /** Badge shown when calibrated with real sensor */
   calibratedDevice: string;
   soundOn: string;
@@ -128,7 +127,6 @@ const T: Record<Lang, Translations> = {
     calibratingNote: 'Please don\'t turn off your phone',
     cooling: 'Cooling down…',
     tapToStart: 'Tap the flame to start',
-    tapToStop: 'Tap the flame twice to stop',
     calibratedDevice: 'Calibrated for your device',
     soundOn: 'Sound on',
     soundOff: 'Sound off',
@@ -185,7 +183,6 @@ const T: Record<Lang, Translations> = {
     calibratingNote: 'No apagues el teléfono por favor',
     cooling: 'Enfriando…',
     tapToStart: 'Tocá la llama para iniciar',
-    tapToStop: 'Toca 2 veces la llama para terminar',
     calibratedDevice: 'Calibrado para tu dispositivo',
     soundOn: 'Sonido activado',
     soundOff: 'Sin sonido',
@@ -242,7 +239,6 @@ const T: Record<Lang, Translations> = {
     calibratingNote: 'Não desligue o celular, por favor',
     cooling: 'Esfriando…',
     tapToStart: 'Toque na chama para iniciar',
-    tapToStop: 'Toque 2 vezes para parar',
     calibratedDevice: 'Calibrado para o seu dispositivo',
     soundOn: 'Som ativado',
     soundOff: 'Sem som',
@@ -299,7 +295,6 @@ const T: Record<Lang, Translations> = {
     calibratingNote: "Ne pas éteindre le téléphone, s'il vous plaît",
     cooling: 'Refroidissement…',
     tapToStart: 'Appuyez sur la flamme pour démarrer',
-    tapToStop: 'Appuyez 2 fois pour arrêter',
     calibratedDevice: 'Calibré pour votre appareil',
     soundOn: 'Son activé',
     soundOff: 'Son désactivé',
@@ -356,7 +351,6 @@ const T: Record<Lang, Translations> = {
     calibratingNote: 'Bitte schalte das Gerät nicht aus',
     cooling: 'Abkühlen…',
     tapToStart: 'Flamme antippen zum Starten',
-    tapToStop: '2× tippen zum Stoppen',
     calibratedDevice: 'Kalibriert für dein Gerät',
     soundOn: 'Ton an',
     soundOff: 'Ton aus',
@@ -413,7 +407,6 @@ const T: Record<Lang, Translations> = {
     calibratingNote: 'Non spegnere il telefono, per favore',
     cooling: 'Raffreddamento…',
     tapToStart: 'Tocca la fiamma per iniziare',
-    tapToStop: 'Tocca 2 volte per fermare',
     calibratedDevice: 'Calibrato per il tuo dispositivo',
     soundOn: 'Audio attivo',
     soundOff: 'Audio disattivo',
@@ -470,7 +463,6 @@ const T: Record<Lang, Translations> = {
     calibratingNote: 'Пожалуйста, не выключайте телефон',
     cooling: 'Охлаждение…',
     tapToStart: 'Нажмите на пламя для запуска',
-    tapToStop: 'Нажмите 2 раза для остановки',
     calibratedDevice: 'Калибровка выполнена',
     soundOn: 'Звук вкл.',
     soundOff: 'Звук выкл.',
@@ -527,7 +519,6 @@ const T: Record<Lang, Translations> = {
     calibratingNote: 'Älä sammuta puhelinta, kiitos',
     cooling: 'Jäähtyminen…',
     tapToStart: 'Käynnistä napauttamalla liekkiä',
-    tapToStop: 'Napauta 2 kertaa pysäyttääksesi',
     calibratedDevice: 'Kalibroitu laitteellesi',
     soundOn: 'Ääni päällä',
     soundOff: 'Ääni pois',
@@ -584,7 +575,6 @@ const T: Record<Lang, Translations> = {
     calibratingNote: 'Stäng inte av telefonen, tack',
     cooling: 'Avkylning…',
     tapToStart: 'Tryck på lågan för att starta',
-    tapToStop: 'Tryck 2 gånger för att stoppa',
     calibratedDevice: 'Kalibrerad för din enhet',
     soundOn: 'Ljud på',
     soundOff: 'Ljud av',
@@ -641,7 +631,6 @@ const T: Record<Lang, Translations> = {
     calibratingNote: 'Утсаа унтраахгүй байна уу',
     cooling: 'Хөргөж байна…',
     tapToStart: 'Эхлүүлэхийн тулд гал дээр дарна уу',
-    tapToStop: '2 удаа дарж зогсооно уу',
     calibratedDevice: 'Таны төхөөрөмжид тохируулагдсан',
     soundOn: 'Дуу асаалттай',
     soundOff: 'Дуугүй',
@@ -698,7 +687,6 @@ const T: Record<Lang, Translations> = {
     calibratingNote: 'Telefoni silaannassinnaasoq',
     cooling: 'Isikkoqqissaarissumik…',
     tapToStart: 'Isikkorfigineqarsinnaappoq',
-    tapToStop: '2-inik isikkorfigineqassasoq nalinngissumik',
     calibratedDevice: 'Nalunaarusiorfigineqarpoq',
     soundOn: 'Nipaat',
     soundOff: 'Nipaat nalinginnaasumik',
