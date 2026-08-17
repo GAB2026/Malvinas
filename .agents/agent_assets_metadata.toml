@@ -639,8 +639,8 @@ description = "Escanear para descargar app-release.apk (versionCode 59)"
 id = "4i5DlxcF8jKoqTxUbF9va"
 uri = "file://attached_assets/warmie-icon-512.png"
 type = "image"
-title = "Warmie — Icono 512×512"
-description = "Para subir en Ficha de Play Store → Icono de la app"
+title = "Warmie — Icono 512×512 (correcto)"
+description = "Listo para subir a Play Store"
 
 [[outputs]]
 id = "VhAEn3g36-TvTENfQBD4w"
