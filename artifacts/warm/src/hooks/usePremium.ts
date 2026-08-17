@@ -68,6 +68,23 @@ function notifySubscribers(): void {
 // ── Initialisation ────────────────────────────────────────────────────────────
 
 (function init() {
+  try {
+    const billingKeyExists = localStorage.getItem(BILLING_CACHE_KEY) !== null;
+
+    if (!billingKeyExists) {
+      // First run on the billing-enabled version.
+      // If the user had a dev-mode purchase (warm_premium_v2) from before billing
+      // was integrated, clear their consumed durations and the old key so they
+      // get the 3 proper free sessions.  Real Google Play purchasers will be
+      // unlocked by the billing query; the key migration is irrelevant for them.
+      const hadOldPremium = localStorage.getItem('warm_premium_v2') === '1';
+      if (hadOldPremium) {
+        localStorage.removeItem('warm_premium_v2');
+        localStorage.removeItem(USED_DURATIONS_KEY);
+      }
+    }
+  } catch { /* ignore */ }
+
   // Seed from optimistic cache — prevents "locked" flash before billing resolves.
   try { _isPremium = localStorage.getItem(BILLING_CACHE_KEY) === '1'; } catch { /* ignore */ }
   try {
