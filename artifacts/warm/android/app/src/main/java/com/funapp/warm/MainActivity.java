@@ -95,11 +95,13 @@ public class MainActivity extends BridgeActivity {
     }
 
     /**
-     * On resume: probe the WebView renderer (crash/blank detection) ONLY when
-     * the app was truly backgrounded (onStop fired).  A simple screen-off via
-     * the power button skips the probe entirely — the WebView is still alive
-     * and reloading it causes the blank-screen flicker the user reported.
-     * Always re-query Play billing regardless.
+     * On resume: reload only if the renderer is clearly dead (URL blank/null).
+     * Avoid the evaluateJavascript timeout probe — it caused flicker when the
+     * callback returned null during normal background→foreground transitions.
+     *
+     * Screen-off (power button) never calls onStop(), so appWasStopped stays
+     * false and we skip even the URL check — WebView is healthy in that case.
+     * Always re-query Play billing regardless of how we resumed.
      */
     @Override
     public void onResume() {
@@ -111,31 +113,17 @@ public class MainActivity extends BridgeActivity {
         // Re-query billing — catches purchases finalised in Play Store dialog.
         queryPurchasesInternal();
 
-        // Screen-off/on: skip renderer probe — WebView is still healthy.
+        // Screen-off/on (power button): onStop() never fired → WebView is
+        // still alive → nothing more to do.
         if (!appWasStopped) return;
         appWasStopped = false;
 
+        // True background return: only reload if renderer is clearly dead.
+        // Do NOT use a timed JS probe — it causes flicker on normal resumes.
         String url = webView.getUrl();
-
-        // Case 1: renderer was killed and URL is blank/null.
         if (url == null || url.equals("about:blank") || url.isEmpty()) {
             showOverlayAndReload(webView);
-            return;
         }
-
-        // Case 2: renderer may have been killed but URL is still set.
-        // Probe via evaluateJavascript — if the renderer is dead the callback
-        // never fires, so a 3 s timeout triggers a forced reload instead.
-        final boolean[] probeAnswered = {false};
-        Runnable timeoutReload = () -> {
-            if (!probeAnswered[0]) showOverlayAndReload(webView);
-        };
-        webView.postDelayed(timeoutReload, 3000);
-        webView.evaluateJavascript("document.readyState", value -> {
-            probeAnswered[0] = true;
-            webView.removeCallbacks(timeoutReload);
-            if (value == null || value.equals("null")) showOverlayAndReload(webView);
-        });
     }
 
     @Override
