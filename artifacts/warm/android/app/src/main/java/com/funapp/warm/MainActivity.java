@@ -111,10 +111,23 @@ public class MainActivity extends BridgeActivity {
         if (this.bridge != null) {
             WebView webView = this.bridge.getWebView();
             if (webView != null) {
-                // JS timers are still live at onStop time — PauseTimers runs
-                // during onPause, not onStop — so this executes correctly.
-                webView.post(() -> webView.evaluateJavascript(
-                    "window.dispatchEvent(new CustomEvent('native-pause'));", null));
+                // Call evaluateJavascript DIRECTLY on the main thread — no webView.post().
+                //
+                // webView.post() enqueues a Runnable on the main-thread message queue.
+                // With LAYER_TYPE_SOFTWARE, the WebView draws everything on the CPU/main
+                // thread.  When Web Workers are actively burning CPU (heat engine), the
+                // main thread is already under pressure; the posted Runnable can be
+                // delayed indefinitely — workers keep running into the background,
+                // saturate all CPU cores, and on resume the main thread cannot render,
+                // making the app appear frozen.
+                //
+                // Calling evaluateJavascript() directly here stops the workers
+                // immediately.  PauseTimers() (called by super.onPause() earlier) freezes
+                // setTimeout/setInterval but does NOT block evaluateJavascript() itself,
+                // and window.dispatchEvent() is synchronous so the native-pause handler
+                // executes inline.
+                webView.evaluateJavascript(
+                    "window.dispatchEvent(new CustomEvent('native-pause'));", null);
             }
         }
     }
@@ -145,6 +158,17 @@ public class MainActivity extends BridgeActivity {
         if (!appWasStopped) return; // billing dialog / other brief pause — nothing to do
         appWasStopped = false;
 
+        // Safety net: fire native-pause again in case the onStop() evaluateJavascript
+        // was lost (e.g. WebView was not yet ready, or the call raced with a reload).
+        // stopWith() in JS is idempotent — it guards on runningRef.current.
+        // super.onResume() above already called webView.onResume() → ResumeTimers(),
+        // so JS timers and evaluateJavascript are fully active at this point.
+        webView.evaluateJavascript(
+            "window.dispatchEvent(new CustomEvent('native-pause'));", null);
+
+        // With LAYER_TYPE_SOFTWARE the WebView's content lives in a CPU bitmap that
+        // survives background suspension intact — no GPU texture loss, no blank frame.
+        // Only reload if the renderer process was actually killed (URL gone blank).
         String url = webView.getUrl();
         if (url == null || url.equals("about:blank") || url.isEmpty()) {
             showOverlayAndReload(webView);

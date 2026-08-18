@@ -364,7 +364,7 @@ export default function Home() {
                 key={mins}
                 onClick={() => handleDurationClick(mins)}
                 disabled={running}
-                className={`relative flex-1 flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-2xl border transition-all duration-300 disabled:cursor-not-allowed
+                className={`relative flex-1 min-h-[76px] flex flex-col items-center justify-center gap-1 py-3 px-2 rounded-2xl border transition-colors duration-300 disabled:cursor-not-allowed
                   ${locked
                     ? 'border-yellow-500/60 bg-yellow-950/40'
                     : active
