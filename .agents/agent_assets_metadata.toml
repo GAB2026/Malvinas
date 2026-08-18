@@ -753,3 +753,10 @@ uri = "file://warm-v3.54.3-qr.png"
 type = "image"
 title = "Warm v3.54.3 — QR de instalación"
 description = "Llama estática (sin CSS animations) — versionCode 73"
+
+[[outputs]]
+id = "zofyyjcgr4BhMFAELq-hS"
+uri = "file://warm-v3.54.4-qr.png"
+type = "image"
+title = "Warm v3.54.4 — QR de instalación"
+description = "Overlay en screen-on para ocultar GPU corruption — versionCode 74"
