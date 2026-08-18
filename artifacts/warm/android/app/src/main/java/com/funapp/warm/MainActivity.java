@@ -1,9 +1,5 @@
 package com.funapp.warm;
 
-import android.content.BroadcastReceiver;
-import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
 import android.os.Bundle;
 import android.view.View;
 import android.view.ViewGroup;
@@ -33,25 +29,12 @@ public class MainActivity extends BridgeActivity {
     private static final String PRODUCT_ID = "warm_premium_lifetime";
 
     /**
-     * Set to true by onStop() — means the app truly went to the background
-     * (home button / app switch). Screen-off (power button) never calls onStop,
-     * so this stays false for that case. Used in onResume() to pick the right
-     * recovery path.
+     * True only when onStop() has fired — meaning the app truly went to the
+     * background (process may be killed).  A plain screen-off via the power
+     * button only calls onPause()/onResume() without touching onStop(), so we
+     * skip the renderer-reload probe in that case to avoid the blank-screen flicker.
      */
     private boolean appWasStopped = false;
-
-    /**
-     * Detects ACTION_SCREEN_OFF, which Android broadcasts BEFORE onPause() when
-     * the power button is pressed. We use this to show the dark overlay early —
-     * before the WebView surface is paused — so the user never sees a white flash.
-     *
-     * evaluateJavascript() is asynchronous: even called before super.onPause(),
-     * PauseTimers() inside webView.onPause() freezes JS execution before the
-     * script can run. Firing native-pause from onPause() is therefore unreliable.
-     * Instead we fire it from onResume() where the WebView is guaranteed active.
-     */
-    private boolean screenOffPending = false;
-    private BroadcastReceiver screenStateReceiver;
 
     // ── Lifecycle ─────────────────────────────────────────────────────────────
 
@@ -61,129 +44,82 @@ public class MainActivity extends BridgeActivity {
         super.onCreate(savedInstanceState);
         setupReloadOverlay();
         setupBilling();
-        setupScreenReceiver();
-
-        WebView wv = this.bridge.getWebView();
-        // Keep hardware acceleration as the default — GPU rendering is required for
-        // smooth Framer Motion animations and CSS keyframe compositing.
-        //
-        // LAYER_TYPE_SOFTWARE is switched in dynamically only during the screen-off
-        // window (ACTION_SCREEN_OFF → onResume) to prevent GPU texture corruption.
-        // See setupScreenReceiver() and onResume() for the switching logic.
-        wv.addJavascriptInterface(new WarmBillingInterface(), "WarmBilling");
+        // Expose billing bridge to JS — must be done after super.onCreate() so
+        // the WebView exists.  The interface is available for the lifetime of the
+        // WebView; re-attaching on each load is not needed.
+        this.bridge.getWebView().addJavascriptInterface(new WarmBillingInterface(), "WarmBilling");
     }
 
     /**
-     * Tracks when the power button turned the screen off so onResume() can
-     * distinguish a screen-off return from a billing-dialog return (both have
-     * appWasStopped == false).
+     * Fire native-pause BEFORE super.onPause() so the JS session stops while
+     * timers are still active. super.onPause() → webView.onPause() calls
+     * PauseTimers(), which would freeze JS execution. Anything queued after
+     * that point only runs after onResume() — too late.
+     *
+     * By dispatching the event first, the WebView enters its paused state
+     * already showing the "session stopped" UI. When the screen turns back on
+     * and onResume() calls webView.onResume() / ResumeTimers(), the WebView
+     * redraws the stopped state immediately — no blank flash, no flicker.
+     * This covers both screen-off (power button) and true background.
      */
-    private void setupScreenReceiver() {
-        screenStateReceiver = new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context context, Intent intent) {
-                if (Intent.ACTION_SCREEN_OFF.equals(intent.getAction())) {
-                    screenOffPending = true;
-                    // Switch to software rendering NOW — before onPause() →
-                    // webView.onPause() pauses the GPU compositor.  This releases
-                    // the GPU texture cleanly.  We switch back to hardware in
-                    // onResume() under the dark overlay so the fresh GPU texture
-                    // is ready before the user can see it.
-                    if (bridge != null) {
-                        WebView wv = bridge.getWebView();
-                        if (wv != null) wv.setLayerType(View.LAYER_TYPE_SOFTWARE, null);
-                    }
-                }
-            }
-        };
-        IntentFilter filter = new IntentFilter();
-        filter.addAction(Intent.ACTION_SCREEN_OFF);
-        registerReceiver(screenStateReceiver, filter);
-    }
-
     @Override
     public void onPause() {
+        if (this.bridge != null) {
+            WebView webView = this.bridge.getWebView();
+            if (webView != null) {
+                webView.evaluateJavascript(
+                    "window.dispatchEvent(new CustomEvent('native-pause'));",
+                    null
+                );
+            }
+        }
         super.onPause();
-        // evaluateJavascript is not called here: super.onPause() → webView.onPause()
-        // → PauseTimers() freezes JS.  native-pause is fired in onResume() (screen-off)
-        // or onStop() (background), where JS timers are guaranteed active.
     }
 
     /**
-     * onStop fires for true background (home / app switch) but NOT for screen-off.
+     * onStop fires only for true background (home button / app switch).
+     * Screen-off (power button) does NOT call onStop.
+     * We use this flag in onResume() to decide whether to check the URL.
      */
     @Override
     public void onStop() {
         super.onStop();
         appWasStopped = true;
-        if (this.bridge != null) {
-            WebView webView = this.bridge.getWebView();
-            if (webView != null) {
-                // Call evaluateJavascript DIRECTLY on the main thread — no webView.post().
-                //
-                // webView.post() enqueues a Runnable on the main-thread message queue.
-                // With LAYER_TYPE_SOFTWARE, the WebView draws everything on the CPU/main
-                // thread.  When Web Workers are actively burning CPU (heat engine), the
-                // main thread is already under pressure; the posted Runnable can be
-                // delayed indefinitely — workers keep running into the background,
-                // saturate all CPU cores, and on resume the main thread cannot render,
-                // making the app appear frozen.
-                //
-                // Calling evaluateJavascript() directly here stops the workers
-                // immediately.  PauseTimers() (called by super.onPause() earlier) freezes
-                // setTimeout/setInterval but does NOT block evaluateJavascript() itself,
-                // and window.dispatchEvent() is synchronous so the native-pause handler
-                // executes inline.
-                webView.evaluateJavascript(
-                    "window.dispatchEvent(new CustomEvent('native-pause'));", null);
-            }
-        }
     }
 
     @Override
+    public void onStart() {
+        super.onStart();
+        // Reset here rather than in onResume so the flag is still readable
+        // during the onResume call that follows onStart.
+    }
+
+    /**
+     * On resume: reload only if the renderer is clearly dead (URL blank/null).
+     * Avoid the evaluateJavascript timeout probe — it caused flicker when the
+     * callback returned null during normal background→foreground transitions.
+     *
+     * Screen-off (power button) never calls onStop(), so appWasStopped stays
+     * false and we skip even the URL check — WebView is healthy in that case.
+     * Always re-query Play billing regardless of how we resumed.
+     */
+    @Override
     public void onResume() {
-        super.onResume(); // → webView.onResume() → ResumeTimers() → JS active
+        super.onResume();
         if (this.bridge == null) return;
         WebView webView = this.bridge.getWebView();
         if (webView == null) return;
 
+        // Re-query billing — catches purchases finalised in Play Store dialog.
         queryPurchasesInternal();
 
-        if (screenOffPending) {
-            // Screen-off return.
-            // We are currently in LAYER_TYPE_SOFTWARE (set in ACTION_SCREEN_OFF).
-            // 1. Show the dark overlay so the user sees nothing while GPU reinits.
-            // 2. Fire native-pause to stop any running session.
-            // 3. Switch back to LAYER_TYPE_HARDWARE — GPU creates a fresh, clean
-            //    texture from the current software bitmap.  The overlay hides the
-            //    one or two GPU-warmup frames that might flicker.
-            // 4. Hide the overlay after 500 ms — enough for GPU compositing to settle.
-            screenOffPending = false;
-            if (reloadOverlay != null) {
-                reloadOverlay.setAlpha(1f);
-                reloadOverlay.setVisibility(View.VISIBLE);
-            }
-            webView.evaluateJavascript(
-                "window.dispatchEvent(new CustomEvent('native-pause'));", null);
-            webView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
-            webView.postDelayed(this::hideOverlay, 500);
-            return;
-        }
-
-        if (!appWasStopped) return; // billing dialog / other brief pause — nothing to do
+        // Screen-off/on (power button): onStop() never fired → WebView is
+        // still alive → nothing more to do.
+        if (!appWasStopped) return;
         appWasStopped = false;
 
-        // Safety net: fire native-pause again in case the onStop() evaluateJavascript
-        // was lost (e.g. WebView was not yet ready, or the call raced with a reload).
-        // stopWith() in JS is idempotent — it guards on runningRef.current.
-        // super.onResume() above already called webView.onResume() → ResumeTimers(),
-        // so JS timers and evaluateJavascript are fully active at this point.
-        webView.evaluateJavascript(
-            "window.dispatchEvent(new CustomEvent('native-pause'));", null);
-
-        // With LAYER_TYPE_SOFTWARE the WebView's content lives in a CPU bitmap that
-        // survives background suspension intact — no GPU texture loss, no blank frame.
-        // Only reload if the renderer process was actually killed (URL gone blank).
+        // True background return: only reload if renderer is clearly dead.
+        // Do NOT use a timed JS probe — it causes flicker on normal resumes.
         String url = webView.getUrl();
         if (url == null || url.equals("about:blank") || url.isEmpty()) {
             showOverlayAndReload(webView);
@@ -194,7 +130,6 @@ public class MainActivity extends BridgeActivity {
     public void onDestroy() {
         super.onDestroy();
         if (billingClient != null) billingClient.endConnection();
-        if (screenStateReceiver != null) unregisterReceiver(screenStateReceiver);
     }
 
     // ── Billing setup ─────────────────────────────────────────────────────────
