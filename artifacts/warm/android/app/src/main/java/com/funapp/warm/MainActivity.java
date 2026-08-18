@@ -163,15 +163,45 @@ public class MainActivity extends BridgeActivity {
         screenOffReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
-                if (!Intent.ACTION_SCREEN_OFF.equals(intent.getAction())) return;
+                String action = intent.getAction();
                 if (bridge == null) return;
                 WebView wv = bridge.getWebView();
                 if (wv == null) return;
-                wv.evaluateJavascript(
-                    "window.dispatchEvent(new CustomEvent('native-pause'));", null);
+
+                if (Intent.ACTION_SCREEN_OFF.equals(action)) {
+                    // Fire native-pause BEFORE onPause()/PauseTimers() so React
+                    // renders a clean idle frame while JS timers are still alive.
+                    wv.evaluateJavascript(
+                        "window.dispatchEvent(new CustomEvent('native-pause'));", null);
+
+                } else if (Intent.ACTION_SCREEN_ON.equals(action)) {
+                    // The screen is turning on.  Android's SurfaceFlinger is
+                    // re-connecting the display; the WebView's GPU texture may
+                    // be in a corrupted state (green/red/yellow fragments) from
+                    // the screen-off period.
+                    //
+                    // Strategy: immediately cover any corrupted frame with the
+                    // opaque overlay, force the WebView to invalidate (schedule
+                    // a fresh GPU composite), then fade the overlay out once the
+                    // WebView has had time to produce a clean frame.
+                    runOnUiThread(() -> {
+                        if (reloadOverlay != null) {
+                            reloadOverlay.setAlpha(1f);
+                            reloadOverlay.setVisibility(View.VISIBLE);
+                        }
+                        // Ask the View system to re-draw the WebView.
+                        wv.invalidate();
+                        // Give the compositor ~400 ms to produce a clean frame,
+                        // then fade the overlay out.
+                        wv.postDelayed(() -> hideOverlay(), 400);
+                    });
+                }
             }
         };
-        registerReceiver(screenOffReceiver, new IntentFilter(Intent.ACTION_SCREEN_OFF));
+        IntentFilter filter = new IntentFilter();
+        filter.addAction(Intent.ACTION_SCREEN_OFF);
+        filter.addAction(Intent.ACTION_SCREEN_ON);
+        registerReceiver(screenOffReceiver, filter);
     }
 
     // ── Billing setup ─────────────────────────────────────────────────────────
