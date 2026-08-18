@@ -1,5 +1,9 @@
 package com.funapp.warm;
 
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.Bundle;
 import android.view.View;
 import android.view.ViewGroup;
@@ -35,6 +39,7 @@ public class MainActivity extends BridgeActivity {
      * skip the renderer-reload probe in that case to avoid the blank-screen flicker.
      */
     private boolean appWasStopped = false;
+    private BroadcastReceiver screenOffReceiver;
 
     // ── Lifecycle ─────────────────────────────────────────────────────────────
 
@@ -44,6 +49,7 @@ public class MainActivity extends BridgeActivity {
         super.onCreate(savedInstanceState);
         setupReloadOverlay();
         setupBilling();
+        setupScreenOffReceiver();
         // Expose billing bridge to JS — must be done after super.onCreate() so
         // the WebView exists.  The interface is available for the lifetime of the
         // WebView; re-attaching on each load is not needed.
@@ -130,6 +136,42 @@ public class MainActivity extends BridgeActivity {
     public void onDestroy() {
         super.onDestroy();
         if (billingClient != null) billingClient.endConnection();
+        if (screenOffReceiver != null) unregisterReceiver(screenOffReceiver);
+    }
+
+    /**
+     * Fires native-pause the moment the OS detects screen-off — BEFORE
+     * onPause() / webView.onPause() / PauseTimers().
+     *
+     * Why this helps with GPU texture corruption:
+     *   When the screen turns off, Android's SurfaceFlinger detaches the
+     *   display and the GPU compositor may reclaim the WebView's texture.
+     *   If the WebView's last rendered frame was the active therapy animation
+     *   (running flame, heat gradient), that texture can appear corrupted
+     *   (green/red fragments) when the screen turns back on.
+     *
+     *   By stopping the session here — before onPause() freezes JS timers —
+     *   React has extra time to flush setRunning(false) / setPhase('idle')
+     *   and the WebView renders a clean static idle frame BEFORE the GPU
+     *   texture is frozen.  The compositor then caches that clean frame.
+     *
+     * onPause() still fires native-pause afterward for true background
+     * (home button / app switch) — calling stopWith() twice is a no-op
+     * because it guards on runningRef.current.
+     */
+    private void setupScreenOffReceiver() {
+        screenOffReceiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                if (!Intent.ACTION_SCREEN_OFF.equals(intent.getAction())) return;
+                if (bridge == null) return;
+                WebView wv = bridge.getWebView();
+                if (wv == null) return;
+                wv.evaluateJavascript(
+                    "window.dispatchEvent(new CustomEvent('native-pause'));", null);
+            }
+        };
+        registerReceiver(screenOffReceiver, new IntentFilter(Intent.ACTION_SCREEN_OFF));
     }
 
     // ── Billing setup ─────────────────────────────────────────────────────────
