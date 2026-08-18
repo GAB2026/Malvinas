@@ -1,26 +1,39 @@
 ---
 name: Warm screen-off vs background detection
-description: How to correctly fire native-pause on screen-off vs background, and the critical ordering rule with super.onPause().
+description: Definitive fix for screen-off blank/freeze: BroadcastReceiver shows overlay before WebView surface is paused; native-pause fires in onResume where JS is guaranteed active.
 ---
 
-## The rule
-- **Power button (screen off):** Android fires `onPause()` + `onResume()` only. `onStop()` is NOT called.
-- **True background (home button / app switch):** Android fires `onPause()` → `onStop()` → `onStart()` → `onResume()`.
+## The fundamental constraint
+`evaluateJavascript()` is asynchronous. Even called BEFORE `super.onPause()`, it only executes after `onResume()` — because `super.onPause()` → `webView.onPause()` → `PauseTimers()` freezes all JS execution. There is NO reliable way to run JS synchronously in onPause().
 
-## Critical: native-pause must fire BEFORE super.onPause()
+## Lifecycle rules
+- **Screen-off (power button):** `ACTION_SCREEN_OFF` → `onPause()` → `onResume()`. `onStop()` is NOT called.
+- **True background (home/app switch):** `onPause()` → `onStop()` → `onStart()` → `onResume()`.
 
-`super.onPause()` calls `bridge.handleOnPause()` → `webView.onPause()` → **PauseTimers()** — this freezes JS timer execution. Any `evaluateJavascript()` called or queued AFTER this point only executes after `onResume()` re-enables timers. This causes the session to stop AFTER the user is already looking at the screen — showing the active session briefly then cutting to "stopped". Also causes blank/white flicker since the WebView is resumed before the JS state is correct.
+## Definitive fix (v3.56)
 
-**Solution:** call `webView.evaluateJavascript("window.dispatchEvent(new CustomEvent('native-pause'));", null)` **BEFORE** `super.onPause()`. The WebView is still active at that point, JS executes immediately, session stops, and the WebView enters its paused state already showing the "stopped" UI. When the screen turns back on and `onResume()` resumes the WebView, it redraws the stopped state without any flash.
+### Screen-off
+1. `BroadcastReceiver` receives `ACTION_SCREEN_OFF` **before** `onPause()` fires.
+2. In the receiver: show the dark overlay (`reloadOverlay`) immediately — before Android suspends the WebView surface. This prevents the white blank flash.
+3. `onPause()` / `onStop()`: nothing extra (screen-off doesn't call onStop).
+4. `onResume()`: `super.onResume()` re-enables JS timers via `ResumeTimers()`. NOW call `evaluateJavascript("native-pause")` — guaranteed to execute. Post `hideOverlay` after 350ms so the stopped-session UI renders before the overlay fades.
 
-This fires for BOTH screen-off and true background — correct, because both cases should stop the session.
+### True background
+1. `onStop()`: set `appWasStopped=true`. Fire `native-pause` via `webView.post()` — JS timers are still active at `onStop()` time (PauseTimers runs during onPause, not onStop), so the script executes correctly.
+2. `onResume()`: URL check if `appWasStopped`. Reload only if URL is null/blank.
 
-## WebView reload guard (onResume)
-Track `private boolean appWasStopped = false`. Set `true` in `onStop()`. In `onResume()`:
-- `!appWasStopped` (screen-off): re-query billing, return — no URL check needed, WebView is healthy
-- `appWasStopped` (background): re-query billing, check URL (reload if null/blank), reset flag
+### Billing dialog / other brief pauses
+`appWasStopped=false` and `screenOffPending=false` → early return, no action.
 
-Do NOT use a timed JS probe (evaluateJavascript with postDelayed timeout) — it caused false reloads and flicker when the callback returned null during normal transitions.
+## Key flags
+- `private boolean appWasStopped` — set in `onStop()`, read+reset in `onResume()`
+- `private boolean screenOffPending` — set in BroadcastReceiver on SCREEN_OFF, reset in `onResume()`
+- `BroadcastReceiver screenStateReceiver` — registered in `onCreate()`, unregistered in `onDestroy()`
+
+## What NOT to do
+- Do NOT call `evaluateJavascript()` in `onPause()` — PauseTimers makes it fire after onResume (too late).
+- Do NOT use a timed JS probe (postDelayed + evaluateJavascript) in onResume — returns null during normal transitions, causing false reloads.
+- Do NOT call `webView.onResume()` inside `onPause()` — non-standard, breaks Capacitor plugin lifecycle.
 
 ## Relevant file
 `artifacts/warm/android/app/src/main/java/com/funapp/warm/MainActivity.java`
