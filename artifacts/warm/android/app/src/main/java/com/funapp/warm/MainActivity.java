@@ -64,13 +64,12 @@ public class MainActivity extends BridgeActivity {
         setupScreenReceiver();
 
         WebView wv = this.bridge.getWebView();
-        // Switch to software rendering so the GPU compositor never gets involved.
-        // Hardware-accelerated WebViews lose their GPU texture on screen-off/on
-        // cycles on many Samsung and other OEM devices, producing green/red/white
-        // corruption artifacts.  Software rendering uses a CPU bitmap — it is
-        // slightly slower but completely immune to GPU texture loss.  For a Canvas
-        // 2D thermal gradient this overhead is imperceptible.
-        wv.setLayerType(View.LAYER_TYPE_SOFTWARE, null);
+        // Keep hardware acceleration as the default — GPU rendering is required for
+        // smooth Framer Motion animations and CSS keyframe compositing.
+        //
+        // LAYER_TYPE_SOFTWARE is switched in dynamically only during the screen-off
+        // window (ACTION_SCREEN_OFF → onResume) to prevent GPU texture corruption.
+        // See setupScreenReceiver() and onResume() for the switching logic.
         wv.addJavascriptInterface(new WarmBillingInterface(), "WarmBilling");
     }
 
@@ -85,6 +84,15 @@ public class MainActivity extends BridgeActivity {
             public void onReceive(Context context, Intent intent) {
                 if (Intent.ACTION_SCREEN_OFF.equals(intent.getAction())) {
                     screenOffPending = true;
+                    // Switch to software rendering NOW — before onPause() →
+                    // webView.onPause() pauses the GPU compositor.  This releases
+                    // the GPU texture cleanly.  We switch back to hardware in
+                    // onResume() under the dark overlay so the fresh GPU texture
+                    // is ready before the user can see it.
+                    if (bridge != null) {
+                        WebView wv = bridge.getWebView();
+                        if (wv != null) wv.setLayerType(View.LAYER_TYPE_SOFTWARE, null);
+                    }
                 }
             }
         };
@@ -142,8 +150,14 @@ public class MainActivity extends BridgeActivity {
         queryPurchasesInternal();
 
         if (screenOffPending) {
-            // Screen-off return.  Software rendering means no GPU artifact.
-            // Show overlay while JS stops the session, then fade out.
+            // Screen-off return.
+            // We are currently in LAYER_TYPE_SOFTWARE (set in ACTION_SCREEN_OFF).
+            // 1. Show the dark overlay so the user sees nothing while GPU reinits.
+            // 2. Fire native-pause to stop any running session.
+            // 3. Switch back to LAYER_TYPE_HARDWARE — GPU creates a fresh, clean
+            //    texture from the current software bitmap.  The overlay hides the
+            //    one or two GPU-warmup frames that might flicker.
+            // 4. Hide the overlay after 500 ms — enough for GPU compositing to settle.
             screenOffPending = false;
             if (reloadOverlay != null) {
                 reloadOverlay.setAlpha(1f);
@@ -151,7 +165,8 @@ public class MainActivity extends BridgeActivity {
             }
             webView.evaluateJavascript(
                 "window.dispatchEvent(new CustomEvent('native-pause'));", null);
-            webView.postDelayed(this::hideOverlay, 400);
+            webView.setLayerType(View.LAYER_TYPE_HARDWARE, null);
+            webView.postDelayed(this::hideOverlay, 500);
             return;
         }
 
