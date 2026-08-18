@@ -89,8 +89,10 @@ jobs:
           name: Thermal Pad ${{ github.ref_name }}
           files: |
             artifacts/warm/android/app/build/outputs/apk/release/app-release.apk
+            artifacts/warm/android/app/build/outputs/bundle/release/app-release.aab
           generate_release_notes: false
           body: |
             APK directo para instalar en Android (habilitar "Instalar apps desconocidas").
+            AAB para subir a Google Play Console.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
