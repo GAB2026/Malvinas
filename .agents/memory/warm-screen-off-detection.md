@@ -5,47 +5,68 @@ description: Definitive fix for screen-off GPU corruption + how native-pause is 
 
 ## The fundamental constraints
 
-1. **GPU texture loss**: Hardware-accelerated WebViews on Samsung/OEM devices lose GPU textures during screen-off/on cycles, producing colored fragment artifacts (green/red gradients). Fix: `webView.setLayerType(View.LAYER_TYPE_SOFTWARE, null)` in `onCreate()`. Software rendering uses a CPU bitmap — immune to GPU texture loss. Canvas 2D thermal gradient is imperceptible overhead.
+1. **GPU texture loss**: Hardware-accelerated WebViews on Samsung/OEM devices lose GPU textures during screen-off/on cycles, producing colored fragment artifacts (green/red gradients).
 
-2. **evaluateJavascript is async / webView.post() is dangerous with software rendering**: With `LAYER_TYPE_SOFTWARE`, the WebView draws on the CPU/main thread. When Web Workers are actively burning CPU (heat engine), the main thread is under pressure. `webView.post()` enqueues a Runnable but it can be delayed indefinitely — workers keep running in background, saturate CPU, and on resume the main thread cannot render. Result: app appears frozen.
+2. **LAYER_TYPE_SOFTWARE must NOT be applied globally**. It disables GPU compositing for all Framer Motion animations and CSS keyframe animations. Combined with active Web Workers burning CPU, this causes:
+   - CSS keyframe animations (flame-outer, flame-inner, etc.) run on the CPU/main thread → stutter, visible "size alternation" as heatLevel updates every second
+   - Framer Motion animations lose hardware acceleration → janky/unstable
+   - Web Workers compete with software-rendering main thread → main thread starved → app appears frozen after background
 
-   **Fix**: Call `evaluateJavascript()` DIRECTLY in `onStop()` (no `post()` wrapper). It's already on the main thread. `PauseTimers()` (called by `super.onPause()`) freezes setTimeout/setInterval but does NOT block `evaluateJavascript()` itself — and `dispatchEvent()` is synchronous, so the native-pause handler executes inline.
+3. **The correct approach: DYNAMIC layer switching**
+   - Default: `LAYER_TYPE_HARDWARE` (normal GPU rendering)
+   - `ACTION_SCREEN_OFF`: switch to `LAYER_TYPE_SOFTWARE` — releases GPU texture cleanly
+   - `onResume()` (screen-off return): show overlay → fire native-pause → switch back to `LAYER_TYPE_HARDWARE` (GPU creates fresh texture from software bitmap, overlay hides the 1-2 warmup frames) → hide overlay after 500ms
 
-3. **PauseTimers timing**: `PauseTimers()` is called during `super.onPause()` → `webView.onPause()`, which fires BEFORE `onStop()`. JS timers (setTimeout/setInterval) are therefore paused at `onStop()` time. However, `evaluateJavascript()` + synchronous `dispatchEvent()` still works.
+4. **Direct evaluateJavascript in onStop() (not via webView.post())**. `webView.post()` enqueues on the message queue; with heavy CPU load (workers + rendering), the Runnable can be delayed. Call `evaluateJavascript` directly in `onStop()` — it's already on the main thread, and `dispatchEvent()` is synchronous so `stopWith()` executes inline.
 
 ## Lifecycle rules
 - **Screen-off (power button):** `ACTION_SCREEN_OFF` → `onPause()` → `onResume()`. `onStop()` is NOT called.
 - **True background (home/app switch):** `onPause()` → `onStop()` → `onStart()` → `onResume()`.
+- **PauseTimers()**: called inside `super.onPause()` → `webView.onPause()`. Pauses setTimeout/setInterval but does NOT block `evaluateJavascript()` + synchronous `dispatchEvent()`.
 
-## Definitive implementation (v3.59)
+## Definitive implementation (v3.60)
 
 ### onCreate()
+No `setLayerType()` call — keep hardware acceleration.
+
+### ACTION_SCREEN_OFF (BroadcastReceiver)
 ```java
-webView.setLayerType(View.LAYER_TYPE_SOFTWARE, null); // GPU artifact fix
+screenOffPending = true;
+if (bridge != null) {
+    WebView wv = bridge.getWebView();
+    if (wv != null) wv.setLayerType(View.LAYER_TYPE_SOFTWARE, null);
+}
 ```
 
-### Screen-off detection
-`BroadcastReceiver` for `ACTION_SCREEN_OFF` sets `screenOffPending = true`. Differentiates screen-off from billing dialog (both have `appWasStopped=false` in `onResume()`).
-
 ### onPause()
-Nothing. JS not called here.
+Nothing.
 
 ### onStop()
-Set `appWasStopped = true`. Fire `native-pause` via DIRECT `evaluateJavascript()` call (NOT via `webView.post()` — causes freeze with software rendering + active workers).
+```java
+appWasStopped = true;
+// Direct call, no webView.post():
+webView.evaluateJavascript("window.dispatchEvent(new CustomEvent('native-pause'));", null);
+```
 
 ### onResume()
-- `screenOffPending=true`: show overlay, fire `native-pause` (JS active after `super.onResume()` → `ResumeTimers()`), hide overlay after 400ms.
-- `appWasStopped=true`: fire `native-pause` again as safety net (idempotent); only call `showOverlayAndReload` if URL is null/blank (renderer was killed). With software rendering, CPU bitmap survives normal background suspension.
-- Neither: billing dialog return → no action.
+- `screenOffPending=true`:
+  1. Show overlay
+  2. `evaluateJavascript("native-pause")` (JS active after ResumeTimers())
+  3. `webView.setLayerType(LAYER_TYPE_HARDWARE, null)` — fresh GPU texture under overlay
+  4. `postDelayed(hideOverlay, 500)`
+- `appWasStopped=true`:
+  1. Fire `evaluateJavascript("native-pause")` as safety net
+  2. Only `showOverlayAndReload()` if URL is null/blank (renderer killed)
+- Neither: billing dialog → no action.
 
-## Button rendering (v3.59)
-Duration buttons must have `min-h-[76px]` and `transition-colors` (NOT `transition-all`). `transition-all` causes intermediate states when button content switches between number (text-3xl) and Lock icon (size-20), making the font appear to alternate sizes.
+## Button rendering
+Duration buttons: `transition-colors` (NOT `transition-all`). Lock icon at `size={30}`, Premium label at `text-xs` — proportional to button height when flex-stretch equalizes row.
 
 ## What NOT to do
-- Do NOT use `webView.post()` to call `evaluateJavascript()` in `onStop()` — causes freeze with software rendering + active workers.
-- Do NOT call `evaluateJavascript()` in `onPause()` — PauseTimers may partially affect it.
-- Do NOT use `transition-all` on duration buttons — content-size transitions cause visual glitches on lock/unlock.
-- Do NOT use a timed JS probe in `onResume()` — false reloads.
+- Do NOT set `LAYER_TYPE_SOFTWARE` globally in `onCreate()` — breaks all animations.
+- Do NOT use `webView.post()` for `evaluateJavascript()` in `onStop()` under load.
+- Do NOT call `evaluateJavascript()` in `onPause()`.
+- Do NOT use `transition-all` on duration buttons.
 
 ## Relevant files
 - `artifacts/warm/android/app/src/main/java/com/funapp/warm/MainActivity.java`
