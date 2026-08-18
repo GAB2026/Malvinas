@@ -50,39 +50,41 @@ public class MainActivity extends BridgeActivity {
         this.bridge.getWebView().addJavascriptInterface(new WarmBillingInterface(), "WarmBilling");
     }
 
+    /**
+     * Fire native-pause BEFORE super.onPause() so the JS session stops while
+     * timers are still active. super.onPause() → webView.onPause() calls
+     * PauseTimers(), which would freeze JS execution. Anything queued after
+     * that point only runs after onResume() — too late.
+     *
+     * By dispatching the event first, the WebView enters its paused state
+     * already showing the "session stopped" UI. When the screen turns back on
+     * and onResume() calls webView.onResume() / ResumeTimers(), the WebView
+     * redraws the stopped state immediately — no blank flash, no flicker.
+     * This covers both screen-off (power button) and true background.
+     */
     @Override
     public void onPause() {
+        if (this.bridge != null) {
+            WebView webView = this.bridge.getWebView();
+            if (webView != null) {
+                webView.evaluateJavascript(
+                    "window.dispatchEvent(new CustomEvent('native-pause'));",
+                    null
+                );
+            }
+        }
         super.onPause();
-        // Do NOT fire native-pause here. super.onPause() calls webView.onPause()
-        // which pauses JS timers (PauseTimers). Any evaluateJavascript queued here
-        // runs only AFTER onResume() re-enables timers — too late, causing the
-        // session to stop after the user is already looking at the screen.
-        // Screen-off (power button) must leave the session running untouched.
     }
 
     /**
-     * onStop fires when the app truly moves to the background (process may be
-     * killed by the OS). A plain screen-off (power button) only calls
-     * onPause/onResume — onStop is NOT called.
-     *
-     * This is the right place to fire native-pause: JS timers are still
-     * active (webView.onPause pauses rendering, not JS execution at stop time),
-     * and the process won't be killed until after onStop returns, giving the
-     * WebView enough time to dispatch the event synchronously.
+     * onStop fires only for true background (home button / app switch).
+     * Screen-off (power button) does NOT call onStop.
+     * We use this flag in onResume() to decide whether to check the URL.
      */
     @Override
     public void onStop() {
         super.onStop();
         appWasStopped = true;
-        if (this.bridge == null) return;
-        WebView webView = this.bridge.getWebView();
-        if (webView == null) return;
-        webView.post(() ->
-            webView.evaluateJavascript(
-                "window.dispatchEvent(new CustomEvent('native-pause'));",
-                null
-            )
-        );
     }
 
     @Override
