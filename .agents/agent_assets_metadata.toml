@@ -739,3 +739,10 @@ uri = "file://warm-v3.54.1-qr.png"
 type = "image"
 title = "Warm v3.54.1 — QR de instalación"
 description = "Código v3.54 restaurado — versionCode 71"
+
+[[outputs]]
+id = "xZoTtO1lh7945M71AXfqt"
+uri = "file://warm-v3.54.2-qr.png"
+type = "image"
+title = "Warm v3.54.2 — QR de instalación"
+description = "native-pause en ACTION_SCREEN_OFF — versionCode 72"
