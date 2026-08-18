@@ -132,14 +132,23 @@ public class MainActivity extends BridgeActivity {
         queryPurchasesInternal();
 
         if (screenOffPending) {
-            // Screen-off return: fire native-pause now — JS timers are active after
-            // super.onResume(), so this executes immediately and correctly.
+            // Screen-off return: the GPU compositor produces corrupted colored
+            // fragments on this device when the WebView surface resumes (GPU
+            // texture loss / hardware layer desync).  The dark overlay is already
+            // visible (shown by the BroadcastReceiver on ACTION_SCREEN_OFF before
+            // onPause), so the user never sees the artifact.
+            //
+            // Fix: fire native-pause (cleans session state in localStorage) then,
+            // once confirmed, reload the page behind the overlay.  The fresh page
+            // renders correctly on a clean GPU surface.
             screenOffPending = false;
             webView.evaluateJavascript(
-                "window.dispatchEvent(new CustomEvent('native-pause'));", null);
-            // Hide the overlay after a short delay so the stopped-session UI
-            // has time to render before the overlay fades out.
-            webView.postDelayed(this::hideOverlay, 350);
+                "window.dispatchEvent(new CustomEvent('native-pause'));",
+                value -> webView.post(() -> {
+                    webView.loadUrl(MainActivity.this.bridge.getLocalUrl());
+                    webView.postDelayed(MainActivity.this::hideOverlay, 1500);
+                })
+            );
             return;
         }
 
