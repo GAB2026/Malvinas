@@ -746,3 +746,10 @@ uri = "file://warm-v3.54.2-qr.png"
 type = "image"
 title = "Warm v3.54.2 — QR de instalación"
 description = "native-pause en ACTION_SCREEN_OFF — versionCode 72"
+
+[[outputs]]
+id = "R2MhEi6L763OW6p2nwCSE"
+uri = "file://warm-v3.54.3-qr.png"
+type = "image"
+title = "Warm v3.54.3 — QR de instalación"
+description = "Llama estática (sin CSS animations) — versionCode 73"
