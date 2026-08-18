@@ -50,22 +50,30 @@ public class MainActivity extends BridgeActivity {
         this.bridge.getWebView().addJavascriptInterface(new WarmBillingInterface(), "WarmBilling");
     }
 
-    /**
-     * Fires 'native-pause' in the WebView JS context the moment Android moves
-     * the activity to the background.
-     *
-     * document.visibilitychange is NOT reliably dispatched on many Android OEM
-     * builds (Samsung, Xiaomi, etc.) when the user presses Home or switches apps.
-     * Bridging onPause() via evaluateJavascript is the only guaranteed signal.
-     *
-     * The useWarmSession hook listens for window 'native-pause' and calls
-     * stopWith('tab-hidden') before the renderer can enter a degraded state.
-     * clearSession() runs synchronously, so localStorage is clean before the
-     * renderer may be suspended or killed by the OS.
-     */
     @Override
     public void onPause() {
         super.onPause();
+        // Do NOT fire native-pause here. super.onPause() calls webView.onPause()
+        // which pauses JS timers (PauseTimers). Any evaluateJavascript queued here
+        // runs only AFTER onResume() re-enables timers — too late, causing the
+        // session to stop after the user is already looking at the screen.
+        // Screen-off (power button) must leave the session running untouched.
+    }
+
+    /**
+     * onStop fires when the app truly moves to the background (process may be
+     * killed by the OS). A plain screen-off (power button) only calls
+     * onPause/onResume — onStop is NOT called.
+     *
+     * This is the right place to fire native-pause: JS timers are still
+     * active (webView.onPause pauses rendering, not JS execution at stop time),
+     * and the process won't be killed until after onStop returns, giving the
+     * WebView enough time to dispatch the event synchronously.
+     */
+    @Override
+    public void onStop() {
+        super.onStop();
+        appWasStopped = true;
         if (this.bridge == null) return;
         WebView webView = this.bridge.getWebView();
         if (webView == null) return;
@@ -75,16 +83,6 @@ public class MainActivity extends BridgeActivity {
                 null
             )
         );
-    }
-
-    /**
-     * onStop fires when the app truly moves to the background (process may be
-     * killed by the OS). A plain screen-off only calls onPause — no onStop.
-     */
-    @Override
-    public void onStop() {
-        super.onStop();
-        appWasStopped = true;
     }
 
     @Override
