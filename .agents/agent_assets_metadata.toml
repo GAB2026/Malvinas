@@ -767,3 +767,10 @@ uri = "file://warm-v3.54.5-qr.png"
 type = "image"
 title = "Warm v3.54.5 — QR de instalación"
 description = "Sesiones estrictamente en primer plano · versionCode 75"
+
+[[outputs]]
+id = "OAntqHnkf1VZMhQmn2UO_"
+uri = "file://warm-v3.54.6-qr.png"
+type = "image"
+title = "Warm v3.54.6 — QR de instalación"
+description = "Cierra la Activity en todo onStop() excepto durante una compra · versionCode 76"
