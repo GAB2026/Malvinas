@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 import android.view.ViewGroup;
@@ -33,12 +34,17 @@ public class MainActivity extends BridgeActivity {
     private static final String PRODUCT_ID = "warm_premium_lifetime";
 
     /**
-     * True only when onStop() has fired — meaning the app truly went to the
-     * background (process may be killed).  A plain screen-off via the power
-     * button only calls onPause()/onResume() without touching onStop(), so we
-     * skip the renderer-reload probe in that case to avoid the blank-screen flicker.
+     * Set only when the user intentionally leaves through Home or the app
+     * switcher.  This is more precise than treating every onStop() as an exit:
+     * billing dialogs and system windows may stop an Activity temporarily.
      */
-    private boolean appWasStopped = false;
+    private boolean userLeftApp = false;
+    /**
+     * Google Play Billing opens an external Activity.  It is not an app exit,
+     * so lifecycle callbacks from that flow must never finish Warm.
+     */
+    private volatile boolean billingFlowInProgress = false;
+    private boolean finishPending = false;
     private BroadcastReceiver screenOffReceiver;
 
     // ── Lifecycle ─────────────────────────────────────────────────────────────
@@ -70,48 +76,48 @@ public class MainActivity extends BridgeActivity {
      */
     @Override
     public void onPause() {
-        if (this.bridge != null) {
-            WebView webView = this.bridge.getWebView();
-            if (webView != null) {
-                webView.evaluateJavascript(
-                    "window.dispatchEvent(new CustomEvent('native-pause'));",
-                    null
-                );
+        if (!billingFlowInProgress && !finishPending) {
+            if (userLeftApp) {
+                stopSessionThenFinish();
+            } else {
+                dispatchNativePause();
             }
         }
         super.onPause();
     }
 
     /**
-     * onStop fires only for true background (home button / app switch).
-     * Screen-off (power button) does NOT call onStop.
-     * We use this flag in onResume() to decide whether to check the URL.
+     * Warm is a foreground-only experience.  After an intentional Home/app
+     * switch, close this Activity so the next launch creates a fresh WebView
+     * rather than attempting to resume a potentially damaged GPU surface.
      */
     @Override
     public void onStop() {
         super.onStop();
-        appWasStopped = true;
+        if (userLeftApp && !billingFlowInProgress) {
+            stopSessionThenFinish();
+        }
     }
 
     @Override
-    public void onStart() {
-        super.onStart();
-        // Reset here rather than in onResume so the flag is still readable
-        // during the onResume call that follows onStart.
+    public void onUserLeaveHint() {
+        super.onUserLeaveHint();
+        if (!billingFlowInProgress) {
+            userLeftApp = true;
+        }
     }
 
     /**
-     * On resume: reload only if the renderer is clearly dead (URL blank/null).
-     * Avoid the evaluateJavascript timeout probe — it caused flicker when the
-     * callback returned null during normal background→foreground transitions.
-     *
-     * Screen-off (power button) never calls onStop(), so appWasStopped stays
-     * false and we skip even the URL check — WebView is healthy in that case.
-     * Always re-query Play billing regardless of how we resumed.
+     * There is no renderer-recovery path on resume.  A screen-off closes the
+     * Activity below, and an intentional background exit closes it from onStop.
+     * The next launch consequently starts with a fresh WebView.
      */
     @Override
     public void onResume() {
         super.onResume();
+        // A transient system window must not leave a stale "user left" flag
+        // that would close Warm during a later, unrelated lifecycle event.
+        userLeftApp = false;
         if (this.bridge == null) return;
         WebView webView = this.bridge.getWebView();
         if (webView == null) return;
@@ -119,17 +125,6 @@ public class MainActivity extends BridgeActivity {
         // Re-query billing — catches purchases finalised in Play Store dialog.
         queryPurchasesInternal();
 
-        // Screen-off/on (power button): onStop() never fired → WebView is
-        // still alive → nothing more to do.
-        if (!appWasStopped) return;
-        appWasStopped = false;
-
-        // True background return: only reload if renderer is clearly dead.
-        // Do NOT use a timed JS probe — it causes flicker on normal resumes.
-        String url = webView.getUrl();
-        if (url == null || url.equals("about:blank") || url.isEmpty()) {
-            showOverlayAndReload(webView);
-        }
     }
 
     @Override
@@ -140,74 +135,82 @@ public class MainActivity extends BridgeActivity {
     }
 
     /**
-     * Fires native-pause the moment the OS detects screen-off — BEFORE
-     * onPause() / webView.onPause() / PauseTimers().
-     *
-     * Why this helps with GPU texture corruption:
-     *   When the screen turns off, Android's SurfaceFlinger detaches the
-     *   display and the GPU compositor may reclaim the WebView's texture.
-     *   If the WebView's last rendered frame was the active therapy animation
-     *   (running flame, heat gradient), that texture can appear corrupted
-     *   (green/red fragments) when the screen turns back on.
-     *
-     *   By stopping the session here — before onPause() freezes JS timers —
-     *   React has extra time to flush setRunning(false) / setPhase('idle')
-     *   and the WebView renders a clean static idle frame BEFORE the GPU
-     *   texture is frozen.  The compositor then caches that clean frame.
-     *
-     * onPause() still fires native-pause afterward for true background
-     * (home button / app switch) — calling stopWith() twice is a no-op
-     * because it guards on runningRef.current.
+     * A screen-off is terminal for a Warm session.  Stop the session while JS
+     * still runs, then finish the Activity.  This avoids any screen-on attempt
+     * to reuse the previous WebView's GPU texture.
      */
     private void setupScreenOffReceiver() {
         screenOffReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
-                String action = intent.getAction();
-                if (bridge == null) return;
-                WebView wv = bridge.getWebView();
-                if (wv == null) return;
-
-                if (Intent.ACTION_SCREEN_OFF.equals(action)) {
-                    // Fire native-pause BEFORE onPause()/PauseTimers() so React
-                    // renders a clean idle frame while JS timers are still alive.
-                    wv.evaluateJavascript(
-                        "window.dispatchEvent(new CustomEvent('native-pause'));", null);
-
-                } else if (Intent.ACTION_SCREEN_ON.equals(action)) {
-                    // The screen is turning on.  Android's SurfaceFlinger is
-                    // re-connecting the display; the WebView's GPU texture may
-                    // be in a corrupted state (green/red/yellow fragments) from
-                    // the screen-off period.
-                    //
-                    // Strategy: immediately cover any corrupted frame with the
-                    // opaque overlay, force the WebView to invalidate (schedule
-                    // a fresh GPU composite), then fade the overlay out once the
-                    // WebView has had time to produce a clean frame.
-                    runOnUiThread(() -> {
-                        if (reloadOverlay != null) {
-                            reloadOverlay.setAlpha(1f);
-                            reloadOverlay.setVisibility(View.VISIBLE);
-                        }
-                        // Ask the View system to re-draw the WebView.
-                        wv.invalidate();
-                        // Give the compositor ~400 ms to produce a clean frame,
-                        // then fade the overlay out.
-                        wv.postDelayed(() -> hideOverlay(), 400);
-                    });
-                }
+                if (!Intent.ACTION_SCREEN_OFF.equals(intent.getAction())) return;
+                if (!billingFlowInProgress) stopSessionThenFinish();
             }
         };
-        IntentFilter filter = new IntentFilter();
-        filter.addAction(Intent.ACTION_SCREEN_OFF);
-        filter.addAction(Intent.ACTION_SCREEN_ON);
-        registerReceiver(screenOffReceiver, filter);
+        IntentFilter filter = new IntentFilter(Intent.ACTION_SCREEN_OFF);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(screenOffReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
+        } else {
+            registerReceiver(screenOffReceiver, filter);
+        }
+    }
+
+    /**
+     * Stop the session before destroying its WebView.  The JavaScript event
+     * handler runs synchronously once evaluated, so its callback is the normal
+     * completion path.  A short fallback covers renderer callbacks that never
+     * arrive after an Android lifecycle transition.
+     */
+    private void stopSessionThenFinish() {
+        if (isFinishing() || finishPending) return;
+        finishPending = true;
+        if (bridge == null || bridge.getWebView() == null) {
+            finishAfterSessionStop();
+            return;
+        }
+        WebView webView = bridge.getWebView();
+        webView.evaluateJavascript(
+            "window.dispatchEvent(new CustomEvent('native-pause'));",
+            ignored -> finishAfterSessionStop()
+        );
+        getWindow().getDecorView().postDelayed(() -> {
+            finishAfterSessionStop();
+        }, 500);
+    }
+
+    private void finishAfterSessionStop() {
+        if (isFinishing() || !finishPending) return;
+        if (billingFlowInProgress) {
+            return;
+        }
+        finishPending = false;
+        finishAndRemoveTask();
+    }
+
+    private void clearBillingFlow() {
+        runOnUiThread(() -> {
+            billingFlowInProgress = false;
+            // If the user left while an external Play Activity was active,
+            // complete that deferred foreground-only shutdown now.
+            finishAfterSessionStop();
+        });
+    }
+
+    private void dispatchNativePause() {
+        if (bridge == null) return;
+        WebView webView = bridge.getWebView();
+        if (webView == null) return;
+        webView.evaluateJavascript(
+            "window.dispatchEvent(new CustomEvent('native-pause'));",
+            null
+        );
     }
 
     // ── Billing setup ─────────────────────────────────────────────────────────
 
     private void setupBilling() {
         PurchasesUpdatedListener purchasesUpdatedListener = (billingResult, purchases) -> {
+            clearBillingFlow();
             int code = billingResult.getResponseCode();
             if (code == BillingClient.BillingResponseCode.OK && purchases != null) {
                 for (Purchase purchase : purchases) {
@@ -350,11 +353,15 @@ public class MainActivity extends BridgeActivity {
          */
         @JavascriptInterface
         public void launchBillingFlow() {
+            if (billingFlowInProgress) return;
             if (!billingClient.isReady()) {
                 connectBillingClient();
                 dispatchToJs("{\"type\":\"PURCHASE_ERROR\",\"code\":-1,\"message\":\"Billing not ready\"}");
                 return;
             }
+            // Protect the entire async product lookup and the external Play
+            // Activity from the foreground-only shutdown lifecycle.
+            billingFlowInProgress = true;
 
             List<QueryProductDetailsParams.Product> productList = new ArrayList<>();
             productList.add(
@@ -370,6 +377,7 @@ public class MainActivity extends BridgeActivity {
             billingClient.queryProductDetailsAsync(productParams, (billingResult, productDetailsList) -> {
                 if (billingResult.getResponseCode() != BillingClient.BillingResponseCode.OK
                         || productDetailsList.isEmpty()) {
+                    clearBillingFlow();
                     dispatchToJs("{\"type\":\"PURCHASE_ERROR\",\"code\":" + billingResult.getResponseCode() + "}");
                     return;
                 }
@@ -383,8 +391,17 @@ public class MainActivity extends BridgeActivity {
                 BillingFlowParams flowParams = BillingFlowParams.newBuilder()
                     .setProductDetailsParamsList(detailsParamsList)
                     .build();
-                // launchBillingFlow must run on the UI thread
-                runOnUiThread(() -> billingClient.launchBillingFlow(MainActivity.this, flowParams));
+                // launchBillingFlow must run on the UI thread. Its external
+                // Play Activity is not a user-initiated exit from Warm.
+                runOnUiThread(() -> {
+                    BillingResult launchResult =
+                        billingClient.launchBillingFlow(MainActivity.this, flowParams);
+                    if (launchResult.getResponseCode() != BillingClient.BillingResponseCode.OK) {
+                        clearBillingFlow();
+                        dispatchToJs("{\"type\":\"PURCHASE_ERROR\",\"code\":"
+                            + launchResult.getResponseCode() + "}");
+                    }
+                });
             });
         }
     }

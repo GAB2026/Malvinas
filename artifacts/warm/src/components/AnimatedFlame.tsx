@@ -1,6 +1,6 @@
+import { motion } from 'framer-motion';
 import type { Intensity } from '@/lib/heat/heatEngine';
-// AnimatedFlame.css intentionally NOT imported — no CSS keyframe animations
-// during screen-off GPU corruption test.
+import './AnimatedFlame.css';
 
 interface Props {
   intensity: Intensity;
@@ -12,22 +12,21 @@ interface Props {
 
 const BASE_SIZE: Record<Intensity, number> = { low: 0.55, medium: 0.75, high: 1.0 };
 
-/**
- * STATIC flame — no CSS animations, no Framer Motion, no GPU compositor work.
- * Replaces AnimatedFlame temporarily to isolate whether continuous CSS keyframe
- * animations are the cause of GPU texture corruption on screen-off/on cycles.
- */
 export default function AnimatedFlame({ intensity, heatLevel, running, onClick, disabled }: Props) {
-  const idleScale   = BASE_SIZE[intensity];
-  const liveScale   = idleScale * (0.75 + heatLevel * 0.25);
-  const scale       = running ? liveScale : idleScale * 0.65;
+  const idleScale = BASE_SIZE[intensity];
+  const liveScale = idleScale * (0.75 + heatLevel * 0.25);
+  const scale = running ? liveScale : idleScale * 0.65;
   const glowOpacity = running ? 0.3 + heatLevel * 0.7 : 0.1 + idleScale * 0.15;
-  const glowColor   = running
+  const glowColor = running
     ? `rgba(249,115,22,${glowOpacity})`
     : `rgba(180,70,10,${glowOpacity})`;
 
+  // CSS keyframes run on the compositor rather than the JS thread.
+  const anim = (name: string, dur: number, delay = 0) =>
+    `${name} ${dur}s ease-in-out ${delay}s infinite`;
+
   return (
-    <button
+    <motion.button
       onClick={onClick}
       disabled={disabled}
       aria-label={running ? 'Detener sesión' : 'Iniciar sesión'}
@@ -44,8 +43,8 @@ export default function AnimatedFlame({ intensity, heatLevel, running, onClick, 
         justifyContent: 'center',
         outline: 'none',
       }}
+      whileTap={disabled ? {} : { scale: 0.94 }}
     >
-      {/* Ground glow — static, no animation */}
       <div
         style={{
           position: 'absolute',
@@ -58,10 +57,11 @@ export default function AnimatedFlame({ intensity, heatLevel, running, onClick, 
           background: glowColor,
           filter: 'blur(10px)',
           pointerEvents: 'none',
+          transformOrigin: 'center',
+          animation: anim('flame-glow', 1.6),
         }}
       />
 
-      {/* Outer flame — static */}
       <div
         style={{
           position: 'absolute',
@@ -74,10 +74,10 @@ export default function AnimatedFlame({ intensity, heatLevel, running, onClick, 
             : 'radial-gradient(ellipse at 50% 82%, #b45309 0%, #78350f 60%, #451a03 100%)',
           transformOrigin: 'bottom center',
           opacity: disabled ? 0.4 : 1,
+          animation: anim('flame-outer', 1.3),
         }}
       />
 
-      {/* Mid flame — static */}
       <div
         style={{
           position: 'absolute',
@@ -90,10 +90,10 @@ export default function AnimatedFlame({ intensity, heatLevel, running, onClick, 
             : 'radial-gradient(ellipse at 50% 82%, #d97706 0%, #b45309 55%, #78350f 100%)',
           transformOrigin: 'bottom center',
           opacity: disabled ? 0.4 : 1,
+          animation: anim('flame-mid', 1.05, 0.12),
         }}
       />
 
-      {/* Inner hot core — static */}
       <div
         style={{
           position: 'absolute',
@@ -106,10 +106,10 @@ export default function AnimatedFlame({ intensity, heatLevel, running, onClick, 
             : 'radial-gradient(ellipse at 50% 78%, #fef3c7 0%, #fde68a 40%, #f59e0b 100%)',
           transformOrigin: 'bottom center',
           opacity: disabled ? 0.3 : 1,
+          animation: anim('flame-inner', 0.85, 0.22),
         }}
       />
 
-      {/* Tiny tip — static */}
       <div
         style={{
           position: 'absolute',
@@ -120,8 +120,9 @@ export default function AnimatedFlame({ intensity, heatLevel, running, onClick, 
           background: 'radial-gradient(ellipse at 50% 70%, #ffffff 0%, #fef9c3 60%, transparent 100%)',
           transformOrigin: 'bottom center',
           opacity: running ? 0.85 : 0.3,
+          animation: anim('flame-tip', 0.65, 0.3),
         }}
       />
-    </button>
+    </motion.button>
   );
 }
