@@ -532,6 +532,14 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
     };
   }, [stopWith]);
 
+  // ── Notify native of session state ───────────────────────────────────────────
+  // Android uses this to decide whether to close the Activity on background.
+  // Only fires on native (WarmBilling bridge); no-op on web.
+  useEffect(() => {
+    const billing = (window as any).WarmBilling;
+    billing?.notifySessionState?.(running);
+  }, [running]);
+
   // ── Cleanup ──────────────────────────────────────────────────────────────────
   useEffect(() => {
     const engine = engineRef.current;

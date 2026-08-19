@@ -38,6 +38,7 @@ public class MainActivity extends BridgeActivity {
      * so lifecycle callbacks from that flow must never finish Warm.
      */
     private volatile boolean billingFlowInProgress = false;
+    private volatile boolean sessionActive = false;
     private boolean finishPending = false;
     private BroadcastReceiver screenOffReceiver;
 
@@ -85,7 +86,7 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onStop() {
         super.onStop();
-        if (!billingFlowInProgress) {
+        if (!billingFlowInProgress && sessionActive) {
             stopSessionThenFinish();
         }
     }
@@ -124,7 +125,7 @@ public class MainActivity extends BridgeActivity {
             @Override
             public void onReceive(Context context, Intent intent) {
                 if (!Intent.ACTION_SCREEN_OFF.equals(intent.getAction())) return;
-                if (!billingFlowInProgress) stopSessionThenFinish();
+                if (!billingFlowInProgress && sessionActive) stopSessionThenFinish();
             }
         };
         IntentFilter filter = new IntentFilter(Intent.ACTION_SCREEN_OFF);
@@ -309,6 +310,15 @@ public class MainActivity extends BridgeActivity {
      * operations must be dispatched to the main thread via runOnUiThread().
      */
     private class WarmBillingInterface {
+
+        /**
+         * Called by JS whenever the session running state changes.
+         * Controls whether background/screen-off events close the Activity.
+         */
+        @JavascriptInterface
+        public void notifySessionState(boolean active) {
+            sessionActive = active;
+        }
 
         /**
          * Query all active INAPP purchases for this user.
