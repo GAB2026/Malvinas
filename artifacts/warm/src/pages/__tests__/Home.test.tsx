@@ -8,6 +8,10 @@ import React from 'react';
 
 const _usedDurations = new Set<number>();
 let _isPremium = false;
+const premiumMocks = vi.hoisted(() => ({
+  purchase: vi.fn(),
+  restore: vi.fn(),
+}));
 
 vi.mock('@/hooks/usePremium', () => ({
   PREMIUM_PRODUCT_ID: 'warm_premium_lifetime',
@@ -19,8 +23,8 @@ vi.mock('@/hooks/usePremium', () => ({
       if (_isPremium || _usedDurations.has(mins)) return;
       _usedDurations.add(mins);
     },
-    purchase:  vi.fn().mockResolvedValue(true),
-    restore:   vi.fn().mockResolvedValue(false),
+    purchase: premiumMocks.purchase,
+    restore: premiumMocks.restore,
   }),
 }));
 
@@ -118,6 +122,8 @@ describe('Home — auto-stop toast', () => {
     vi.useFakeTimers();
     _usedDurations.clear();
     _isPremium = false;
+    premiumMocks.purchase.mockResolvedValue(true);
+    premiumMocks.restore.mockResolvedValue(false);
     setMockSession({});
   });
 
@@ -182,6 +188,8 @@ describe('Home — duration button lock', () => {
     vi.useFakeTimers();
     _usedDurations.clear();
     _isPremium = false;
+    premiumMocks.purchase.mockResolvedValue(true);
+    premiumMocks.restore.mockResolvedValue(false);
     setMockSession({});
   });
 
@@ -252,5 +260,21 @@ describe('Home — duration button lock', () => {
     const lockedBtn = screen.getByText('Premium').closest('button')!;
     act(() => { fireEvent.click(lockedBtn); });
     expect(baseSession.start).not.toHaveBeenCalled();
+  });
+
+  it('keeps the paywall open and explains when Google Play cannot start a purchase', async () => {
+    premiumMocks.purchase.mockResolvedValueOnce(false);
+    _usedDurations.add(5);
+    render(<Home />);
+
+    act(() => { fireEvent.click(screen.getByText('Premium').closest('button')!); });
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Unlock now' }));
+    });
+
+    expect(screen.getByText('Unlock Premium')).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Google Play could not start the purchase',
+    );
   });
 });

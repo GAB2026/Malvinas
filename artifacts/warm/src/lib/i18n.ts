@@ -16,6 +16,7 @@ export interface PremiumStrings {
   benefit3: string;
   buyBtn: string;
   restoreBtn: string;
+  purchaseError: string;
   lockedHint: string;
 }
 
@@ -119,6 +120,7 @@ const T: Record<Lang, Translations> = {
       benefit2: 'Unlimited therapies',
       buyBtn: 'Unlock now',
       restoreBtn: 'Restore purchase',
+      purchaseError: 'Google Play could not start the purchase. Check that Premium is active and try again.',
       lockedHint: 'Premium',
       benefit3: 'Unlimited sessions',
     },
@@ -176,6 +178,7 @@ const T: Record<Lang, Translations> = {
       benefit2: 'Terapias ilimitadas',
       buyBtn: 'Desbloquear ahora',
       restoreBtn: 'Restaurar compra',
+      purchaseError: 'Google Play no pudo iniciar la compra. Verificá que Premium esté activo y volvé a intentar.',
       lockedHint: 'Premium',
       benefit3: 'Sesiones ilimitadas',
     },
@@ -233,6 +236,7 @@ const T: Record<Lang, Translations> = {
       benefit2: 'Terapias ilimitadas',
       buyBtn: 'Desbloquear agora',
       restoreBtn: 'Restaurar compra',
+      purchaseError: 'O Google Play não conseguiu iniciar a compra. Verifique se o Premium está ativo e tente novamente.',
       lockedHint: 'Premium',
       benefit3: 'Sessões ilimitadas',
     },
@@ -290,6 +294,7 @@ const T: Record<Lang, Translations> = {
       benefit2: 'Thérapies illimitées',
       buyBtn: 'Débloquer maintenant',
       restoreBtn: "Restaurer l'achat",
+      purchaseError: "Google Play n'a pas pu démarrer l'achat. Vérifiez que Premium est actif et réessayez.",
       lockedHint: 'Premium',
       benefit3: 'Sessions illimitées',
     },
@@ -347,6 +352,7 @@ const T: Record<Lang, Translations> = {
       benefit2: 'Unbegrenzte Therapien',
       buyBtn: 'Jetzt freischalten',
       restoreBtn: 'Kauf wiederherstellen',
+      purchaseError: 'Google Play konnte den Kauf nicht starten. Prüfe, ob Premium aktiv ist, und versuche es erneut.',
       lockedHint: 'Premium',
       benefit3: 'Unbegrenzte Sitzungen',
     },
@@ -404,6 +410,7 @@ const T: Record<Lang, Translations> = {
       benefit2: 'Terapie illimitate',
       buyBtn: 'Sblocca ora',
       restoreBtn: 'Ripristina acquisto',
+      purchaseError: "Google Play non ha potuto avviare l'acquisto. Verifica che Premium sia attivo e riprova.",
       lockedHint: 'Premium',
       benefit3: 'Sessioni illimitate',
     },
@@ -461,6 +468,7 @@ const T: Record<Lang, Translations> = {
       benefit2: 'Безлимитные терапии',
       buyBtn: 'Разблокировать сейчас',
       restoreBtn: 'Восстановить покупку',
+      purchaseError: 'Google Play не смог запустить покупку. Убедитесь, что Premium активен, и попробуйте снова.',
       lockedHint: 'Премиум',
       benefit3: 'Безлимитные сеансы',
     },
@@ -518,6 +526,7 @@ const T: Record<Lang, Translations> = {
       benefit2: 'Rajattomat hoidot',
       buyBtn: 'Avaa nyt',
       restoreBtn: 'Palauta ostos',
+      purchaseError: 'Google Play ei voinut aloittaa ostosta. Tarkista, että Premium on aktiivinen, ja yritä uudelleen.',
       lockedHint: 'Premium',
       benefit3: 'Rajattomat istunnot',
     },
@@ -575,6 +584,7 @@ const T: Record<Lang, Translations> = {
       benefit2: 'Obegränsade terapier',
       buyBtn: 'Lås upp nu',
       restoreBtn: 'Återställ köp',
+      purchaseError: 'Google Play kunde inte starta köpet. Kontrollera att Premium är aktivt och försök igen.',
       lockedHint: 'Premium',
       benefit3: 'Obegränsade sessioner',
     },
@@ -632,6 +642,7 @@ const T: Record<Lang, Translations> = {
       benefit2: 'Хязааргүй эмчилгээ',
       buyBtn: 'Одоо нээх',
       restoreBtn: 'Худалдан авалт сэргээх',
+      purchaseError: 'Google Play худалдан авалтыг эхлүүлж чадсангүй. Premium идэвхтэй эсэхийг шалгаад дахин оролдоно уу.',
       lockedHint: 'Премиум',
       benefit3: 'Хязааргүй сессүүд',
     },
@@ -689,6 +700,7 @@ const T: Record<Lang, Translations> = {
       benefit2: 'Nalunngissumik peqqissaarneq',
       buyBtn: 'Atuissavaa siunnersuissavaa',
       restoreBtn: 'Nalunaarusiorfigineqarpoq',
+      purchaseError: 'Google Play pisinermi aallartissinnaanngilaq. Premium atorneqarsinnaanersoq misissoruk, taava misileqqiguk.',
       lockedHint: 'Premium',
       benefit3: 'Nalunngissumik nalunaarsorneq',
     },

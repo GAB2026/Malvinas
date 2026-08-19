@@ -814,5 +814,5 @@ description = "Misma APK, servida desde GitHub Raw para evitar que el descargado
 id = "4_SF8mW9xm8IuuYQOkCDz"
 uri = "file://artifacts/warm/android/app/build/outputs/bundle/release/app-release.aab"
 type = "unspecified"
-title = "Warmie v3.54.10 — AAB firmado para prueba interna"
-description = "Android App Bundle firmado con la nueva clave de carga. Subilo en Google Play Console → Prueba interna → Crear versión."
+title = "Warmie v3.54.11 — AAB para prueba interna"
+description = "Incluye un aviso visible cuando Google Play no puede iniciar una compra Premium."

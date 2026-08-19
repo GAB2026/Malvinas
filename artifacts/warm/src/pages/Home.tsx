@@ -60,8 +60,13 @@ function CalibrationScreen({ progress }: { progress: number }) {
 
 // ── Premium paywall sheet ─────────────────────────────────────────────────────
 function PremiumSheet({
-  onPurchase, onRestore, onDismiss,
-}: { onPurchase: () => void; onRestore: () => void; onDismiss: () => void }) {
+  error, onPurchase, onRestore, onDismiss,
+}: {
+  error: string | null;
+  onPurchase: () => void;
+  onRestore: () => void;
+  onDismiss: () => void;
+}) {
   const t = useTranslations();
   const p = t.premium;
   return (
@@ -90,6 +95,11 @@ function PremiumSheet({
             </li>
           ))}
         </ul>
+        {error && (
+          <p role="alert" className="rounded-xl bg-destructive/10 px-3 py-2 text-center text-xs leading-relaxed text-destructive">
+            {error}
+          </p>
+        )}
         <button
           onClick={onPurchase}
           className="w-full py-3 rounded-2xl bg-primary text-white font-semibold text-sm tracking-wide shadow-lg active:scale-95 transition-transform"
@@ -160,6 +170,7 @@ export default function Home() {
   const [toastReason, setToastReason] = useState<StopReason>(null);
   const prevStopReason = useRef<StopReason>(null);
   const [showPremium, setShowPremium] = useState(false);
+  const [premiumError, setPremiumError] = useState<string | null>(null);
   const [showBatteryWarning, setShowBatteryWarning] = useState(false);
 
   // Check battery on first read — warn immediately if ≤20% at startup
@@ -226,7 +237,11 @@ export default function Home() {
       return;
     }
     // Duration requires premium — open paywall
-    if (isLocked(selectedMins)) { setShowPremium(true); return; }
+    if (isLocked(selectedMins)) {
+      setPremiumError(null);
+      setShowPremium(true);
+      return;
+    }
     // Consume the one free use for 5-min (no-op for already-consumed or premium)
     consumeDuration(selectedMins);
     triggerPulse();
@@ -238,17 +253,31 @@ export default function Home() {
   const handleDurationClick = (mins: number) => {
     if (running) return;
     // Tapping a locked button opens the paywall
-    if (isLocked(mins)) { setShowPremium(true); return; }
+    if (isLocked(mins)) {
+      setPremiumError(null);
+      setShowPremium(true);
+      return;
+    }
     setSessionDuration(mins * 60);
   };
 
   const handlePurchase = async () => {
-    await purchase();
-    setShowPremium(false);
+    setPremiumError(null);
+    const purchased = await purchase();
+    if (purchased) {
+      setShowPremium(false);
+    } else {
+      setPremiumError(t.premium.purchaseError);
+    }
   };
   const handleRestore = async () => {
-    await restore();
-    setShowPremium(false);
+    setPremiumError(null);
+    const restored = await restore();
+    if (restored) {
+      setShowPremium(false);
+    } else {
+      setPremiumError(t.premium.purchaseError);
+    }
   };
 
   if (calibrating || !calibration) return <CalibrationScreen progress={progress} />;
@@ -443,9 +472,13 @@ export default function Home() {
       <AnimatePresence>
         {showPremium && (
           <PremiumSheet
+            error={premiumError}
             onPurchase={handlePurchase}
             onRestore={handleRestore}
-            onDismiss={() => setShowPremium(false)}
+            onDismiss={() => {
+              setPremiumError(null);
+              setShowPremium(false);
+            }}
           />
         )}
       </AnimatePresence>
