@@ -22,3 +22,10 @@ tested device. Preserve exceptions for transient system flows such as Google
 Play Billing; they must not be mistaken for the user abandoning Warm. Normal GPU
 animation is acceptable because Warm does not resume the old WebView after a
 true exit.
+
+## First-relaunch observation
+On August 19, 2026, after a background-triggered close, the first relaunch once showed a blank screen; closing and launching again rendered normally.
+
+**Why:** This indicates a remaining WebView startup/recovery race even though the fresh-Activity strategy avoids the earlier persistent corrupted surface.
+
+**How to apply:** Treat a blank first relaunch as unresolved recovery work; future fixes should make the launch gate deterministic rather than relying on a single renderer liveness check.

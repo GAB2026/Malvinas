@@ -36,6 +36,13 @@ An internal tester completed the one-time Premium purchase with Google Play's al
 
 **How to apply:** Test purchases must use the Play internal-testing installation and an account included in license testing. After a successful purchase, Premium should remain unlocked across all duration buttons.
 
+## Premium paywall wording
+When the paywall copy is next revised, describe the benefit as “Sesiones de 5, 10 y 15 minutos” rather than “Intensidad Media y Alta”.
+
+**Why:** Premium now unlocks the three session durations; intensity wording does not describe the entitlement clearly.
+
+**How to apply:** Update the localized Premium benefit text while retaining the unlimited-therapies benefit.
+
 ## Signing for the first internal bundle
 Google Play App Signing is enabled. The Play Console showed no upload-key certificate because no application bundle had yet been uploaded, so a new upload key was created for the first AAB.
 
