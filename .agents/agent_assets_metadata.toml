@@ -774,3 +774,10 @@ uri = "file://warm-v3.54.6-qr.png"
 type = "image"
 title = "Warm v3.54.6 — QR de instalación"
 description = "Cierra la Activity en todo onStop() excepto durante una compra · versionCode 76"
+
+[[outputs]]
+id = "a1q_gH0iFkpwcivXDdBBC"
+uri = "file://artifacts/warm/android/app/build/outputs/apk/debug/app-debug.apk"
+type = "unspecified"
+title = "Warm v3.54.7 — APK debug"
+description = "APK de prueba. La app solo se cierra al pasar a segundo plano o apagar la pantalla si hay una sesión activa."
