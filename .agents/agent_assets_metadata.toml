@@ -802,3 +802,10 @@ uri = "file://artifacts/warm/public/warm-v3.54.10-qr.png"
 type = "image"
 title = "Warm v3.54.10 — QR de instalación"
 description = "APK de prueba con el texto de advertencia actualizado y el nuevo ícono Warmie."
+
+[[outputs]]
+id = "1t1AL9_zLvBT0UoW9JRn7"
+uri = "file://artifacts/warm/public/warm-v3.54.10-raw-qr.png"
+type = "image"
+title = "Warm v3.54.10 — QR alternativo de descarga"
+description = "Misma APK, servida desde GitHub Raw para evitar que el descargador del teléfono quede esperando."
