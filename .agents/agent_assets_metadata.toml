@@ -816,3 +816,10 @@ uri = "file://artifacts/warm/android/app/build/outputs/bundle/release/app-releas
 type = "unspecified"
 title = "Warmie v3.54.11 — AAB para prueba interna"
 description = "Incluye un aviso visible cuando Google Play no puede iniciar una compra Premium."
+
+[[outputs]]
+id = "RzTsyBoSTyXi2ZmeGxr_F"
+uri = "file://attached_assets/warmie-premium-icon.png"
+type = "image"
+title = "Ícono Warmie Premium — PNG 1024×1024"
+description = "Ícono cuadrado en PNG RGBA de 32 bits, sin texto ni promociones, listo para subir como ícono del producto único en Google Play."
