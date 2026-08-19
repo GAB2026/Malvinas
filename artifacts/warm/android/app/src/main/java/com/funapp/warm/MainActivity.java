@@ -63,30 +63,38 @@ public class MainActivity extends BridgeActivity {
      * PauseTimers(), which would freeze JS execution. Anything queued after
      * that point only runs after onResume() — too late.
      *
-     * By dispatching the event first, the WebView enters its paused state
-     * already showing the "session stopped" UI. When the screen turns back on
-     * and onResume() calls webView.onResume() / ResumeTimers(), the WebView
-     * redraws the stopped state immediately — no blank flash, no flicker.
-     * This covers both screen-off (power button) and true background.
+     * When a session is active we must close the Activity here (not in
+     * onStop) because stopSessionThenFinish() dispatches a CustomEvent to JS
+     * that needs the JS engine still running.  If we wait until onStop, the
+     * WebView timers are already paused and the event may not be delivered
+     * reliably.  Closing from onPause (before super) keeps the engine hot for
+     * the teardown event while still finalising the Activity.
      */
     @Override
     public void onPause() {
         if (!billingFlowInProgress && !finishPending) {
-            dispatchNativePause();
+            if (sessionActive) {
+                // Session running — close the Activity.  Dispatch native-pause
+                // while JS timers are still active so React can clean up state
+                // before finishAndRemoveTask() is called.
+                stopSessionThenFinish();
+            } else {
+                // No active session — notify JS (no-op if nothing is running).
+                dispatchNativePause();
+            }
         }
         super.onPause();
     }
 
     /**
-     * Warm is a foreground-only experience.  onStop() is the reliable signal
-     * that this Activity is no longer visible, including app-switch gestures
-     * where onUserLeaveHint() is not delivered consistently across devices.
-     * Google Play Billing is the explicit exception.
+     * Fallback close in case onPause did not catch a session (e.g. if
+     * sessionActive was set between onPause and onStop).  finishPending guards
+     * against a double close.
      */
     @Override
     public void onStop() {
         super.onStop();
-        if (!billingFlowInProgress && sessionActive) {
+        if (!billingFlowInProgress && sessionActive && !finishPending) {
             stopSessionThenFinish();
         }
     }

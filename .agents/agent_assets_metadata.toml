@@ -775,10 +775,16 @@ type = "image"
 title = "Warm v3.54.6 — QR de instalación"
 description = "Cierra la Activity en todo onStop() excepto durante una compra · versionCode 76"
 
-
 [[outputs]]
 id = "kRauDvotwE79fziD9RZFT"
 uri = "file://warm-v3.54.7-qr.png"
 type = "image"
 title = "Warm v3.54.7 — QR de instalación"
 description = "Sesión activa requerida para cerrar la app en segundo plano · versionCode 77 debug"
+
+[[outputs]]
+id = "1AYmIzlwWxSpJ5gOMdekg"
+uri = "file://artifacts/warm/public/warm-v3.54.8-qr.png"
+type = "image"
+title = "Warm v3.54.8 — QR de instalación"
+description = "Fix: cierra desde onPause (antes de que JS se paralice), evitando la race condition con onStop."
