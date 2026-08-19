@@ -34,12 +34,6 @@ public class MainActivity extends BridgeActivity {
     private static final String PRODUCT_ID = "warm_premium_lifetime";
 
     /**
-     * Set only when the user intentionally leaves through Home or the app
-     * switcher.  This is more precise than treating every onStop() as an exit:
-     * billing dialogs and system windows may stop an Activity temporarily.
-     */
-    private boolean userLeftApp = false;
-    /**
      * Google Play Billing opens an external Activity.  It is not an app exit,
      * so lifecycle callbacks from that flow must never finish Warm.
      */
@@ -77,47 +71,33 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onPause() {
         if (!billingFlowInProgress && !finishPending) {
-            if (userLeftApp) {
-                stopSessionThenFinish();
-            } else {
-                dispatchNativePause();
-            }
+            dispatchNativePause();
         }
         super.onPause();
     }
 
     /**
-     * Warm is a foreground-only experience.  After an intentional Home/app
-     * switch, close this Activity so the next launch creates a fresh WebView
-     * rather than attempting to resume a potentially damaged GPU surface.
+     * Warm is a foreground-only experience.  onStop() is the reliable signal
+     * that this Activity is no longer visible, including app-switch gestures
+     * where onUserLeaveHint() is not delivered consistently across devices.
+     * Google Play Billing is the explicit exception.
      */
     @Override
     public void onStop() {
         super.onStop();
-        if (userLeftApp && !billingFlowInProgress) {
-            stopSessionThenFinish();
-        }
-    }
-
-    @Override
-    public void onUserLeaveHint() {
-        super.onUserLeaveHint();
         if (!billingFlowInProgress) {
-            userLeftApp = true;
+            stopSessionThenFinish();
         }
     }
 
     /**
      * There is no renderer-recovery path on resume.  A screen-off closes the
-     * Activity below, and an intentional background exit closes it from onStop.
-     * The next launch consequently starts with a fresh WebView.
+     * Activity below, and every true background transition closes it from
+     * onStop. The next launch consequently starts with a fresh WebView.
      */
     @Override
     public void onResume() {
         super.onResume();
-        // A transient system window must not leave a stale "user left" flag
-        // that would close Warm during a later, unrelated lifecycle event.
-        userLeftApp = false;
         if (this.bridge == null) return;
         WebView webView = this.bridge.getWebView();
         if (webView == null) return;

@@ -5,9 +5,9 @@ description: Product decision for handling unreliable WebView GPU texture recove
 
 ## Product rule
 
-Warm sessions are foreground-only: a screen-off or an intentional user exit to
-Home/app switcher ends the session, and the next launch starts with a fresh
-native Activity and WebView rather than trying to resume the prior surface.
+Warm sessions are foreground-only: a screen-off or actual Activity stop ends
+the session, and the next launch starts with a fresh native Activity and WebView
+rather than trying to resume the prior surface.
 
 **Why:** Hardware-accelerated WebViews on some Android/OEM combinations can
 return from screen-off with colored GPU texture corruption. Static artwork,
@@ -16,7 +16,9 @@ did not provide a trustworthy recovery path. A clean restart is preferable to
 showing a visibly broken therapy screen.
 
 **How to apply:** Stop the session before the Activity is discarded. Do not
-force-kill the process. Preserve exceptions for transient system flows such as
-Google Play Billing; they must not be mistaken for the user abandoning Warm.
-Normal GPU animation is acceptable because Warm does not resume the old WebView
-after a true exit.
+force-kill the process. Use the actual Activity stop rather than
+`onUserLeaveHint()`—that callback was not reliable for app-switching on the
+tested device. Preserve exceptions for transient system flows such as Google
+Play Billing; they must not be mistaken for the user abandoning Warm. Normal GPU
+animation is acceptable because Warm does not resume the old WebView after a
+true exit.
