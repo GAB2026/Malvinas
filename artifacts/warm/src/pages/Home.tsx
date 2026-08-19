@@ -16,6 +16,14 @@ function formatTime(seconds: number): string {
   return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
 }
 
+function formatWarning(text: string) {
+  return text.split(/(Advertencia|cerrará)/g).map((part, index) =>
+    part === 'Advertencia' || part === 'cerrará'
+      ? <strong key={index} className="font-semibold text-foreground">{part}</strong>
+      : part,
+  );
+}
+
 // ── Calibration screen ────────────────────────────────────────────────────────
 function CalibrationScreen({ progress }: { progress: number }) {
   const t = useTranslations();
@@ -415,7 +423,7 @@ export default function Home() {
           <Lightbulb size={12} className="text-muted-foreground/70 shrink-0 mt-1" />
           <div className="flex flex-col gap-2">
             <p className="text-[11px] text-muted-foreground/80 leading-relaxed">
-              {t.suggestion}
+              {formatWarning(t.suggestion)}
             </p>
             <p className="text-[11px] text-muted-foreground/80 leading-relaxed">
               {t.suggestionNote}

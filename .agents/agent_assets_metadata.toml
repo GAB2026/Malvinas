@@ -795,3 +795,10 @@ uri = "file://artifacts/warm/public/warm-v3.54.9-qr.png"
 type = "image"
 title = "Warm v3.54.9 — QR de instalación"
 description = "Fix: recuperación automática si Android mató el renderer del WebView al volver de background."
+
+[[outputs]]
+id = "hWUusdWCUfal3BSy5VD5H"
+uri = "file://artifacts/warm/public/warm-v3.54.10-qr.png"
+type = "image"
+title = "Warm v3.54.10 — QR de instalación"
+description = "APK de prueba con el texto de advertencia actualizado y el nuevo ícono Warmie."

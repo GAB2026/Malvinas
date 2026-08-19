@@ -189,7 +189,7 @@ const T: Record<Lang, Translations> = {
     calibratedDevice: 'Calibrado para tu dispositivo',
     soundOn: 'Sonido activado',
     soundOff: 'Sin sonido',
-    suggestion: 'Advertencia: si sale de la aplicación durante una sesión activa, la misma finalizará automáticamente para permitir el uso de las demás.',
+    suggestion: 'Advertencia: Warmie utiliza el 100% del CPU, imposibilitando el uso óptimo de otras apps en simultáneo. Si sale de la aplicación durante una sesión activa, se cerrará y deberá ejecutarla nuevamente.',
     suggestionNote: 'Si lo desea puede quitar la funda protectora del dispositivo para una experiencia mayor de temperatura.',
     understood: 'Entendido',
   },

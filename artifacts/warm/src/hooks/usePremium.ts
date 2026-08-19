@@ -49,7 +49,9 @@ function isNative(): boolean {
 }
 
 function nativeBilling() {
-  return (window as Window & { WarmBilling: { queryPurchases(): void; launchBillingFlow(): void } }).WarmBilling;
+  return (window as unknown as Window & {
+    WarmBilling: { queryPurchases(): void; launchBillingFlow(): void }
+  }).WarmBilling;
 }
 
 // ── Module-level state (survives re-renders and re-mounts) ────────────────────
