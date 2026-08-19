@@ -29,6 +29,13 @@ Source: `docs/warm-privacy.html` in repo root (served via GitHub Pages from `/do
 Completed: Política de privacidad ✓, Clasificación de contenido ✓, Público objetivo ✓, Seguridad de datos ✓, Contenido de la app ✓, Categoría ✓
 Pending: Ficha completa (screenshots), Precios/distribución, Subir AAB a Prueba Interna, Crear producto IAP
 
+## Internal billing verification
+An internal tester completed the one-time Premium purchase with Google Play's always-approves test card and received no charge.
+
+**Why:** This confirms the active product configuration and the app's Billing bridge work together in the Play-distributed build.
+
+**How to apply:** Test purchases must use the Play internal-testing installation and an account included in license testing. After a successful purchase, Premium should remain unlocked across all duration buttons.
+
 ## Signing for the first internal bundle
 Google Play App Signing is enabled. The Play Console showed no upload-key certificate because no application bundle had yet been uploaded, so a new upload key was created for the first AAB.
 
