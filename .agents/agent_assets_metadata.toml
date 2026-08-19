@@ -760,3 +760,10 @@ uri = "file://warm-v3.54.4-qr.png"
 type = "image"
 title = "Warm v3.54.4 — QR de instalación"
 description = "Overlay en screen-on para ocultar GPU corruption — versionCode 74"
+
+[[outputs]]
+id = "9UAGLPnnNyNw3SR6Up8EJ"
+uri = "file://warm-v3.54.5-qr.png"
+type = "image"
+title = "Warm v3.54.5 — QR de instalación"
+description = "Sesiones estrictamente en primer plano · versionCode 75"
