@@ -788,3 +788,10 @@ uri = "file://artifacts/warm/public/warm-v3.54.8-qr.png"
 type = "image"
 title = "Warm v3.54.8 — QR de instalación"
 description = "Fix: cierra desde onPause (antes de que JS se paralice), evitando la race condition con onStop."
+
+[[outputs]]
+id = "COWqbOCly0tVBsGTx-dRw"
+uri = "file://artifacts/warm/public/warm-v3.54.9-qr.png"
+type = "image"
+title = "Warm v3.54.9 — QR de instalación"
+description = "Fix: recuperación automática si Android mató el renderer del WebView al volver de background."

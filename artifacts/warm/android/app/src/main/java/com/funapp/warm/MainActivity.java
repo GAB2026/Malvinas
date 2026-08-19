@@ -100,9 +100,12 @@ public class MainActivity extends BridgeActivity {
     }
 
     /**
-     * There is no renderer-recovery path on resume.  A screen-off closes the
-     * Activity below, and every true background transition closes it from
-     * onStop. The next launch consequently starts with a fresh WebView.
+     * On resume, re-query billing and check whether the WebView renderer is
+     * still alive.  When no session is active the Activity stays in the
+     * background; Android can kill the WebView renderer process under memory
+     * pressure, leaving a blank screen.  We ping JS with a 500 ms deadline:
+     * if it responds the renderer is healthy and nothing happens; if it times
+     * out we cover with the dark overlay and reload.
      */
     @Override
     public void onResume() {
@@ -114,6 +117,33 @@ public class MainActivity extends BridgeActivity {
         // Re-query billing — catches purchases finalised in Play Store dialog.
         queryPurchasesInternal();
 
+        // Renderer liveness check (only needed when no session is active;
+        // active-session backgrounds always close the Activity first).
+        if (!sessionActive) {
+            checkRendererAndReloadIfDead(webView);
+        }
+    }
+
+    /**
+     * Ping JS. If the renderer is alive it responds in well under 500 ms.
+     * If the callback never fires the renderer was killed; reload behind
+     * the dark overlay so the user never sees a blank WebView.
+     */
+    private void checkRendererAndReloadIfDead(WebView webView) {
+        final boolean[] responded = {false};
+        try {
+            webView.evaluateJavascript("'alive'", result -> {
+                responded[0] = true;
+            });
+        } catch (Exception ignored) {
+            showOverlayAndReload(webView);
+            return;
+        }
+        webView.postDelayed(() -> {
+            if (!responded[0]) {
+                showOverlayAndReload(webView);
+            }
+        }, 500);
     }
 
     @Override
