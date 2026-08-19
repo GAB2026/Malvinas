@@ -781,3 +781,10 @@ uri = "file://artifacts/warm/android/app/build/outputs/apk/debug/app-debug.apk"
 type = "unspecified"
 title = "Warm v3.54.7 — APK debug"
 description = "APK de prueba. La app solo se cierra al pasar a segundo plano o apagar la pantalla si hay una sesión activa."
+
+[[outputs]]
+id = "kRauDvotwE79fziD9RZFT"
+uri = "file://warm-v3.54.7-qr.png"
+type = "image"
+title = "Warm v3.54.7 — QR de instalación"
+description = "Sesión activa requerida para cerrar la app en segundo plano · versionCode 77 debug"
