@@ -28,3 +28,10 @@ Source: `docs/warm-privacy.html` in repo root (served via GitHub Pages from `/do
 ## Play Store setup status (as of v3.50)
 Completed: Política de privacidad ✓, Clasificación de contenido ✓, Público objetivo ✓, Seguridad de datos ✓, Contenido de la app ✓, Categoría ✓
 Pending: Ficha completa (screenshots), Precios/distribución, Subir AAB a Prueba Interna, Crear producto IAP
+
+## Signing for the first internal bundle
+Google Play App Signing is enabled. The Play Console showed no upload-key certificate because no application bundle had yet been uploaded, so a new upload key was created for the first AAB.
+
+**Why:** The Google-managed app-signing key is the identity users receive from Play; the separately held upload key only authorizes uploads and can be reset if needed.
+
+**How to apply:** Upload a release AAB through the internal-testing track. A device with a QR-installed debug APK must uninstall it before installing the Play-distributed build because their signatures differ. Do not change the Google-managed app-signing key.

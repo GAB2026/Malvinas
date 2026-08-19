@@ -809,3 +809,10 @@ uri = "file://artifacts/warm/public/warm-v3.54.10-raw-qr.png"
 type = "image"
 title = "Warm v3.54.10 — QR alternativo de descarga"
 description = "Misma APK, servida desde GitHub Raw para evitar que el descargador del teléfono quede esperando."
+
+[[outputs]]
+id = "4_SF8mW9xm8IuuYQOkCDz"
+uri = "file://artifacts/warm/android/app/build/outputs/bundle/release/app-release.aab"
+type = "unspecified"
+title = "Warmie v3.54.10 — AAB firmado para prueba interna"
+description = "Android App Bundle firmado con la nueva clave de carga. Subilo en Google Play Console → Prueba interna → Crear versión."

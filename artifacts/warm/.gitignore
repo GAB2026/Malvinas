@@ -1,0 +1,2 @@
+# Private Android upload key used to sign Google Play releases.
+android/app/warm-release.jks
