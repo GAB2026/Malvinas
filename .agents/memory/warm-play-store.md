@@ -49,3 +49,10 @@ Google Play App Signing is enabled. The Play Console showed no upload-key certif
 **Why:** The Google-managed app-signing key is the identity users receive from Play; the separately held upload key only authorizes uploads and can be reset if needed.
 
 **How to apply:** Upload a release AAB through the internal-testing track. A device with a QR-installed debug APK must uninstall it before installing the Play-distributed build because their signatures differ. Do not change the Google-managed app-signing key.
+
+## CI upload-key consistency
+The GitHub Actions secrets `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_PASSWORD`, and `KEY_ALIAS` must always describe the same upload keystore as the local signing file.
+
+**Why:** A keystore and credentials from different key pairs either produce an AAB Google Play rejects for an unexpected certificate or fail during Gradle packaging.
+
+**How to apply:** Before distributing a new Play bundle after any signing-secret change, verify the release AAB certificate with `keytool -printcert -jarfile` and compare its SHA-1 to the upload certificate shown by Play Console. Never replace the Google-managed app-signing key.
