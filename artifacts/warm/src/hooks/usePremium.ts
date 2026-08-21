@@ -10,10 +10,8 @@
  *
  * Architecture:
  *   On native Android, window.WarmBilling (JavascriptInterface) is the only
- *   authority on purchase state. The app never restores Premium from
- *   localStorage: every native launch starts as free until Google Play replies.
- *   This prevents a refunded purchase from staying unlocked because of a stale
- *   WebView cache.
+ *   authority on purchase state.  localStorage is used ONLY as an optimistic
+ *   cache to prevent a "locked" flash before the first billing query resolves.
  *
  *   On web/dev (no window.WarmBilling), the hook falls back to the localStorage-
  *   only behaviour so unit tests and browser development continue to work.
@@ -37,8 +35,9 @@ import { useState, useEffect } from 'react';
 export const PREMIUM_PRODUCT_ID = 'warm_premium_lifetime';
 
 /**
- * Web/dev purchase cache. Native Android does not read this value; Google Play
- * is queried on every launch and resume.
+ * Optimistic cache key.  Set to '1' only after billing confirms the purchase.
+ * Cleared when billing says no active purchase.
+ * Never used as the decision — only to prevent UI flash on first render.
  */
 const BILLING_CACHE_KEY   = 'warm_premium_billing_v1';
 const USED_DURATIONS_KEY  = 'warm_used_durations_v1';
@@ -88,12 +87,8 @@ function notifySubscribers(): void {
     }
   } catch { /* ignore */ }
 
-  // Never seed Android Premium state from a previous WebView session. A cached
-  // "1" could belong to a purchase that was refunded after the app last ran.
-  // The native bridge will publish the current Google Play result instead.
-  try {
-    _isPremium = !isNative() && localStorage.getItem(BILLING_CACHE_KEY) === '1';
-  } catch { /* ignore */ }
+  // Seed from optimistic cache — prevents "locked" flash before billing resolves.
+  try { _isPremium = localStorage.getItem(BILLING_CACHE_KEY) === '1'; } catch { /* ignore */ }
   try {
     const raw = localStorage.getItem(USED_DURATIONS_KEY) ?? '';
     raw.split(',').map(Number).filter(n => n > 0 && n < 100)
@@ -119,12 +114,9 @@ function ensureBillingListener(): void {
     if (detail.type === 'PURCHASES_QUERIED' || detail.type === 'PURCHASE_SUCCESS') {
       const prev = _isPremium;
       _isPremium = !!detail.hasPremium;
-      // Keep the cache only for browser/dev mode. On Android, Play is queried
-      // on every launch and is deliberately the sole entitlement source.
+      // Update optimistic cache
       try {
-        if (isNative()) {
-          localStorage.removeItem(BILLING_CACHE_KEY);
-        } else if (_isPremium) {
+        if (_isPremium) {
           localStorage.setItem(BILLING_CACHE_KEY, '1');
         } else {
           localStorage.removeItem(BILLING_CACHE_KEY);
