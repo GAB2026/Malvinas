@@ -154,7 +154,7 @@ function LowBatteryWarningSheet({ onDismiss }: { onDismiss: () => void }) {
 export default function Home() {
   const t = useTranslations();
   const { result: calibration, calibrating, progress } = useCalibration();
-  const { isPremium, isLocked, consumeDuration, purchase, restore } = usePremium();
+  const { isPremium, usedDurations, isLocked, consumeDuration, purchase, restore, diagnostics } = usePremium();
 
   const {
     running, intensity, start, stop,
@@ -172,6 +172,7 @@ export default function Home() {
   const [showPremium, setShowPremium] = useState(false);
   const [premiumError, setPremiumError] = useState<string | null>(null);
   const [showBatteryWarning, setShowBatteryWarning] = useState(false);
+  const [refreshingBilling, setRefreshingBilling] = useState(false);
 
   // Check battery on first read — warn immediately if ≤20% at startup
   const startupBatteryChecked = useRef(false);
@@ -278,6 +279,12 @@ export default function Home() {
     } else {
       setPremiumError(t.premium.purchaseError);
     }
+  };
+
+  const refreshBillingDiagnostics = async () => {
+    setRefreshingBilling(true);
+    await restore();
+    setRefreshingBilling(false);
   };
 
   if (calibrating || !calibration) return <CalibrationScreen progress={progress} />;
@@ -459,6 +466,40 @@ export default function Home() {
             </p>
           </div>
         </div>
+
+        {diagnostics && (
+          <details className="px-1 text-[10px] text-muted-foreground/70">
+            <summary className="cursor-pointer select-none">Diagnóstico Premium</summary>
+            <div
+              data-testid="premium-diagnostics"
+              className="mt-2 rounded-xl border border-white/10 bg-black/20 px-3 py-2 font-mono leading-relaxed"
+            >
+              <div>Modo: {diagnostics.isNative ? 'Android + Google Play' : 'Web/dev'}</div>
+              <div>Último evento: {diagnostics.lastBillingEvent ?? 'sin respuesta'}</div>
+              <div>
+                Google Play Premium:{' '}
+                {diagnostics.billingWaiting
+                  ? 'esperando respuesta'
+                  : diagnostics.billingHasPremium === null
+                    ? 'sin dato'
+                    : diagnostics.billingHasPremium
+                      ? 'sí'
+                      : 'no'}
+              </div>
+              <div>isPremium: {isPremium ? 'sí' : 'no'}</div>
+              <div>Usos registrados: {[...usedDurations].sort((a, b) => a - b).join(', ') || 'ninguno'}</div>
+              <div>Duración seleccionada: {selectedMins} min</div>
+              <button
+                type="button"
+                onClick={() => { void refreshBillingDiagnostics(); }}
+                disabled={refreshingBilling}
+                className="mt-2 rounded-md border border-white/15 px-2 py-1 text-[10px] text-foreground/80 disabled:opacity-50"
+              >
+                {refreshingBilling ? 'Consultando Google Play…' : 'Consultar Google Play'}
+              </button>
+            </div>
+          </details>
+        )}
       </div>{/* end BOTTOM */}
 
       {/* ── Low-battery warning sheet ── */}

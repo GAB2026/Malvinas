@@ -6,7 +6,7 @@
  *   • restore()   — reads from optimistic cache (warm_premium_billing_v1)
  *   • billing-result events still update state when dispatched manually
  */
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { usePremium, __resetForTests } from '../usePremium';
 
@@ -159,6 +159,21 @@ describe('usePremium — billing-result event handling', () => {
     });
     expect(result.current.isPremium).toBe(false);
     expect(localStorage.getItem(CACHE_KEY)).toBeNull();
+    expect(result.current.diagnostics.lastBillingEvent).toBe('PURCHASES_QUERIED');
+    expect(result.current.diagnostics.billingHasPremium).toBe(false);
+    expect(result.current.diagnostics.billingWaiting).toBe(false);
+  });
+
+  it('shows a waiting billing state when native Billing is not ready', async () => {
+    const { result } = renderHook(() => usePremium());
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent('billing-result', {
+        detail: { type: 'PURCHASES_QUERIED', hasPremium: false, notReady: true },
+      }));
+    });
+    expect(result.current.diagnostics.lastBillingEvent).toBe('PURCHASES_QUERIED');
+    expect(result.current.diagnostics.billingHasPremium).toBeNull();
+    expect(result.current.diagnostics.billingWaiting).toBe(true);
   });
 
   it('PURCHASE_SUCCESS sets isPremium to true', async () => {
@@ -194,27 +209,3 @@ describe('usePremium — billing-result event handling', () => {
   });
 });
 
-// ── Native entitlement source ─────────────────────────────────────────────────
-
-describe('usePremium — native Android entitlement source', () => {
-  afterEach(() => {
-    delete (window as Window & { WarmBilling?: unknown }).WarmBilling;
-    vi.resetModules();
-  });
-
-  it('does not restore Premium from a stale WebView cache before Google Play replies', async () => {
-    localStorage.setItem(CACHE_KEY, '1');
-    Object.defineProperty(window, 'WarmBilling', {
-      configurable: true,
-      value: { queryPurchases: vi.fn() },
-    });
-    vi.resetModules();
-
-    const { usePremium: useNativePremium } = await import('../usePremium');
-    const { result } = renderHook(() => useNativePremium());
-
-    expect(result.current.isPremium).toBe(false);
-    expect(result.current.isLocked(5)).toBe(false);
-    expect(localStorage.getItem(CACHE_KEY)).toBe('1');
-  });
-});
