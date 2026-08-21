@@ -6,7 +6,7 @@
  *   • restore()   — reads from optimistic cache (warm_premium_billing_v1)
  *   • billing-result events still update state when dispatched manually
  */
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import { usePremium, __resetForTests } from '../usePremium';
 
@@ -191,5 +191,30 @@ describe('usePremium — billing-result event handling', () => {
     });
     expect(r1.current.isPremium).toBe(true);
     expect(r2.current.isPremium).toBe(true);
+  });
+});
+
+// ── Native entitlement source ─────────────────────────────────────────────────
+
+describe('usePremium — native Android entitlement source', () => {
+  afterEach(() => {
+    delete (window as Window & { WarmBilling?: unknown }).WarmBilling;
+    vi.resetModules();
+  });
+
+  it('does not restore Premium from a stale WebView cache before Google Play replies', async () => {
+    localStorage.setItem(CACHE_KEY, '1');
+    Object.defineProperty(window, 'WarmBilling', {
+      configurable: true,
+      value: { queryPurchases: vi.fn() },
+    });
+    vi.resetModules();
+
+    const { usePremium: useNativePremium } = await import('../usePremium');
+    const { result } = renderHook(() => useNativePremium());
+
+    expect(result.current.isPremium).toBe(false);
+    expect(result.current.isLocked(5)).toBe(false);
+    expect(localStorage.getItem(CACHE_KEY)).toBe('1');
   });
 });
