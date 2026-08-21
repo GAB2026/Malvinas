@@ -67,16 +67,6 @@ function notifySubscribers(): void {
   _subscribers.forEach(fn => fn());
 }
 
-export interface PremiumDiagnostics {
-  isNative: boolean;
-  lastBillingEvent: string | null;
-  billingHasPremium: boolean | null;
-  billingWaiting: boolean;
-}
-
-let _lastBillingEvent: string | null = null;
-let _billingHasPremium: boolean | null = null;
-let _billingWaiting = true;
 
 // ── Initialisation ────────────────────────────────────────────────────────────
 
@@ -123,12 +113,6 @@ function ensureBillingListener(): void {
       notReady?: boolean;
     }>).detail;
 
-    _lastBillingEvent = detail.type;
-    _billingWaiting = !!detail.notReady;
-    if (detail.type === 'PURCHASES_QUERIED' || detail.type === 'PURCHASE_SUCCESS') {
-      _billingHasPremium = detail.notReady ? null : !!detail.hasPremium;
-    }
-
     if (detail.type === 'PURCHASES_QUERIED' || detail.type === 'PURCHASE_SUCCESS') {
       _isPremium = !!detail.hasPremium;
       // Update optimistic cache
@@ -160,7 +144,6 @@ function persistUsed(): void {
 export interface PremiumHook {
   isPremium:     boolean;
   usedDurations: ReadonlySet<number>;
-  diagnostics:   PremiumDiagnostics;
   /** Returns true when the button should show a lock (free use already consumed). */
   isLocked:       (mins: number) => boolean;
   /** Consume the one free use for this duration. No-op if premium or already consumed. */
@@ -267,12 +250,6 @@ export function usePremium(): PremiumHook {
   return {
     isPremium:      _isPremium,
     usedDurations:  _usedDurations,
-    diagnostics: {
-      isNative: isNative(),
-      lastBillingEvent: _lastBillingEvent,
-      billingHasPremium: _billingHasPremium,
-      billingWaiting: _billingWaiting,
-    },
     isLocked,
     consumeDuration,
     purchase,
@@ -284,9 +261,6 @@ export function usePremium(): PremiumHook {
 export function __resetForTests(): void {
   _isPremium = false;
   _usedDurations.clear();
-  _lastBillingEvent = null;
-  _billingHasPremium = null;
-  _billingWaiting = true;
   _subscribers.clear();
   _billingListenerSetup = false;
   try { localStorage.clear(); } catch { /* ignore */ }

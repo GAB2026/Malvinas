@@ -159,21 +159,6 @@ describe('usePremium — billing-result event handling', () => {
     });
     expect(result.current.isPremium).toBe(false);
     expect(localStorage.getItem(CACHE_KEY)).toBeNull();
-    expect(result.current.diagnostics.lastBillingEvent).toBe('PURCHASES_QUERIED');
-    expect(result.current.diagnostics.billingHasPremium).toBe(false);
-    expect(result.current.diagnostics.billingWaiting).toBe(false);
-  });
-
-  it('shows a waiting billing state when native Billing is not ready', async () => {
-    const { result } = renderHook(() => usePremium());
-    await act(async () => {
-      window.dispatchEvent(new CustomEvent('billing-result', {
-        detail: { type: 'PURCHASES_QUERIED', hasPremium: false, notReady: true },
-      }));
-    });
-    expect(result.current.diagnostics.lastBillingEvent).toBe('PURCHASES_QUERIED');
-    expect(result.current.diagnostics.billingHasPremium).toBeNull();
-    expect(result.current.diagnostics.billingWaiting).toBe(true);
   });
 
   it('PURCHASE_SUCCESS sets isPremium to true', async () => {

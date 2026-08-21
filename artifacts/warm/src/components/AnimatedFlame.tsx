@@ -21,10 +21,6 @@ export default function AnimatedFlame({ intensity, heatLevel, running, onClick, 
     ? `rgba(249,115,22,${glowOpacity})`
     : `rgba(180,70,10,${glowOpacity})`;
 
-  // CSS keyframes run on the compositor rather than the JS thread.
-  const anim = (name: string, dur: number, delay = 0) =>
-    `${name} ${dur}s ease-in-out ${delay}s infinite`;
-
   return (
     <motion.button
       onClick={onClick}
@@ -57,8 +53,6 @@ export default function AnimatedFlame({ intensity, heatLevel, running, onClick, 
           background: glowColor,
           filter: 'blur(10px)',
           pointerEvents: 'none',
-          transformOrigin: 'center',
-          animation: anim('flame-glow', 1.6),
         }}
       />
 
@@ -72,9 +66,7 @@ export default function AnimatedFlame({ intensity, heatLevel, running, onClick, 
           background: running
             ? 'radial-gradient(ellipse at 50% 82%, #ff6b00 0%, #c2410c 45%, #7c2d12 100%)'
             : 'radial-gradient(ellipse at 50% 82%, #b45309 0%, #78350f 60%, #451a03 100%)',
-          transformOrigin: 'bottom center',
           opacity: disabled ? 0.4 : 1,
-          animation: anim('flame-outer', 1.3),
         }}
       />
 
@@ -88,9 +80,7 @@ export default function AnimatedFlame({ intensity, heatLevel, running, onClick, 
           background: running
             ? 'radial-gradient(ellipse at 50% 82%, #fbbf24 0%, #f97316 48%, #ea580c 100%)'
             : 'radial-gradient(ellipse at 50% 82%, #d97706 0%, #b45309 55%, #78350f 100%)',
-          transformOrigin: 'bottom center',
           opacity: disabled ? 0.4 : 1,
-          animation: anim('flame-mid', 1.05, 0.12),
         }}
       />
 
@@ -104,9 +94,7 @@ export default function AnimatedFlame({ intensity, heatLevel, running, onClick, 
           background: running
             ? 'radial-gradient(ellipse at 50% 78%, #fffbf0 0%, #fef9c3 28%, #fde68a 65%, #fbbf24 100%)'
             : 'radial-gradient(ellipse at 50% 78%, #fef3c7 0%, #fde68a 40%, #f59e0b 100%)',
-          transformOrigin: 'bottom center',
           opacity: disabled ? 0.3 : 1,
-          animation: anim('flame-inner', 0.85, 0.22),
         }}
       />
 
@@ -118,9 +106,7 @@ export default function AnimatedFlame({ intensity, heatLevel, running, onClick, 
           height: 40 * scale,
           borderRadius: '50% 50% 20% 20% / 70% 70% 20% 20%',
           background: 'radial-gradient(ellipse at 50% 70%, #ffffff 0%, #fef9c3 60%, transparent 100%)',
-          transformOrigin: 'bottom center',
           opacity: running ? 0.85 : 0.3,
-          animation: anim('flame-tip', 0.65, 0.3),
         }}
       />
     </motion.button>
