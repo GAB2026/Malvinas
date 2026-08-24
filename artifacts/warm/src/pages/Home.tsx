@@ -5,7 +5,8 @@ import { usePremium } from '@/hooks/usePremium';
 import { useTranslations } from '@/lib/i18n';
 import { playCompletionChime } from '@/lib/chime';
 import AnimatedFlame from '@/components/AnimatedFlame';
-import { Battery, AlertTriangle, ShieldAlert, Thermometer, Lock, Lightbulb } from 'lucide-react';
+import WelcomeSheet, { useWelcomeSheet } from '@/components/WelcomeSheet';
+import { Battery, AlertTriangle, ShieldAlert, Thermometer, Lock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const AUTO_DISMISS_MS = 5000;
@@ -14,14 +15,6 @@ function formatTime(seconds: number): string {
   const m = Math.floor(seconds / 60);
   const s = Math.floor(seconds % 60);
   return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-}
-
-function formatWarning(text: string) {
-  return text.split(/(Advertencia|cerrará)/g).map((part, index) =>
-    part === 'Advertencia' || part === 'cerrará'
-      ? <strong key={index} className="font-semibold text-foreground">{part}</strong>
-      : part,
-  );
 }
 
 // ── Calibration screen ────────────────────────────────────────────────────────
@@ -172,6 +165,7 @@ export default function Home() {
   const [showPremium, setShowPremium] = useState(false);
   const [premiumError, setPremiumError] = useState<string | null>(null);
   const [showBatteryWarning, setShowBatteryWarning] = useState(false);
+  const { open: showWelcome, dismiss: dismissWelcome } = useWelcomeSheet();
 
   // Check battery on first read — warn immediately if ≤20% at startup
   const startupBatteryChecked = useRef(false);
@@ -448,18 +442,10 @@ export default function Home() {
           {running && <span className="font-mono">{formatTime(elapsed)}</span>}
         </div>
 
-        <div className="flex items-start gap-2 px-1">
-          <Lightbulb size={12} className="text-muted-foreground/70 shrink-0 mt-1" />
-          <div className="flex flex-col gap-2">
-            <p className="text-[11px] text-muted-foreground/80 leading-relaxed">
-              {formatWarning(t.suggestion)}
-            </p>
-            <p className="text-[11px] text-muted-foreground/80 leading-relaxed">
-              {t.suggestionNote}
-            </p>
-          </div>
-        </div>
       </div>{/* end BOTTOM */}
+
+      {/* ── Welcome sheet — shown once on first launch ── */}
+      <WelcomeSheet open={showWelcome} onDismiss={dismissWelcome} />
 
       {/* ── Low-battery warning sheet ── */}
       <AnimatePresence>

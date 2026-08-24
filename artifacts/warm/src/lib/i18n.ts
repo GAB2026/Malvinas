@@ -27,6 +27,15 @@ export interface TrialStrings {
   left: string;
 }
 
+export interface WelcomeStrings {
+  title: string;
+  body1: string;
+  body2: string;
+  body3: string;
+  body4: string;
+  cta: string;
+}
+
 export interface Translations {
   tagline: string;
   intensity: string;
@@ -58,6 +67,7 @@ export interface Translations {
   therapyTimer: string;
   premium: PremiumStrings;
   trial: TrialStrings;
+  welcome: WelcomeStrings;
   /** Calibration screen */
   calibrating: string;
   calibratingOnce: string;
@@ -72,10 +82,6 @@ export interface Translations {
   calibratedDevice: string;
   soundOn: string;
   soundOff: string;
-  /** Warning shown at the bottom of the main screen — first sentence */
-  suggestion: string;
-  /** Second line of the warning — device case removal tip */
-  suggestionNote: string;
   /** Button label to dismiss the low-battery warning card */
   understood: string;
 }
@@ -134,9 +140,15 @@ const T: Record<Lang, Translations> = {
     calibratedDevice: 'Calibrated for your device',
     soundOn: 'Sound on',
     soundOff: 'Sound off',
-    suggestion: "Warning: if you leave the app during an active session, it will end automatically to allow other apps to be used.",
-    suggestionNote: "You may also remove your device's protective case for a greater temperature experience.",
     understood: 'Got it',
+    welcome: {
+      title: 'Welcome to Warmie',
+      body1: 'The maximum temperature reached depends on the brand, model and operating system version of each device. At startup, a maximum temperature test is performed.',
+      body2: 'That\'s why Warmie offers 3 free sessions to evaluate the satisfaction achieved with your device.',
+      body3: 'Warmie uses 100% of the CPU, preventing optimal use of other apps simultaneously. If you leave the app during an active session it will close to allow you to attend to other apps.',
+      body4: 'If you wish, you can remove your device\'s protective case for a greater heat experience.',
+      cta: 'Got it',
+    },
   },
 
   es: {
@@ -192,9 +204,15 @@ const T: Record<Lang, Translations> = {
     calibratedDevice: 'Calibrado para tu dispositivo',
     soundOn: 'Sonido activado',
     soundOff: 'Sin sonido',
-    suggestion: 'Advertencia: Warmie utiliza el 100% del CPU, imposibilitando el uso óptimo de otras apps en simultáneo. Si sale de la aplicación durante una sesión activa, se cerrará y deberá ejecutarla nuevamente.',
-    suggestionNote: 'Si lo desea puede quitar la funda protectora del dispositivo para una experiencia mayor de temperatura.',
     understood: 'Entendido',
+    welcome: {
+      title: 'Bienvenido a Warmie',
+      body1: 'La máxima temperatura alcanzada depende de la marca, modelo y versión del sistema operativo de cada dispositivo. Al inicio se hará un test de temperatura máxima posible.',
+      body2: 'Por ello Warmie ofrece la posibilidad de 3 usos gratuitos para evaluar la satisfacción alcanzada con su dispositivo.',
+      body3: 'Warmie utiliza el 100% del CPU, imposibilitando el uso óptimo de otras apps en simultáneo. Si sale de la aplicación durante una sesión activa se cerrará para permitir atender a las demás.',
+      body4: 'Si lo desea puede quitar la funda protectora del dispositivo para una experiencia mayor de calor.',
+      cta: 'Entendido',
+    },
   },
 
   pt: {
@@ -250,9 +268,15 @@ const T: Record<Lang, Translations> = {
     calibratedDevice: 'Calibrado para o seu dispositivo',
     soundOn: 'Som ativado',
     soundOff: 'Sem som',
-    suggestion: 'Aviso: se você sair do app durante uma sessão ativa, ela será encerrada automaticamente para permitir o uso dos demais.',
-    suggestionNote: 'Se desejar, retire a capa protetora do dispositivo para uma maior experiência de temperatura.',
     understood: 'Entendido',
+    welcome: {
+      title: 'Bem-vindo ao Warmie',
+      body1: 'A temperatura máxima atingida depende da marca, modelo e versão do sistema operacional de cada dispositivo. No início será realizado um teste de temperatura máxima possível.',
+      body2: 'Por isso o Warmie oferece 3 usos gratuitos para avaliar a satisfação com seu dispositivo.',
+      body3: 'O Warmie usa 100% da CPU, impedindo o uso ideal de outros apps simultaneamente. Se você sair durante uma sessão ativa ela será encerrada para permitir o uso dos demais.',
+      body4: 'Se desejar, retire a capa protetora do dispositivo para uma maior experiência de calor.',
+      cta: 'Entendido',
+    },
   },
 
   fr: {
@@ -308,9 +332,15 @@ const T: Record<Lang, Translations> = {
     calibratedDevice: 'Calibré pour votre appareil',
     soundOn: 'Son activé',
     soundOff: 'Son désactivé',
-    suggestion: "Avertissement : si vous quittez l'app pendant une séance active, celle-ci se terminera automatiquement pour permettre l'utilisation des autres.",
-    suggestionNote: "Si vous le souhaitez, retirez la coque de votre appareil pour une meilleure expérience de température.",
     understood: 'Compris',
+    welcome: {
+      title: 'Bienvenue dans Warmie',
+      body1: 'La température maximale atteinte dépend de la marque, du modèle et de la version du système d\'exploitation de chaque appareil. Au démarrage un test de température maximale est effectué.',
+      body2: 'C\'est pourquoi Warmie offre 3 utilisations gratuites pour évaluer la satisfaction avec votre appareil.',
+      body3: 'Warmie utilise 100 % du CPU, empêchant l\'utilisation optimale d\'autres apps simultanément. Si vous quittez l\'app pendant une session active elle se fermera pour vous permettre d\'utiliser les autres.',
+      body4: 'Si vous le souhaitez, retirez la coque de l\'appareil pour une meilleure expérience de chaleur.',
+      cta: 'Compris',
+    },
   },
 
   de: {
@@ -366,9 +396,15 @@ const T: Record<Lang, Translations> = {
     calibratedDevice: 'Kalibriert für dein Gerät',
     soundOn: 'Ton an',
     soundOff: 'Ton aus',
-    suggestion: 'Warnung: wenn Sie die App während einer aktiven Sitzung verlassen, wird diese automatisch beendet, um die Nutzung anderer Apps zu ermöglichen.',
-    suggestionNote: 'Sie können auch die Schutzhülle des Geräts entfernen, um ein besseres Temperaturerlebnis zu erzielen.',
     understood: 'Verstanden',
+    welcome: {
+      title: 'Willkommen bei Warmie',
+      body1: 'Die maximal erreichte Temperatur hängt von Marke, Modell und Betriebssystemversion jedes Geräts ab. Beim Start wird ein Maximaltemperaturtest durchgeführt.',
+      body2: 'Daher bietet Warmie 3 kostenlose Nutzungen, um die Zufriedenheit mit Ihrem Gerät zu evaluieren.',
+      body3: 'Warmie nutzt 100 % der CPU, was die optimale Nutzung anderer Apps gleichzeitig verhindert. Wenn Sie die App während einer aktiven Sitzung verlassen, wird sie geschlossen.',
+      body4: 'Sie können die Schutzhülle des Geräts entfernen, um ein besseres Wärmeerlebnis zu erzielen.',
+      cta: 'Verstanden',
+    },
   },
 
   it: {
@@ -424,9 +460,15 @@ const T: Record<Lang, Translations> = {
     calibratedDevice: 'Calibrato per il tuo dispositivo',
     soundOn: 'Audio attivo',
     soundOff: 'Audio disattivo',
-    suggestion: "Avvertenza: se esci dall'app durante una sessione attiva, questa terminerà automaticamente per consentire l'uso delle altre.",
-    suggestionNote: "Puoi rimuovere la custodia del dispositivo per una maggiore esperienza di temperatura.",
     understood: 'Capito',
+    welcome: {
+      title: 'Benvenuto in Warmie',
+      body1: 'La temperatura massima raggiunta dipende dalla marca, dal modello e dalla versione del sistema operativo di ogni dispositivo. All\'avvio viene eseguito un test della temperatura massima.',
+      body2: 'Per questo Warmie offre 3 utilizzi gratuiti per valutare la soddisfazione con il proprio dispositivo.',
+      body3: 'Warmie utilizza il 100% della CPU, impedendo l\'uso ottimale di altre app contemporaneamente. Se esci durante una sessione attiva l\'app si chiuderà.',
+      body4: 'Se lo desideri puoi rimuovere la custodia protettiva per una maggiore esperienza di calore.',
+      cta: 'Capito',
+    },
   },
 
   ru: {
@@ -482,9 +524,15 @@ const T: Record<Lang, Translations> = {
     calibratedDevice: 'Калибровка выполнена',
     soundOn: 'Звук вкл.',
     soundOff: 'Звук выкл.',
-    suggestion: 'Внимание: если вы покинете приложение во время активного сеанса, он завершится автоматически, чтобы можно было использовать другие приложения.',
-    suggestionNote: 'При желании снимите чехол с устройства для большего ощущения тепла.',
     understood: 'Понятно',
+    welcome: {
+      title: 'Добро пожаловать в Warmie',
+      body1: 'Максимальная температура зависит от марки, модели и версии ОС устройства. При запуске выполняется тест максимально возможной температуры.',
+      body2: 'Поэтому Warmie предлагает 3 бесплатных использования для оценки удовлетворённости вашим устройством.',
+      body3: 'Warmie использует 100% ЦП, что мешает оптимальной работе других приложений. Если вы выйдете во время сеанса, приложение закроется.',
+      body4: 'При желании снимите защитный чехол для большего ощущения тепла.',
+      cta: 'Понятно',
+    },
   },
 
   fi: {
@@ -540,9 +588,15 @@ const T: Record<Lang, Translations> = {
     calibratedDevice: 'Kalibroitu laitteellesi',
     soundOn: 'Ääni päällä',
     soundOff: 'Ääni pois',
-    suggestion: 'Varoitus: jos poistut sovelluksesta aktiivisen istunnon aikana, se päättyy automaattisesti, jotta muita sovelluksia voidaan käyttää.',
-    suggestionNote: 'Voit myös poistaa laitteen suojakuoren parempaa lämpökokemusta varten.',
     understood: 'Selvä',
+    welcome: {
+      title: 'Tervetuloa Warmieen',
+      body1: 'Saavutettu maksimilämpötila riippuu laitteen merkistä, mallista ja käyttöjärjestelmäversiosta. Käynnistyksen yhteydessä suoritetaan maksimilämpötilatesti.',
+      body2: 'Siksi Warmie tarjoaa 3 ilmaista käyttökertaa tyytyväisyyden arvioimiseksi laitteellasi.',
+      body3: 'Warmie käyttää 100 % suorittimesta, mikä estää muiden sovellusten optimaalisen käytön. Jos poistut aktiivisen istunnon aikana, sovellus sulkeutuu.',
+      body4: 'Voit poistaa laitteen suojakuoren paremman lämpökokemuksen saamiseksi.',
+      cta: 'Selvä',
+    },
   },
 
   sv: {
@@ -598,9 +652,15 @@ const T: Record<Lang, Translations> = {
     calibratedDevice: 'Kalibrerad för din enhet',
     soundOn: 'Ljud på',
     soundOff: 'Ljud av',
-    suggestion: 'Varning: om du lämnar appen under en aktiv session avslutas den automatiskt för att tillåta användning av andra appar.',
-    suggestionNote: 'Du kan ta bort skyddsfodral från enheten för en bättre temperaturupplevelse.',
     understood: 'Förstått',
+    welcome: {
+      title: 'Välkommen till Warmie',
+      body1: 'Den maximala temperaturen beror på enhetens märke, modell och OS-version. Vid start utförs ett maxtemperaturtest.',
+      body2: 'Därför erbjuder Warmie 3 gratis användningar för att utvärdera nöjdheten med din enhet.',
+      body3: 'Warmie använder 100 % av CPU:n, vilket hindrar optimal användning av andra appar. Om du lämnar appen under en aktiv session stängs den.',
+      body4: 'Du kan ta bort enhetens skyddsfodral för en bättre värmeupplevelse.',
+      cta: 'Förstått',
+    },
   },
 
   mn: {
@@ -656,9 +716,15 @@ const T: Record<Lang, Translations> = {
     calibratedDevice: 'Таны төхөөрөмжид тохируулагдсан',
     soundOn: 'Дуу асаалттай',
     soundOff: 'Дуугүй',
-    suggestion: 'Анхааруулга: идэвхтэй сессийн үед аппаас гарвал, бусад аппуудыг ашиглах боломжийг олгохын тулд сесс автоматаар дуусна.',
-    suggestionNote: 'Илүү сайн температурын туршлагын тулд хамгаалалтын бүрхэвчийг тайлж болно.',
     understood: 'Ойлголоо',
+    welcome: {
+      title: 'Warmie-д тавтай морил',
+      body1: 'Хамгийн их температур нь тухайн төхөөрөмжийн брэнд, загвар, үйлдлийн системийн хувилбараас хамаарна. Эхлэхэд дээд температурын тест хийгдэнэ.',
+      body2: 'Тиймээс Warmie таны төхөөрөмжийн гүйцэтгэлийг үнэлэхийн тулд 3 үнэгүй ашиглалт санал болгоно.',
+      body3: 'Warmie CPU-ийн 100%-ийг ашигладаг тул бусад апп-уудыг зэрэг ашиглах боломжгүй. Идэвхтэй сессийн үед апп-аас гарвал хаагдана.',
+      body4: 'Хэрэв хүсвэл илүү их дулаан авахын тулд хамгаалалтын бүрхэвчийг тайлж болно.',
+      cta: 'Ойлголоо',
+    },
   },
 
   kl: {
@@ -714,9 +780,15 @@ const T: Record<Lang, Translations> = {
     calibratedDevice: 'Nalunaarusiorfigineqarpoq',
     soundOn: 'Nipaat',
     soundOff: 'Nipaat nalinginnaasumik',
-    suggestion: 'Nalunaarusiorfissarineqarpoq: nalunaarsorneq silaannassinnaanngikkaluarluni app-immi anissanngikkaluarluni nalunaarsorneq automatikkiimik naalersinnaappoq, allanik atugarissaartitsissinnaanissaminnik.',
-    suggestionNote: 'Isikkoq nalinginnaasumik nalunaarusiorfigineqarpoq telefoni allisinnaanermi.',
     understood: 'Nalunngissumik',
+    welcome: {
+      title: 'Warmie-mik isumaginninneqarpoq',
+      body1: 'Isikkoqqissaarissumik nalunaarusiorfigineqarsinnaasumik silaannassinnaasoq nalunaarsorneq brand-immi, modeli-mi systemimmi oqimaatsumillu nalunaarusiorfigineqarpoq.',
+      body2: 'Tamaattumunnga Warmie 3-inik atugarissaartitsisoqarsinnaappoq nalunaarusiorfigineqarpoq.',
+      body3: 'Warmie CPU-p 100%-inik atorpoq, allanik atugarissaartitsissinnaanngikkumik. Nalunaarsorneq silaannassinnaanngikkaluarluni app-immi anissanngikkaluarluni automatikkiimik naalersinnaappoq.',
+      body4: 'Isikkoq nalinginnaasumik nalunaarusiorfigineqarpoq telefoni allisinnaanermi.',
+      cta: 'Nalunngissumik',
+    },
   },
 };
 
