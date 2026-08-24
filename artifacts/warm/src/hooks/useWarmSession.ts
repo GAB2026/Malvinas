@@ -3,12 +3,13 @@ import {
   HeatEngine,
   workerCountFor,
   type Intensity,
+  type DeviceTier,
   type WorkerHeartbeat,
 } from '@/lib/heat/heatEngine';
 import { readDeviceTemp } from '@/lib/thermal';
 import type { CalibrationResult } from './useCalibration';
 
-export type { Intensity } from '@/lib/heat/heatEngine';
+export type { Intensity, DeviceTier } from '@/lib/heat/heatEngine';
 
 export const LOW_BATTERY_CUTOFF = 0.20;
 
@@ -143,6 +144,7 @@ export interface WarmSession {
 
 // ── Implementation ─────────────────────────────────────────────────────────────
 export function useWarmSession(calibration: CalibrationResult | null): WarmSession {
+  const tier: DeviceTier = calibration?.deviceTier ?? 'high';
   const engineRef = useRef<HeatEngine | null>(null);
   if (!engineRef.current) engineRef.current = new HeatEngine();
 
@@ -307,7 +309,7 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
     // Guard with runningRef so a rapid tap→stop before the frame fires
     // doesn't leave orphaned workers running.
     requestAnimationFrame(() => requestAnimationFrame(() => {
-      if (runningRef.current) engineRef.current!.start(intensityRef.current);
+      if (runningRef.current) engineRef.current!.start(intensityRef.current, tier);
     }));
   }, [acquireWakeLock]);
 
@@ -567,7 +569,7 @@ export function useWarmSession(calibration: CalibrationResult | null): WarmSessi
     running, intensity, start, stop,
     phase, elapsed, therapeuticElapsed, therapeuticRemaining, warmingRemaining,
     deviceTempC, heatLevel, stopReason, wakeLockActive, batteryLevel,
-    workerCount: workerCountFor(intensity),
+    workerCount: workerCountFor(intensity, tier),
     burstActive,
     sessionDurationSecs, setSessionDuration,
   };

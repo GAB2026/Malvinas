@@ -1,6 +1,7 @@
 import { GpuLoad } from './gpuLoad';
 
 export type Intensity = 'low' | 'medium' | 'high';
+export type DeviceTier = 'budget' | 'mid' | 'high';
 
 interface IntensityProfile {
   workerFraction: number;
@@ -15,35 +16,54 @@ const PROFILES: Record<Intensity, IntensityProfile> = {
 };
 
 /**
+ * How many extra workers to spawn beyond navigator.hardwareConcurrency
+ * at HIGH intensity, per device tier.
+ *
+ * budget: 0 extra — over-subscribing budget chips causes more OS throttling
+ *         than it adds heat.  Every core already gets one dedicated worker.
+ * mid:    +1 — one extra to catch any efficiency cluster the OS may leave idle.
+ * high:   +2 — flagship chips have big.LITTLE clusters; extra workers ensure
+ *         the scheduler puts work on ALL physical cores.
+ */
+const HIGH_EXTRA: Record<DeviceTier, number> = {
+  budget: 0,
+  mid:    1,
+  high:   2,
+};
+
+/**
+ * Compute mode per device tier.
+ *
+ * budget/mid: 'fmla' — 8-chain float multiply-accumulate.  Generates more heat
+ *   than software-emulated sin/cos/tan on Cortex-A53/A55 because FMLA is a
+ *   real hardware instruction on every ARM core since Cortex-A5.
+ *
+ * high: 'fpu' — transcendental chains (sin/cos/tan/atan2/sqrt).  These ARE
+ *   hardware on A77+ and generate the most heat per cycle on flagship chips.
+ */
+const COMPUTE_MODE: Record<DeviceTier, 'fpu' | 'fmla'> = {
+  budget: 'fmla',
+  mid:    'fmla',
+  high:   'fpu',
+};
+
+/**
  * Data reported by each worker on every heartbeat (~every 500 ms).
- * - iters: number of completed 10 k-op FPU blocks in this burn slice.
- *   This is the valid signal for CPU throttling: if the OS suspends a
- *   worker thread, performance.now() in the worker still advances (so
- *   wall-clock burn-time is unreliable), but iters drops.
- * - checksum: opaque FP result — forces V8 to keep the computation live
- *   and confirms the computation was not dead-code-eliminated.
+ * - iters: number of completed 10 k-op blocks in this burn slice.
+ * - checksum: opaque FP result that prevents dead-code elimination.
  */
 export interface WorkerHeartbeat {
   iters: number;
   checksum: number;
 }
 
-/**
- * Workers are bundled by Vite via the import.meta.url pattern, which produces
- * a real asset URL (e.g. /warm/assets/cpuWorker-xxx.js).  This passes
- * Capacitor's Content-Security-Policy, unlike blob: URLs which are blocked.
- */
 function createWorker(): Worker {
-  // {type:'module'} is required: Vite bundles the worker as a real asset URL
-  // that passes Capacitor's CSP. Confirmed working in v1.1.0.
   return new Worker(new URL('./cpuWorker.ts', import.meta.url), { type: 'module' });
 }
 
-export function workerCountFor(intensity: Intensity): number {
+export function workerCountFor(intensity: Intensity, tier: DeviceTier = 'high'): number {
   const cores = Math.max(2, navigator.hardwareConcurrency || 4);
-  // At HIGH: saturate ALL cores (performance + efficiency) by spawning cores+2.
-  // Extra workers ensure the OS schedules work onto little cores too.
-  if (intensity === 'high') return cores + 2;
+  if (intensity === 'high') return cores + HIGH_EXTRA[tier];
   return Math.max(1, Math.round(cores * PROFILES[intensity].workerFraction));
 }
 
@@ -52,23 +72,16 @@ export class HeatEngine {
   private gpu = new GpuLoad();
   private _running = false;
   private _intensity: Intensity = 'medium';
+  private _tier: DeviceTier = 'high';
   private _heartbeatHandlers: Array<(hb: WorkerHeartbeat) => void> = [];
 
-  // ── Burst scheduling ────────────────────────────────────────────────────────
-  // Alternates between full load (1500 ms) and near-idle (500 ms).
-  // Under Android CPU throttling, the brief idle allows cores to cool slightly
-  // so the next burst hits at a higher clock frequency before the governor
-  // clamps it again — net heat output is higher than sustained 100% load.
+  // ── Burst scheduling ─────────────────────────────────────────────────────────
   private _burstRunning = false;
   private _burstHandle: ReturnType<typeof setTimeout> | null = null;
 
-  get running()    { return this._running; }
-  get intensity()  { return this._intensity; }
+  get running()   { return this._running; }
+  get intensity() { return this._intensity; }
 
-  /**
-   * Register a callback that fires on every worker heartbeat.
-   * Returns an unsubscribe function.
-   */
   onHeartbeat(handler: (hb: WorkerHeartbeat) => void): () => void {
     this._heartbeatHandlers.push(handler);
     return () => {
@@ -89,7 +102,6 @@ export class HeatEngine {
   disableBurst() {
     this._burstRunning = false;
     if (this._burstHandle !== null) { clearTimeout(this._burstHandle); this._burstHandle = null; }
-    // Restore normal duty for current intensity
     const duty = PROFILES[this._intensity].duty;
     for (const w of this.workers) w.postMessage({ type: 'setDuty', duty });
   }
@@ -101,11 +113,14 @@ export class HeatEngine {
     this._burstHandle = setTimeout(() => this._burstStep(!isHigh), isHigh ? 1500 : 500);
   }
 
-  start(intensity: Intensity) {
+  start(intensity: Intensity, tier: DeviceTier = 'high') {
     this.stop();
     this._intensity = intensity;
-    const profile = PROFILES[intensity];
-    const count   = workerCountFor(intensity);
+    this._tier = tier;
+    const profile     = PROFILES[intensity];
+    const count       = workerCountFor(intensity, tier);
+    const computeMode = COMPUTE_MODE[tier];
+
     for (let i = 0; i < count; i++) {
       const w = createWorker();
       w.onmessage = (e: MessageEvent) => {
@@ -116,7 +131,7 @@ export class HeatEngine {
           });
         }
       };
-      w.postMessage({ type: 'start', duty: profile.duty });
+      w.postMessage({ type: 'start', duty: profile.duty, computeMode });
       this.workers.push(w);
     }
     this.gpu.begin(profile.gpu);
@@ -125,7 +140,7 @@ export class HeatEngine {
 
   setIntensity(intensity: Intensity) {
     if (!this._running) { this._intensity = intensity; return; }
-    this.start(intensity);
+    this.start(intensity, this._tier);
   }
 
   stop() {
