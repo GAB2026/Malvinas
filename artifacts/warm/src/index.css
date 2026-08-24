@@ -103,4 +103,15 @@
   .fire-glow {
     box-shadow: 0 0 80px 20px rgba(244, 91, 38, var(--glow-intensity, 0));
   }
+
+  /*
+   * Keep the duration selector clear of Android's navigation area. The
+   * minimum is intentionally larger than the previous 24px bottom padding:
+   * Android WebViews do not all expose system insets consistently, especially
+   * with edge-to-edge layouts. The env() value adds to the margin when it is
+   * available, without needing device- or Android-version-specific rules.
+   */
+  .warm-bottom-controls {
+    padding-bottom: max(3.5rem, calc(env(safe-area-inset-bottom, 0px) + 1.5rem));
+  }
 }

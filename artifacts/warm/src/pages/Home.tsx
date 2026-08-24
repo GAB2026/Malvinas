@@ -385,7 +385,7 @@ export default function Home() {
       </div>
 
       {/* ── BOTTOM: duration selector + footer ── */}
-      <div className="z-10 w-full max-w-sm flex flex-col gap-2 pb-6">
+      <div className="warm-bottom-controls z-10 w-full max-w-sm flex flex-col gap-2">
         <div className="flex gap-2">
           {DURATION_OPTIONS.map((mins) => {
             const locked = isLocked(mins);
