@@ -10,28 +10,34 @@ export interface CalibrationResult {
   lowMinutes: number;
   calibratedAt: number;
   usingRealSensor: boolean;
-  /** Device performance tier, determined by the startup benchmark. */
+  /** Device performance tier from the startup benchmark. */
   deviceTier: DeviceTier;
-  /** Measured kOps/s per worker during the 3-second benchmark. */
+  /** Measured kOps/s per worker during the 3-second FPU benchmark. */
   kOpsPerSec: number;
 }
 
 /**
- * Tier thresholds (kOps/s per single worker, FPU mode):
+ * Tier thresholds (kOps/s per single worker, FPU mode).
  *
- *  < 180  → budget   (A53/A55, software-emulated sin/cos; e.g. MT6762, SC9863A)
- *  180-399 → mid     (A55+, mid-range SoCs with partial hw transcendental)
- *  ≥ 400  → high    (A77+, Snapdragon 865+, full hardware FPU)
+ * Derived from the Excel SoC analysis (12 312 known configurations):
  *
- * When kOps/s is low (budget/mid), the engine switches workers to FMLA mode
- * which uses hardware multiply-accumulate — a net win in heat/cycle vs
- * software-emulated transcendentals.
+ *  ≥ 500  → flagship  (SD865 / Exynos 990 / Dimensity 9xxx — hw VFP, ~8–12 W)
+ *  300–499 → high_mid (SD7xx / Exynos 1xxx — hw FPU, ~5–8 W)
+ *  150–299 → mid      (SD6xx / Helio G9x — A55, libm sin/cos, ~3–5 W)
+ *  < 150  → budget    (SC9863A / MT6762 — A53/A55, libm, ~1–3 W)
+ *
+ * "Sin clasificar" OEMs land wherever the benchmark measures them — no special
+ * casing needed; the benchmark is the universal device fingerprint.
+ *
+ * These thresholds are deliberately conservative (real flagship chips will
+ * score much higher than 500).  Adjust after gathering real-device data.
  */
-const TIER_THRESHOLDS = { high: 400, mid: 180 } as const;
+const TIER_THRESHOLDS = { flagship: 500, high_mid: 300, mid: 150 } as const;
 
 function kOpsToTier(kOps: number): DeviceTier {
-  if (kOps >= TIER_THRESHOLDS.high) return 'high';
-  if (kOps >= TIER_THRESHOLDS.mid)  return 'mid';
+  if (kOps >= TIER_THRESHOLDS.flagship) return 'flagship';
+  if (kOps >= TIER_THRESHOLDS.high_mid) return 'high_mid';
+  if (kOps >= TIER_THRESHOLDS.mid)      return 'mid';
   return 'budget';
 }
 
@@ -46,22 +52,23 @@ const BASE_RESULT: Omit<CalibrationResult, 'deviceTier' | 'kOpsPerSec'> = {
 };
 
 /**
- * Run a 3-second single-worker benchmark in the background.
- * Resolves with measured kOps/s per worker.
- * Returns 0 on any error (engine falls back to 'high' tier safely).
+ * Run a 3-second single-worker benchmark in the background (FPU mode).
+ * Using FPU mode for the benchmark is intentional: it stress-tests the hardware
+ * FPU path.  Chips where sin/cos are software-emulated score low → correctly
+ * classified as mid/budget and switched to FMLA for the actual session.
+ * Resolves with kOps/s; returns 0 on any error (engine defaults to flagship).
  */
 function runBenchmark(): Promise<number> {
   return new Promise(resolve => {
     let worker: Worker | null = null;
     let totalIters = 0;
-    const START_MS = performance.now();
+    const START_MS   = performance.now();
     const DURATION_MS = 3000;
 
     const finish = () => {
       worker?.terminate();
       worker = null;
       const elapsed = performance.now() - START_MS;
-      // iters × 10 000 ops / elapsed_ms = kOps/s
       const kOps = elapsed > 0 ? Math.round(totalIters * 10_000 / elapsed) : 0;
       resolve(kOps);
     };
@@ -72,15 +79,12 @@ function runBenchmark(): Promise<number> {
         { type: 'module' },
       );
       worker.onmessage = (e: MessageEvent) => {
-        if (e.data?.type === 'heartbeat') {
-          totalIters += e.data.iters ?? 0;
-        }
+        if (e.data?.type === 'heartbeat') totalIters += e.data.iters ?? 0;
         if (performance.now() - START_MS >= DURATION_MS) finish();
       };
       worker.onerror = () => resolve(0);
       worker.postMessage({ type: 'start', duty: 1.0, computeMode: 'fpu' });
-      // Hard timeout in case postMessage callbacks stall
-      setTimeout(finish, DURATION_MS + 500);
+      setTimeout(finish, DURATION_MS + 500); // hard safety timeout
     } catch {
       resolve(0);
     }
@@ -92,7 +96,7 @@ export function useCalibration() {
   const [result, setResult] = useState<CalibrationResult>({
     ...BASE_RESULT,
     calibratedAt: Date.now(),
-    deviceTier: 'high', // optimistic default; updated after benchmark
+    deviceTier: 'flagship', // optimistic default; updated after benchmark
     kOpsPerSec: 0,
   });
 
@@ -100,14 +104,13 @@ export function useCalibration() {
     if (benchmarkRan.current) return;
     benchmarkRan.current = true;
 
-    // Defer benchmark by 1 frame so the first paint completes first
+    // Defer by one frame so the first paint completes before the worker starts
     requestAnimationFrame(() => {
       runBenchmark().then(kOps => {
-        const tier = kOpsToTier(kOps);
         setResult(prev => ({
           ...prev,
           calibratedAt: Date.now(),
-          deviceTier: tier,
+          deviceTier: kOpsToTier(kOps),
           kOpsPerSec: kOps,
         }));
       });

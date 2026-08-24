@@ -1,7 +1,30 @@
 import { GpuLoad } from './gpuLoad';
 
 export type Intensity = 'low' | 'medium' | 'high';
-export type DeviceTier = 'budget' | 'mid' | 'high';
+
+/**
+ * Device performance tier derived from the startup benchmark.
+ *
+ * Matches the 4-tier classification from the device Excel analysis:
+ *
+ *  flagship  — Snapdragon 865, Exynos 990, Dimensity 9xxx  (~8–12 W TDP)
+ *               328 configs (2.7 %).  Full hardware VFP transcendentals.
+ *
+ *  high_mid  — Snapdragon 7xx, Exynos 1xxx                 (~5–8 W TDP)
+ *               205 configs (1.7 %).  Hardware FPU but lower clock / core count.
+ *
+ *  mid       — Snapdragon 6xx, Helio G9x                   (~3–5 W TDP)
+ *               936 configs (7.6 %).  A55 cores; sin/cos software-emulated
+ *               (libm); FMLA generates more heat per cycle than emulated tan.
+ *
+ *  budget    — Spreadtrum SC9863A, MT6762, misc OEMs        (~1–3 W TDP)
+ *               5 835 configs (47.4 %).  A53/A55 with weak FPU; FMLA is the
+ *               only hardware-accelerated path for sustained heat.
+ *
+ * "Sin clasificar" (~40 % of the sheet) land in whichever tier the benchmark
+ * measures — no special handling needed.
+ */
+export type DeviceTier = 'flagship' | 'high_mid' | 'mid' | 'budget';
 
 interface IntensityProfile {
   workerFraction: number;
@@ -16,40 +39,43 @@ const PROFILES: Record<Intensity, IntensityProfile> = {
 };
 
 /**
- * How many extra workers to spawn beyond navigator.hardwareConcurrency
- * at HIGH intensity, per device tier.
+ * Extra workers beyond navigator.hardwareConcurrency at HIGH intensity.
  *
- * budget: 0 extra — over-subscribing budget chips causes more OS throttling
- *         than it adds heat.  Every core already gets one dedicated worker.
- * mid:    +1 — one extra to catch any efficiency cluster the OS may leave idle.
- * high:   +2 — flagship chips have big.LITTLE clusters; extra workers ensure
- *         the scheduler puts work on ALL physical cores.
+ * flagship  +3: big.LITTLE clusters (4P+4E) need extra tasks to force the OS
+ *               scheduler to park work on all efficiency cores too.
+ * high_mid  +2: similar big.LITTLE but fewer performance cores.
+ * mid       +1: one extra to catch any idle E-core.
+ * budget     0: over-subscribing A53/A55 clusters triggers thermal throttling
+ *               faster than it adds heat; one worker per logical core is optimal.
  */
 const HIGH_EXTRA: Record<DeviceTier, number> = {
-  budget: 0,
-  mid:    1,
-  high:   2,
+  flagship: 3,
+  high_mid: 2,
+  mid:      1,
+  budget:   0,
 };
 
 /**
- * Compute mode per device tier.
+ * Compute mode per tier.
  *
- * budget/mid: 'fmla' — 8-chain float multiply-accumulate.  Generates more heat
- *   than software-emulated sin/cos/tan on Cortex-A53/A55 because FMLA is a
- *   real hardware instruction on every ARM core since Cortex-A5.
+ * flagship / high_mid → 'fpu': sin/cos/tan/atan2/sqrt are hardware VFP
+ *   instructions on Cortex-A77+ and equivalent; they generate maximum heat.
  *
- * high: 'fpu' — transcendental chains (sin/cos/tan/atan2/sqrt).  These ARE
- *   hardware on A77+ and generate the most heat per cycle on flagship chips.
+ * mid / budget → 'fmla': transcendentals are SOFTWARE-EMULATED on A55/A53
+ *   (libm), so they are slow and cool.  FMLA (float multiply-accumulate) IS
+ *   hardware on every ARM core since Cortex-A5; 8 independent chains keep
+ *   both FPU issue slots full — net heat/cycle beats software sin/cos by 3–5×.
  */
 const COMPUTE_MODE: Record<DeviceTier, 'fpu' | 'fmla'> = {
-  budget: 'fmla',
-  mid:    'fmla',
-  high:   'fpu',
+  flagship: 'fpu',
+  high_mid: 'fpu',
+  mid:      'fmla',
+  budget:   'fmla',
 };
 
 /**
  * Data reported by each worker on every heartbeat (~every 500 ms).
- * - iters: number of completed 10 k-op blocks in this burn slice.
+ * - iters: completed 10 k-op blocks (valid throttle signal).
  * - checksum: opaque FP result that prevents dead-code elimination.
  */
 export interface WorkerHeartbeat {
@@ -61,7 +87,7 @@ function createWorker(): Worker {
   return new Worker(new URL('./cpuWorker.ts', import.meta.url), { type: 'module' });
 }
 
-export function workerCountFor(intensity: Intensity, tier: DeviceTier = 'high'): number {
+export function workerCountFor(intensity: Intensity, tier: DeviceTier = 'flagship'): number {
   const cores = Math.max(2, navigator.hardwareConcurrency || 4);
   if (intensity === 'high') return cores + HIGH_EXTRA[tier];
   return Math.max(1, Math.round(cores * PROFILES[intensity].workerFraction));
@@ -72,7 +98,7 @@ export class HeatEngine {
   private gpu = new GpuLoad();
   private _running = false;
   private _intensity: Intensity = 'medium';
-  private _tier: DeviceTier = 'high';
+  private _tier: DeviceTier = 'flagship';
   private _heartbeatHandlers: Array<(hb: WorkerHeartbeat) => void> = [];
 
   // ── Burst scheduling ─────────────────────────────────────────────────────────
@@ -113,10 +139,10 @@ export class HeatEngine {
     this._burstHandle = setTimeout(() => this._burstStep(!isHigh), isHigh ? 1500 : 500);
   }
 
-  start(intensity: Intensity, tier: DeviceTier = 'high') {
+  start(intensity: Intensity, tier: DeviceTier = 'flagship') {
     this.stop();
     this._intensity = intensity;
-    this._tier = tier;
+    this._tier      = tier;
     const profile     = PROFILES[intensity];
     const count       = workerCountFor(intensity, tier);
     const computeMode = COMPUTE_MODE[tier];

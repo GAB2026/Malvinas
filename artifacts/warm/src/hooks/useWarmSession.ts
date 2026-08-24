@@ -144,7 +144,7 @@ export interface WarmSession {
 
 // ── Implementation ─────────────────────────────────────────────────────────────
 export function useWarmSession(calibration: CalibrationResult | null): WarmSession {
-  const tier: DeviceTier = calibration?.deviceTier ?? 'high';
+  const tier: DeviceTier = calibration?.deviceTier ?? 'flagship';
   const engineRef = useRef<HeatEngine | null>(null);
   if (!engineRef.current) engineRef.current = new HeatEngine();
 
